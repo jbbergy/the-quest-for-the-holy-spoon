@@ -1,0 +1,31 @@
+/**
+ * Contraste renforcé.
+ *
+ * Toutes les paires texte/fond dépassent 7:1 (niveau AAA), et les bordures sont
+ * portées à la couleur du texte : les contours ne reposent plus sur une nuance
+ * faible, ce qui rend les champs et cartes lisibles en basse vision comme en
+ * plein soleil.
+ */
+:root[data-theme='contraste'] {
+  --color-bg: #000000;
+  --color-surface: #000000;
+  --color-surface-raised: #101010;
+  --color-border: #ffffff;
+  --color-text: #ffffff;
+  --color-text-muted: #e0e0e0;
+  --color-accent: #ffd400;
+  --color-accent-contrast: #000000;
+  --color-accent-soft: #33291f;
+  --color-danger: #ff8f85;
+  --color-danger-soft: #2b0f0c;
+  --color-success: #7cf5a8;
+  --color-focus: #ffd400;
+
+  --color-protein: #ffb08a;
+  --color-carbs: #8fd0ff;
+  --color-fat: #ffe08a;
+  --color-fiber: #b5f57c;
+
+  --shadow-sm: none;
+  --shadow-md: none;
+}

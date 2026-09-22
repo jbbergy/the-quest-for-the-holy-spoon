@@ -1,0 +1,30 @@
+/**
+ * Crépuscule — thème sombre.
+ *
+ * Les surfaces s'éclaircissent avec l'élévation (`surface` < `surface-raised`),
+ * convention inverse du thème clair : sur fond sombre, c'est la lumière qui
+ * fait avancer un élément, pas l'ombre.
+ */
+:root[data-theme='crepuscule'] {
+  --color-bg: #14151a;
+  --color-surface: #1c1e25;
+  --color-surface-raised: #252832;
+  --color-border: #343845;
+  --color-text: #eceef4;
+  --color-text-muted: #a3a8b8;
+  --color-accent: #d9a441;
+  --color-accent-contrast: #1a1508;
+  --color-accent-soft: #3a2f16;
+  --color-danger: #f0908a;
+  --color-danger-soft: #3d1f1d;
+  --color-success: #79d39e;
+  --color-focus: #d9a441;
+
+  --color-protein: #f2a07a;
+  --color-carbs: #7cc0ee;
+  --color-fat: #e8c471;
+  --color-fiber: #a9cf7e;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 45%);
+}

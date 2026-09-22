@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Cuillère">
+  <rect width="100" height="100" fill="#8a5a19"/>
+  <g fill="#fbfaf7" transform="rotate(-18.00 50 50)">
+    <ellipse cx="50" cy="32" rx="14.499999999999998" ry="19.5"/>
+    <rect x="44.5" y="46" width="11" height="38.99999999999999" rx="5.5"/>
+  </g>
+</svg>

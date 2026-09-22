@@ -1,0 +1,88 @@
+/**
+ * Fondations d'accessibilité (WCAG 2.2 AA).
+ *
+ * Elles sont posées ici, une fois, plutôt que répétées composant par composant :
+ * une règle de focus oubliée sur un seul bouton suffit à rendre l'application
+ * inutilisable au clavier.
+ */
+
+/**
+ * Focus visible — critère 2.4.7, et 2.4.11 « Focus non masqué » de WCAG 2.2.
+ *
+ * `:focus-visible` et non `:focus` : le contour n'apparaît qu'à la navigation
+ * clavier, jamais au clic souris. `outline-offset` garantit que l'anneau ne soit
+ * pas rogné par un `overflow: hidden` voisin, ce qui est exactement le cas que
+ * le critère 2.4.11 vise.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/** Lien d'évitement — critère 2.4.1 : atteindre le contenu sans traverser la navigation. */
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+
+  /* Même cible tactile que les autres commandes : le premier élément de la page
+     ne doit pas être le plus difficile à atteindre. */
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-weight: 600;
+  transform: translateY(-200%);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/**
+ * Contenu réservé aux lecteurs d'écran.
+ *
+ * Il reste dans le flux (1px, `clip-path`) plutôt que masqué par
+ * `display: none`, qui le retirerait de l'arbre d'accessibilité.
+ */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/** La cible de saisie descend rarement sous 44px — critère 2.5.8 de WCAG 2.2. */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/**
+ * Mouvement réduit.
+ *
+ * Neutralise les transitions CSS d'office. GSAP, lui, n'est pas concerné par
+ * cette règle : il anime en JavaScript et consulte la même préférence via
+ * `useReducedMotion`.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,91 @@
+/**
+ * Feuille maîtresse.
+ *
+ * Ordre volontaire : jetons, puis thèmes (qui les écrasent), puis réinitialisation
+ * et éléments de base (qui les consomment). Inverser ferait référencer des
+ * variables encore indéfinies.
+ */
+@use 'tokens';
+
+@use 'themes/aube/variables' as aube;
+@use 'themes/crepuscule/variables' as crepuscule;
+@use 'themes/contraste/variables' as contraste;
+
+@use 'a11y';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Le défilement fluide n'est activé que si l'utilisateur ne l'a pas refusé ;
+     `_a11y.scss` le neutralise sinon. */
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  -webkit-font-smoothing: antialiased;
+  transition:
+    background-color var(--duration-normal) var(--ease-out),
+    color var(--duration-normal) var(--ease-out);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 var(--space-3);
+  line-height: var(--line-height-tight);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+h1 {
+  font-size: var(--font-size-xl);
+}
+
+h2 {
+  font-size: var(--font-size-lg);
+}
+
+h3 {
+  font-size: var(--font-size-md);
+}
+
+p {
+  margin: 0 0 var(--space-3);
+}
+
+a {
+  color: var(--color-accent);
+  text-underline-offset: 0.2em;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+img {
+  max-width: 100%;
+}
+
+/* Désactive l'incrémentation native des champs numériques : les pas de 1 n'ont
+   aucun sens pour des grammes, et les flèches volent de la place à la saisie. */
+input[type='number'] {
+  appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}

@@ -1,0 +1,72 @@
+/**
+ * Contrat de jetons de design.
+ *
+ * Ce fichier déclare les **noms** de variables que tout thème doit fournir, avec
+ * des valeurs de repli neutres. Les thèmes ne redéfinissent que les couleurs :
+ * espacements, rayons et durées restent communs, sans quoi chaque thème pourrait
+ * casser la mise en page au lieu de se contenter de l'habiller.
+ *
+ * Aucune valeur de couleur n'existe en JavaScript : c'est le sélecteur
+ * `[data-theme]` qui redéfinit ces variables sur `:root`.
+ */
+:root {
+  /* Couleurs — repli neutre, systématiquement écrasé par un thème. */
+  --color-bg: #ffffff;
+  --color-surface: #f6f6f7;
+  --color-surface-raised: #ffffff;
+  --color-border: #d9d9de;
+  --color-text: #17171b;
+  --color-text-muted: #5b5b66;
+  --color-accent: #4c4ce0;
+  --color-accent-contrast: #ffffff;
+  --color-accent-soft: #e8e8fb;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fbe9e7;
+  --color-success: #1d6b3f;
+  --color-focus: #4c4ce0;
+
+  /* Macronutriments — une teinte par macro, stable d'un thème à l'autre pour
+     que l'utilisateur n'ait pas à réapprendre le code couleur. */
+  --color-protein: #c2410c;
+  --color-carbs: #0369a1;
+  --color-fat: #a16207;
+
+  /* Échelle d'espacement, base 4px. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-8: 3rem;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 8%);
+  --shadow-md: 0 4px 16px rgb(0 0 0 / 10%);
+
+  /* Typographie — police système : aucun téléchargement, donc aucun saut de
+     rendu au premier affichage, ce qui compte pour une PWA hors-ligne. */
+  --font-sans:
+    system-ui, -apple-system, 'Segoe UI', roboto, 'Helvetica Neue', arial, sans-serif;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-xl: 1.75rem;
+  --font-size-2xl: 2.25rem;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.55;
+
+  /* Durées d'animation, lues par GSAP comme par les transitions CSS. */
+  --duration-fast: 0.18s;
+  --duration-normal: 0.32s;
+  --duration-slow: 0.6s;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --layout-max-width: 44rem;
+}

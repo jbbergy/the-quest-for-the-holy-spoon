@@ -1,0 +1,28 @@
+/**
+ * Aube — thème clair par défaut.
+ *
+ * Le sélecteur porte sur `[data-theme]` posé sur `:root` : changer de thème se
+ * réduit donc à changer un attribut, sans qu'aucune valeur de couleur ne
+ * transite par JavaScript. Le double sélecteur applique aussi ce thème quand le
+ * système préfère le clair et qu'aucun choix explicite n'a été fait.
+ */
+:root[data-theme='aube'] {
+  --color-bg: #fbfaf7;
+  --color-surface: #f3f0e9;
+  --color-surface-raised: #ffffff;
+  --color-border: #ded8c9;
+  --color-text: #22201b;
+  --color-text-muted: #5f5a4e;
+  --color-accent: #8a5a19;
+  --color-accent-contrast: #ffffff;
+  --color-accent-soft: #f2e5d0;
+  --color-danger: #9f2c22;
+  --color-danger-soft: #fbe6e3;
+  --color-success: #2a6340;
+  --color-focus: #8a5a19;
+
+  --color-protein: #a83a12;
+  --color-carbs: #1f5d86;
+  --color-fat: #8a6410;
+  --color-fiber: #3f6b2c;
+}

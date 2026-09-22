@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <title>The Quest for the Holy Spoon</title>
+    <meta name="description" content="Apprendre à manger équilibré, une quête à la fois." />
+
+    <!--
+      La couleur de la barre système suit la préférence du système, pas le thème
+      choisi dans les réglages : la peindre depuis JavaScript contredirait la
+      règle qui veut qu'aucune couleur ne transite par le code (le thème n'est
+      qu'un attribut `data-theme`). Ces deux valeurs reprennent le `--color-bg`
+      d'« Aube » et de « Crépuscule ».
+    -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbfaf7" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#14151a" />
+
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <!-- iOS ignore le manifeste : le mode plein écran s'y déclare encore ainsi. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Holy Spoon" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
