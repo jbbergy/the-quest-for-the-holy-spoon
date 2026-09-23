@@ -7,7 +7,7 @@
  * unité obligerait l'utilisateur à convertir ce qui est écrit sur l'emballage.
  */
 import { computed, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { type RouteLocationRaw, useRoute, useRouter } from 'vue-router'
 
 import { ROUTE } from '@/app/router'
 import { KCAL_PER_GRAM } from '@/core/nutrition/Macros'
@@ -18,7 +18,26 @@ import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
+const route = useRoute()
 const router = useRouter()
+
+/**
+ * Où revenir une fois l'aliment créé, avec l'aliment présélectionné.
+ *
+ * Le repas d'où l'on vient, s'il est donné dans `?retour=` ; sinon un nouveau
+ * repas pour aujourd'hui. Seule une adresse d'éditeur de repas est acceptée :
+ * une autre destination n'aurait que faire d'un aliment présélectionné.
+ */
+function returnTo(foodId: string): RouteLocationRaw {
+  const requested = route.query.retour
+  if (typeof requested === 'string') {
+    const target = router.resolve(requested)
+    if (target.name === ROUTE.mealEditor) {
+      return { name: ROUTE.mealEditor, params: target.params, query: { ...target.query, aliment: foodId } }
+    }
+  }
+  return { name: ROUTE.mealEditor, query: { aliment: foodId } }
+}
 const search = useFoodSearchStore()
 
 const name = ref('')
@@ -75,7 +94,7 @@ async function submit(): Promise<void> {
   })
   submitting.value = false
 
-  if (created !== null) await router.push({ name: ROUTE.mealBuilder, query: { food: created.id } })
+  if (created !== null) await router.push(returnTo(created.id))
 }
 </script>
 

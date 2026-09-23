@@ -23,8 +23,14 @@ const props = withDefaults(
     autocomplete?: string
     placeholder?: string
     suffix?: string
+    /**
+     * Saisie à reproduire telle quelle — adresse, mot de passe : ni correcteur
+     * orthographique, ni majuscule automatique en début de champ, qui ferait
+     * échouer une connexion sur mobile sans que rien ne l'explique.
+     */
+    verbatim?: boolean
   }>(),
-  { type: 'text', required: false },
+  { type: 'text', required: false, verbatim: false },
 )
 
 defineEmits<{ 'update:modelValue': [string | number] }>()
@@ -84,6 +90,9 @@ const onInput = (event: Event): string | number => {
         :placeholder="placeholder"
         :aria-describedby="describedBy"
         :aria-invalid="error ? 'true' : undefined"
+        :spellcheck="verbatim ? false : undefined"
+        :autocapitalize="verbatim ? 'none' : undefined"
+        :autocorrect="verbatim ? 'off' : undefined"
         @input="$emit('update:modelValue', onInput($event))"
       >
       <span
@@ -91,6 +100,10 @@ const onInput = (event: Event): string | number => {
         class="field__suffix"
         aria-hidden="true"
       >{{ suffix }}</span>
+      <slot
+        name="trailing"
+        :input-id="id"
+      />
     </div>
 
     <p

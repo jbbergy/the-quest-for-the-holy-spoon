@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { type DayKey, dayKeyOf, parseDayKey } from '@/core/day'
 import { idFrom, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
@@ -47,6 +48,12 @@ const entryOf = (item: FoodItem, grams: number): MealEntry => {
   const result = MealEntry.fromFoodItem(item, quantityOf(grams))
   if (!isOk(result)) throw new Error('ligne de test invalide')
   return result.value
+}
+
+const day = (text: string): DayKey => {
+  const parsed = parseDayKey(text)
+  if (parsed === null) throw new Error(`jour de test invalide : ${text}`)
+  return parsed
 }
 
 const mealOf = (entries: readonly MealEntry[] = []): Meal => {
@@ -254,6 +261,7 @@ describe('Meal', () => {
       playerId,
       type: MealType.DINNER,
       loggedAt: new Date('2026-01-01T20:00:00.000Z'),
+      plannedFor: day('2026-01-01'),
       entries: [entryOf(rice, 150)],
       consumedAt: null,
     })
@@ -271,7 +279,9 @@ describe('état « pris »', () => {
   })
 
   it('markConsumed retourne un nouveau repas sans toucher à l’original', () => {
-    const original = mealOf([entryOf(rice, 100)])
+    // Jour prévu fixe : un repas prévu « aujourd'hui » ne pourrait pas être
+    // déclaré pris à une date antérieure.
+    const original = plannedMeal('2026-04-10')
 
     const eaten = original.markConsumed(new Date('2026-04-10T12:45:00.000Z'))
 
@@ -286,7 +296,8 @@ describe('état « pris »', () => {
 
   it('copie la date reçue', () => {
     const at = new Date('2026-04-10T12:45:00.000Z')
-    const eaten = mealOf([entryOf(rice, 100)]).markConsumed(at)
+    const eaten = plannedMeal('2026-04-10').markConsumed(at)
+    expect(isOk(eaten)).toBe(true)
 
     at.setFullYear(1999)
 
@@ -307,7 +318,7 @@ describe('état « pris »', () => {
 
     const again = eaten.value.markConsumed()
 
-    // C'est ce refus qui permet de ne récompenser qu'une fois le même repas.
+    // C'est ce refus qui distingue « rien à faire » d'un vrai changement d'état.
     expect(isErr(again)).toBe(true)
   })
 
@@ -390,5 +401,88 @@ describe('état « pris »', () => {
     if (!isOk(eaten)) throw new Error('marquage initial échoué')
 
     expect(eaten.value.retype(MealType.SNACK).isConsumed).toBe(true)
+  })
+
+  it('accepte après coup un repas d’un jour passé', () => {
+    // Le dîner d'hier qu'on a oublié de cocher.
+    const yesterday = plannedMeal('2026-09-22')
+
+    expect(isOk(yesterday.markConsumed(new Date(2026, 8, 23, 9)))).toBe(true)
+  })
+
+  it('refuse un repas prévu pour un jour à venir', () => {
+    const tomorrow = plannedMeal('2026-09-24')
+
+    const result = tomorrow.markConsumed(new Date(2026, 8, 23, 21))
+
+    expect(isErr(result)).toBe(true)
+    if (isErr(result)) expect(result.error.code).toBe('INVALID_MEAL')
+  })
+
+  it('accepte le repas du jour même en toute fin de journée', () => {
+    expect(isOk(plannedMeal('2026-09-23').markConsumed(new Date(2026, 8, 23, 23, 59)))).toBe(true)
+  })
+})
+
+function plannedMeal(plannedFor: string): Meal {
+  const result = Meal.create({
+    playerId,
+    type: MealType.DINNER,
+    plannedFor: day(plannedFor),
+    entries: [entryOf(rice, 100)],
+  })
+  if (!isOk(result)) throw new Error('repas de test invalide')
+  return result.value
+}
+
+describe('jour prévu', () => {
+  it('vaut par défaut le jour où le repas est composé', () => {
+    const loggedAt = new Date(2026, 8, 23, 22, 30)
+    const result = Meal.create({ playerId, type: MealType.DINNER, loggedAt })
+
+    // Heure locale : un dîner composé à 22 h 30 reste sur sa journée.
+    expect(isOk(result) && result.value.plannedFor).toBe(dayKeyOf(loggedAt))
+  })
+
+  it('peut viser un autre jour que celui de la composition', () => {
+    // Composer dimanche le dîner de jeudi : c'est tout l'objet de la planification.
+    const meal = plannedMeal('2026-09-24')
+
+    expect(meal.plannedFor).toBe('2026-09-24')
+    expect(dayKeyOf(meal.loggedAt)).not.toBe('2026-09-24')
+  })
+
+  it('reschedule déplace le repas dans une nouvelle instance', () => {
+    const meal = plannedMeal('2026-09-24')
+
+    const moved = meal.reschedule(day('2026-09-25'))
+
+    expect(isOk(moved)).toBe(true)
+    if (isOk(moved)) {
+      expect(moved.value).not.toBe(meal)
+      expect(moved.value.plannedFor).toBe('2026-09-25')
+      expect(moved.value.entryCount).toBe(1)
+    }
+    expect(meal.plannedFor).toBe('2026-09-24')
+  })
+
+  it('refuse de déplacer un repas déjà pris', () => {
+    // Ses apports ont compté pour une journée : les déplacer réécrirait deux jours.
+    const eaten = plannedMeal('2026-09-22').markConsumed(new Date(2026, 8, 22, 20))
+    if (!isOk(eaten)) throw new Error('marquage initial échoué')
+
+    const result = eaten.value.reschedule(day('2026-09-23'))
+
+    expect(isErr(result)).toBe(true)
+    if (isErr(result)) expect(result.error.code).toBe('INVALID_MEAL')
+  })
+
+  it('survit aux autres modifications', () => {
+    const meal = plannedMeal('2026-09-24')
+    const added = meal.addEntry(entryOf(chicken, 120))
+    if (!isOk(added)) throw new Error('ajout échoué')
+
+    expect(added.value.plannedFor).toBe('2026-09-24')
+    expect(added.value.retype(MealType.LUNCH).plannedFor).toBe('2026-09-24')
   })
 })

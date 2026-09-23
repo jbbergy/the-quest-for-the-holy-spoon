@@ -1,11 +1,11 @@
 /**
- * Read models et payloads d'événement exposés par `nutrition_inventory`.
+ * Read models exposés par `nutrition_inventory`.
  *
  * Ils vivent dans un fichier distinct de `index.ts` pour que les Use Cases
  * puissent les importer sans créer de cycle avec la façade qui, elle, réexporte
  * les Use Cases.
  */
-import { createEvent, type DomainEvent } from '@/core/events'
+import type { DayKey } from '@/core/day'
 import type { FoodItemId, MealEntryId, MealId, PlayerId } from '@/core/identity'
 import type { MacrosProps } from '@/core/nutrition/Macros'
 import type { NutrientDetailProps } from '@/core/nutrition/NutrientDetail'
@@ -14,7 +14,7 @@ import type { FoodItem, FoodTag } from '../domain/FoodItem'
 import type { Meal, MealType } from '../domain/Meal'
 
 /**
- * Une ligne de repas, telle que le journal l'affiche et la modifie.
+ * Une ligne de repas, telle que l'éditeur de repas l'affiche et la modifie.
  *
  * `entryId` en fait partie parce que c'est lui qu'attendent
  * `RemoveMealEntryUseCase` et `ChangeMealEntryQuantityUseCase` : sans lui, la
@@ -29,12 +29,14 @@ export interface MealEntrySummary {
   readonly calories: number
 }
 
-/** Read model consommé par `planning` et `gamification`. */
+/** Read model consommé par `planning` et par la présentation. */
 export interface MealSummary {
   readonly mealId: MealId
   readonly playerId: PlayerId
   readonly type: MealType
   readonly loggedAt: string
+  /** Jour auquel le repas appartient. */
+  readonly plannedFor: DayKey
   /** `null` tant que le repas n'est que prévu : il ne compte pas dans les totaux. */
   readonly consumedAt: string | null
   readonly entryCount: number
@@ -45,7 +47,7 @@ export interface MealSummary {
   /**
    * Le détail des lignes, et non la seule liste des noms.
    *
-   * C'était `foodNames` tant que le journal se contentait d'afficher ; corriger
+   * C'était `foodNames` tant qu'on se contentait d'afficher ; corriger
    * une portion demande l'identifiant et la quantité de chaque ligne, et tenir
    * les deux formes côte à côte aurait dupliqué la même information.
    */
@@ -59,6 +61,7 @@ export function toMealSummary(meal: Meal): MealSummary {
     playerId: meal.playerId,
     type: meal.type,
     loggedAt: meal.loggedAt.toISOString(),
+    plannedFor: meal.plannedFor,
     consumedAt: meal.consumedAt === null ? null : meal.consumedAt.toISOString(),
     entryCount: meal.entryCount,
     macros: totals.macros.toJSON(),
@@ -72,35 +75,6 @@ export function toMealSummary(meal: Meal): MealSummary {
       calories: entry.calories(),
     })),
   }
-}
-
-export const MEAL_LOGGED = 'nutrition_inventory.meal_logged' as const
-
-export interface MealLoggedPayload {
-  readonly mealId: MealId
-  readonly playerId: PlayerId
-  readonly type: MealType
-  readonly entryCount: number
-  readonly macros: MacrosProps
-  readonly calories: number
-}
-
-export type MealLoggedEvent = DomainEvent<typeof MEAL_LOGGED, MealLoggedPayload>
-
-export function mealLoggedEvent(meal: Meal, occurredAt?: Date): MealLoggedEvent {
-  const totals = meal.calculateTotals()
-  return createEvent(
-    MEAL_LOGGED,
-    {
-      mealId: meal.id,
-      playerId: meal.playerId,
-      type: meal.type,
-      entryCount: meal.entryCount,
-      macros: totals.macros.toJSON(),
-      calories: totals.calories,
-    },
-    occurredAt,
-  )
 }
 
 /**
@@ -123,6 +97,8 @@ export interface MealExport {
   readonly id: MealId
   readonly type: MealType
   readonly loggedAt: string
+  /** Jour auquel le repas appartient — distinct de `loggedAt` depuis la planification. */
+  readonly plannedFor: string
   /** `null` pour un repas composé mais jamais pris : la distinction survit à l'export. */
   readonly consumedAt: string | null
   readonly calories: number
@@ -136,6 +112,7 @@ export function toMealExport(meal: Meal): MealExport {
     id: meal.id,
     type: meal.type,
     loggedAt: meal.loggedAt.toISOString(),
+    plannedFor: meal.plannedFor,
     consumedAt: meal.consumedAt === null ? null : meal.consumedAt.toISOString(),
     calories: totals.calories,
     detail: totals.detail.toJSON(),

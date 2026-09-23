@@ -5,3 +5,6 @@ coverage
 *.local
 
 .claude/settings.local.json
+
+# Base PGlite de développement du serveur
+server/.data

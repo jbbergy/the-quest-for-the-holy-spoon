@@ -1,3 +1,4 @@
+import { type DayKey, dayKeyOf } from '@/core/day'
 import { DomainError, InvalidMealError } from '@/core/errors'
 import { type MealId, newId, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
@@ -26,6 +27,8 @@ export interface MealProps {
   readonly playerId: PlayerId
   readonly type: MealType
   readonly loggedAt: Date
+  /** Jour pour lequel le repas est prévu — celui où il compte, pas celui où on l'a composé. */
+  readonly plannedFor: DayKey
   readonly entries: readonly MealEntry[]
   /** Date de consommation réelle, ou `null` tant que le repas n'est que prévu. */
   readonly consumedAt: Date | null
@@ -40,10 +43,13 @@ const MAX_ENTRIES = 100
  * `ref` Vue d'être réassignées et donc aux watchers (et à GSAP) de se déclencher
  * de façon prévisible, sans wrapper l'entité dans `reactive()`.
  *
- * Un repas a **deux temps distincts** : `loggedAt`, quand il a été composé, et
- * `consumedAt`, quand il a effectivement été mangé. Seul le second fait entrer
- * ses apports dans les totaux de la journée — composer un repas à l'avance ne
- * doit pas remplir les jauges de quelqu'un qui n'a encore rien mangé.
+ * Un repas porte **trois repères distincts** :
+ * - `loggedAt`, quand il a été composé ;
+ * - `plannedFor`, le jour auquel il appartient — composer dimanche le dîner de
+ *   jeudi le range jeudi, c'est tout l'objet de la planification ;
+ * - `consumedAt`, quand il a effectivement été mangé. Seul ce dernier fait
+ *   entrer ses apports dans les totaux — composer un repas à l'avance ne doit
+ *   pas remplir les jauges de quelqu'un qui n'a encore rien mangé.
  */
 export class Meal {
   private constructor(
@@ -51,6 +57,7 @@ export class Meal {
     readonly playerId: PlayerId,
     readonly type: MealType,
     readonly loggedAt: Date,
+    readonly plannedFor: DayKey,
     readonly entries: readonly MealEntry[],
     readonly consumedAt: Date | null,
   ) {}
@@ -59,6 +66,8 @@ export class Meal {
     readonly playerId: PlayerId
     readonly type: MealType
     readonly loggedAt?: Date
+    /** Par défaut, le jour où le repas est composé. */
+    readonly plannedFor?: DayKey
     readonly entries?: readonly MealEntry[]
     readonly id?: MealId
   }): Result<Meal, InvalidMealError> {
@@ -81,6 +90,7 @@ export class Meal {
         props.playerId,
         props.type,
         new Date(loggedAt.getTime()),
+        props.plannedFor ?? dayKeyOf(loggedAt),
         Object.freeze([...entries]),
         null,
       ),
@@ -93,6 +103,7 @@ export class Meal {
       props.playerId,
       props.type,
       props.loggedAt,
+      props.plannedFor,
       Object.freeze([...props.entries]),
       props.consumedAt,
     )
@@ -173,7 +184,39 @@ export class Meal {
   }
 
   retype(type: MealType): Meal {
-    return new Meal(this.id, this.playerId, type, this.loggedAt, this.entries, this.consumedAt)
+    return new Meal(
+      this.id,
+      this.playerId,
+      type,
+      this.loggedAt,
+      this.plannedFor,
+      this.entries,
+      this.consumedAt,
+    )
+  }
+
+  /**
+   * Déplace le repas à un autre jour.
+   *
+   * Refusé une fois le repas pris, pour la même raison que toute autre
+   * modification : ses apports sont entrés dans les totaux d'une journée, et les
+   * transporter ailleurs réécrirait deux journées d'un coup.
+   */
+  reschedule(plannedFor: DayKey): Result<Meal, InvalidMealError> {
+    const locked = this.editingRefusal()
+    if (locked !== null) return err(locked)
+
+    return ok(
+      new Meal(
+        this.id,
+        this.playerId,
+        this.type,
+        this.loggedAt,
+        plannedFor,
+        this.entries,
+        this.consumedAt,
+      ),
+    )
   }
 
   /**
@@ -181,8 +224,7 @@ export class Meal {
    * totaux du jour.
    *
    * Refuser le second marquage n'est pas du zèle — c'est ce qui permet à
-   * l'appelant de distinguer « rien à faire » d'un vrai changement d'état, et
-   * donc de ne récompenser qu'une fois le même repas.
+   * l'appelant de distinguer « rien à faire » d'un vrai changement d'état.
    */
   markConsumed(at: Date = new Date()): Result<Meal, InvalidMealError> {
     if (this.isEmpty) {
@@ -193,6 +235,14 @@ export class Meal {
     }
     if (Number.isNaN(at.getTime())) {
       return err(new InvalidMealError('La date de consommation est invalide.'))
+    }
+    // Un repas de demain déclaré pris aujourd'hui compterait dans une journée qui
+    // n'a pas encore eu lieu. Un repas passé, lui, peut l'être après coup : c'est
+    // le dîner d'hier qu'on a oublié de cocher.
+    if (this.plannedFor > dayKeyOf(at)) {
+      return err(
+        new InvalidMealError('Un repas prévu pour un jour à venir ne peut pas encore être pris.'),
+      )
     }
 
     return ok(this.withConsumedAt(new Date(at.getTime())))
@@ -228,7 +278,15 @@ export class Meal {
   }
 
   private withConsumedAt(consumedAt: Date | null): Meal {
-    return new Meal(this.id, this.playerId, this.type, this.loggedAt, this.entries, consumedAt)
+    return new Meal(
+      this.id,
+      this.playerId,
+      this.type,
+      this.loggedAt,
+      this.plannedFor,
+      this.entries,
+      consumedAt,
+    )
   }
 
   /**
@@ -248,6 +306,7 @@ export class Meal {
       this.playerId,
       this.type,
       this.loggedAt,
+      this.plannedFor,
       Object.freeze([...entries]),
       this.consumedAt,
     )

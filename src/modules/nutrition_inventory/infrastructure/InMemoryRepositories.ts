@@ -1,4 +1,4 @@
-import { dayKeyOf } from '@/core/day'
+import { type DayKey, dayKeyOf } from '@/core/day'
 import type { RepositoryError } from '@/core/errors'
 import type { FoodItemId, MealId, PlayerId } from '@/core/identity'
 import { tokenize } from '@/core/infrastructure/text'
@@ -84,8 +84,25 @@ export class InMemoryMealRepository implements IMealRepository {
   ): Promise<Result<Meal[], RepositoryError>> {
     const key = dayKeyOf(day)
     const found = [...this.meals.values()]
-      .filter((meal) => meal.playerId === playerId && dayKeyOf(meal.loggedAt) === key)
+      .filter((meal) => meal.playerId === playerId && meal.plannedFor === key)
       .sort((a, b) => a.loggedAt.getTime() - b.loggedAt.getTime())
+
+    return ok(found)
+  }
+
+  async findByPlayerBetween(
+    playerId: PlayerId,
+    from: DayKey,
+    to: DayKey,
+  ): Promise<Result<Meal[], RepositoryError>> {
+    const found = [...this.meals.values()]
+      .filter(
+        (meal) => meal.playerId === playerId && meal.plannedFor >= from && meal.plannedFor <= to,
+      )
+      .sort(
+        (a, b) =>
+          a.plannedFor.localeCompare(b.plannedFor) || a.loggedAt.getTime() - b.loggedAt.getTime(),
+      )
 
     return ok(found)
   }

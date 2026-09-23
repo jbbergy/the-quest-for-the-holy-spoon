@@ -9,14 +9,24 @@ import { openDatabase } from './idb'
  * entre deux modules.
  */
 export const DB_NAME = 'holy-spoon'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 export const STORE = {
   players: 'players',
   foods: 'foods',
   meals: 'meals',
+  /**
+   * Progression d'XP. Plus lue depuis le retrait du système de jeu, mais
+   * toujours créée : la migration de la version 1 ne se réécrit pas après coup,
+   * et les données déjà stockées restent intactes si le jeu revient.
+   */
   progress: 'progress',
   meta: 'meta',
+  /**
+   * Journal des modifications locales en attente d'envoi au serveur. Il n'est
+   * alimenté que lorsqu'un compte est connecté : voir `changeJournal.ts`.
+   */
+  outbox: 'outbox',
 } as const
 
 export const INDEX = {
@@ -30,12 +40,16 @@ export const INDEX = {
   foodsByToken: 'by_token',
   /** Repas d'un joueur pour une journée : clé composée `[playerId, dayKey]`. */
   mealsByPlayerDay: 'by_player_day',
+  /** Modifications en attente pour un enregistrement donné : `[entity, id]`. */
+  outboxByRecord: 'by_record',
 } as const
 
 /** Clés du store `meta`, qui porte les singletons de l'application. */
 export const META_KEY = {
   currentPlayerId: 'current_player_id',
   ciqualSeedVersion: 'ciqual_seed_version',
+  /** Compte synchronisé sur cet appareil, son profil et le curseur de lecture. */
+  syncState: 'sync_state',
 } as const
 
 export function openHolySpoonDatabase(): Promise<IDBDatabase> {
@@ -57,6 +71,11 @@ export function openHolySpoonDatabase(): Promise<IDBDatabase> {
 
       db.createObjectStore(STORE.progress, { keyPath: 'playerId' })
       db.createObjectStore(STORE.meta, { keyPath: 'key' })
+    }
+
+    if (oldVersion < 2) {
+      const outbox = db.createObjectStore(STORE.outbox, { keyPath: 'seq', autoIncrement: true })
+      outbox.createIndex(INDEX.outboxByRecord, ['entity', 'id'], { unique: false })
     }
   })
 }

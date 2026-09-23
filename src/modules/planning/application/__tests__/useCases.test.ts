@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest'
 
+import { type DayKey, dayKeyOf } from '@/core/day'
 import { idFrom } from '@/core/identity'
 import { isErr, isOk } from '@/core/result'
-import { type MealSummary, MealType } from '@/modules/nutrition_inventory/application'
+import {
+  type DailyConsumption,
+  type MealSummary,
+  MealType,
+} from '@/modules/nutrition_inventory/application'
 import { CompletionStatus } from '@/modules/planning/domain/MealCompletionService'
-import { SuggestMealCompletionUseCase } from '@/modules/planning/application/useCases'
+import {
+  recentWindow,
+  SuggestMealCompletionUseCase,
+  SummarizeRecentIntakeUseCase,
+} from '@/modules/planning/application/useCases'
 import type { PlayerNutritionalNeeds } from '@/modules/player_profile/application'
 
 const needs: PlayerNutritionalNeeds = {
@@ -24,6 +33,7 @@ const summary = (
   playerId: needs.playerId,
   type: MealType.LUNCH,
   loggedAt: '2026-04-10T12:30:00.000Z',
+  plannedFor: dayKeyOf(new Date(2026, 3, 10)),
   // `planning` ne reçoit que des repas déjà pris : le tri est fait en amont.
   consumedAt: '2026-04-10T12:45:00.000Z',
   entryCount: 2,
@@ -131,5 +141,52 @@ describe('SuggestMealCompletionUseCase', () => {
     const result = useCase.execute(needs, [])
 
     expect(result).not.toBeInstanceOf(Promise)
+  })
+})
+
+const today = '2026-09-23' as DayKey
+
+/** Une journée prise, conforme aux besoins sauf pour les valeurs précisées. */
+const consumption = (
+  day: string,
+  values: { calories?: number; proteinG?: number; saltG?: number } = {},
+): DailyConsumption => ({
+  day: day as DayKey,
+  consumedMealCount: 3,
+  calories: values.calories ?? needs.targetCalories,
+  macros: { ...needs.targetMacros, proteinG: values.proteinG ?? needs.targetMacros.proteinG },
+  detail: { ...needs.referenceNutrients, saltG: values.saltG ?? needs.referenceNutrients.saltG },
+})
+
+describe('SummarizeRecentIntakeUseCase', () => {
+  const summarize = new SummarizeRecentIntakeUseCase()
+
+  it('moyenne chaque repère à partir de l’historique des autres contextes', () => {
+    const recent = unwrap(
+      summarize.execute(
+        needs,
+        [
+          consumption('2026-09-21', { calories: 1700, proteinG: 130, saltG: 8 }),
+          consumption('2026-09-22', { calories: 2100, proteinG: 150, saltG: 6 }),
+        ],
+        today,
+      ),
+    )
+
+    expect(recent.trackedDays).toBe(2)
+    expect(recent.nutrients.calories).toMatchObject({ average: 1900, gap: -100 })
+    expect(recent.nutrients.proteinG.average).toBe(140)
+    expect(recent.nutrients.saltG).toMatchObject({ kind: 'limit', base: 5, average: 7, gap: 2 })
+    expect(recent.nutrients.fiberG.gap).toBe(0)
+  })
+
+  it('enveloppe un besoin invalide en erreur applicative', () => {
+    const result = summarize.execute({ ...needs, targetCalories: 0 }, [], today)
+
+    expect(isErr(result) && result.error.code).toBe('RECENT_INTAKE_NOT_COMPUTABLE')
+  })
+
+  it('désigne les sept jours à relire, veille comprise', () => {
+    expect(recentWindow(today)).toEqual({ from: '2026-09-16', to: '2026-09-22' })
   })
 })

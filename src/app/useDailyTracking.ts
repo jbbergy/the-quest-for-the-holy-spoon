@@ -1,20 +1,24 @@
 import { computed, type ComputedRef } from 'vue'
 
 import { useContainer } from '@/app/container'
+import { dayKeyOf } from '@/core/day'
 import { type ErrorView, toErrorView } from '@/core/errors'
 import type { PlayerId } from '@/core/identity'
-import { useProgressStore } from '@/modules/gamification/presentation/useProgressStore'
-import type { AddFoodInput } from '@/modules/nutrition_inventory/application'
+import { useConsumptionHistoryStore } from '@/modules/nutrition_inventory/presentation/useConsumptionHistoryStore'
 import { useJournalStore } from '@/modules/nutrition_inventory/presentation/useJournalStore'
-import type { IdealFoodProfile } from '@/modules/planning/application'
+import {
+  type IdealFoodProfile,
+  type RecentIntake,
+  recentWindow,
+} from '@/modules/planning/application'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 
 /**
  * Coordination des quatre contextes pour l'écran du jour.
  *
  * C'est **la seule couche autorisée à en connaître plusieurs à la fois**. Les
- * stores, eux, restent enfermés dans leur module : le journal ignore la
- * gamification, et `planning` n'a pas de store du tout puisqu'il n'a aucun état
+ * stores, eux, restent enfermés dans leur module : le journal ignore le profil,
+ * et `planning` n'a pas de store du tout puisqu'il n'a aucun état
  * propre — sa recommandation est une pure dérivation des read models des autres.
  *
  * Faire circuler cette coordination par les stores aurait recréé, au niveau de
@@ -22,16 +26,31 @@ import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerS
  * dans le domaine.
  */
 export interface DailyTracking {
+  /**
+   * Moyennes des sept jours précédents ; `null` tant que le profil ou
+   * l'historique manque. Elles ne modifient aucun objectif du jour.
+   */
+  readonly recent: ComputedRef<RecentIntake | null>
   readonly suggestion: ComputedRef<IdealFoodProfile | null>
   readonly suggestionError: ComputedRef<ErrorView | null>
   loadDay(playerId: PlayerId, date?: Date): Promise<boolean>
-  logFood(input: AddFoodInput): Promise<boolean>
 }
 
 export function useDailyTracking(): DailyTracking {
   const players = usePlayerStore()
   const journal = useJournalStore()
-  const progress = useProgressStore()
+  const history = useConsumptionHistoryStore()
+
+  const recent = computed<RecentIntake | null>(() => {
+    const needs = players.needs
+    if (needs === null || history.status !== 'ready') return null
+    const result = useContainer().planning.recentIntake.execute(
+      needs,
+      history.days,
+      dayKeyOf(journal.day),
+    )
+    return result.ok ? result.value : null
+  })
 
   const outcome = computed(() => {
     const needs = players.needs
@@ -49,28 +68,18 @@ export function useDailyTracking(): DailyTracking {
     outcome.value?.ok === false ? toErrorView(outcome.value.error) : null,
   )
 
-  async function loadDay(playerId: PlayerId, date: Date = new Date()): Promise<boolean> {
-    const [journalLoaded, progressLoaded] = await Promise.all([
-      journal.load(playerId, date),
-      progress.load(playerId),
-    ])
-    return journalLoaded && progressLoaded
-  }
-
   /**
-   * Enregistre un aliment puis répercute le gain d'XP.
-   *
-   * L'ordre est sûr : `AddFoodToMealUseCase` attend la diffusion de
-   * `MealLoggedEvent` avant de rendre la main, donc l'XP est déjà attribuée et
-   * persistée quand la relecture démarre.
+   * La journée, et la semaine qui la précède. Les deux lectures sont
+   * indépendantes : l'une qui échoue n'empêche pas l'autre d'aboutir.
    */
-  async function logFood(input: AddFoodInput): Promise<boolean> {
-    const logged = await journal.addFood(input)
-    if (!logged) return false
-
-    await progress.load(input.playerId)
-    return true
+  async function loadDay(playerId: PlayerId, date: Date = new Date()): Promise<boolean> {
+    const { from, to } = recentWindow(dayKeyOf(date))
+    const [day, past] = await Promise.all([
+      journal.load(playerId, date),
+      history.load(playerId, from, to),
+    ])
+    return day && past
   }
 
-  return { suggestion, suggestionError, loadDay, logFood }
+  return { recent, suggestion, suggestionError, loadDay }
 }

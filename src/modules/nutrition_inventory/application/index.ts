@@ -2,15 +2,13 @@
  * Façade publique de `nutrition_inventory`.
  *
  * Seul point d'entrée autorisé pour les autres contextes (règle vérifiée par
- * ESLint et par `architecture.test.ts`). On y expose des **Use Cases**, des
- * **read models** et des **payloads d'événement** — jamais les entités `Meal`,
+ * ESLint et par `architecture.test.ts`). On y expose des **Use Cases** et des
+ * **read models** — jamais les entités `Meal`,
  * `MealEntry` ou `FoodItem` construites à la main.
  */
 export { MealType } from '../domain/Meal'
 
 export {
-  MEAL_LOGGED,
-  mealLoggedEvent,
   toFoodExport,
   toMealExport,
   toMealSummary,
@@ -18,8 +16,6 @@ export {
   type MealEntryExport,
   type MealEntrySummary,
   type MealExport,
-  type MealLoggedEvent,
-  type MealLoggedPayload,
   type MealSummary,
 } from './readModels'
 
@@ -30,13 +26,21 @@ export {
   DeleteMealUseCase,
   ExportInventoryUseCase,
   FindFoodUseCase,
+  GetConsumptionHistoryUseCase,
   GetDailyJournalUseCase,
+  GetMealUseCase,
+  GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
   RemoveMealEntryUseCase,
+  RescheduleMealUseCase,
   type AddFoodInput,
   type CustomFoodInput,
+  type DailyConsumption,
   type DailyJournal,
   type FoodSearchResults,
   type InventoryError,
   type InventoryExport,
+  type MealSchedule,
+  type PlannedDay,
+  type WeekPlan,
 } from './useCases'

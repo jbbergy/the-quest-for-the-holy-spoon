@@ -14,27 +14,23 @@ import type { PlayerExport } from '@/modules/player_profile/application'
  * fichier étranger avant d'en interpréter la moindre valeur.
  */
 export const EXPORT_FORMAT = 'holy-spoon/export'
-export const EXPORT_VERSION = 1
-
-export interface ProgressExport {
-  readonly level: number
-  readonly totalXp: number
-  readonly milestones: readonly string[]
-}
+/**
+ * Version 2 : plus de section `progress` (le système d'XP a été retiré) et un
+ * `plannedFor` sur chaque repas, distinct de `loggedAt` depuis la planification.
+ */
+export const EXPORT_VERSION = 2
 
 export interface HolySpoonExport {
   readonly format: typeof EXPORT_FORMAT
   readonly version: typeof EXPORT_VERSION
   readonly exportedAt: string
   readonly player: PlayerExport
-  readonly progress: ProgressExport
   readonly meals: readonly MealExport[]
   readonly customFoods: readonly FoodExport[]
 }
 
 export interface ExportParts {
   readonly player: PlayerExport
-  readonly progress: ProgressExport
   readonly meals: readonly MealExport[]
   readonly customFoods: readonly FoodExport[]
 }
@@ -49,7 +45,6 @@ export function buildExport(parts: ExportParts, exportedAt: Date): HolySpoonExpo
     version: EXPORT_VERSION,
     exportedAt: exportedAt.toISOString(),
     player: parts.player,
-    progress: parts.progress,
     meals: parts.meals,
     customFoods: parts.customFoods,
   }

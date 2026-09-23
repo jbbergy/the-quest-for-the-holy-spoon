@@ -1,24 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { EventBus } from '@/core/EventBus'
+import { addDays, type DayKey, dayKeyOf, parseDayKey } from '@/core/day'
+import { RepositoryError } from '@/core/errors'
 import { idFrom, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
-import { isErr, isOk, ok } from '@/core/result'
+import { isErr, isOk } from '@/core/result'
 import {
   AddFoodToMealUseCase,
   ChangeMealEntryQuantityUseCase,
   CreateCustomFoodUseCase,
   DeleteMealUseCase,
   ExportInventoryUseCase,
+  GetConsumptionHistoryUseCase,
   GetDailyJournalUseCase,
+  GetMealUseCase,
+  GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
   RemoveMealEntryUseCase,
+  RescheduleMealUseCase,
 } from '@/modules/nutrition_inventory/application/useCases'
-import {
-  MEAL_LOGGED,
-  type MealLoggedEvent,
-} from '@/modules/nutrition_inventory/application/readModels'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { type Meal, MealType } from '@/modules/nutrition_inventory/domain/Meal'
 import {
@@ -30,7 +31,6 @@ const playerId: PlayerId = idFrom('player-1')
 
 let foods: InMemoryFoodRepository
 let meals: InMemoryMealRepository
-let events: EventBus
 
 const chicken = FoodItem.reconstitute({
   id: idFrom('ciqual:36007'),
@@ -60,12 +60,11 @@ const unwrap = <T>(result: { ok: true; value: T } | { ok: false; error: Error })
 beforeEach(async () => {
   foods = new InMemoryFoodRepository()
   meals = new InMemoryMealRepository()
-  events = new EventBus()
   await foods.saveMany([chicken, rice])
 })
 
 describe('AddFoodToMealUseCase', () => {
-  const useCase = (): AddFoodToMealUseCase => new AddFoodToMealUseCase(foods, meals, events)
+  const useCase = (): AddFoodToMealUseCase => new AddFoodToMealUseCase(foods, meals)
 
   it('crée un repas et y ajoute l’aliment', async () => {
     const meal = unwrap(
@@ -137,43 +136,6 @@ describe('AddFoodToMealUseCase', () => {
     expect(stored?.calculateTotals().macros.equals(before.macros)).toBe(true)
   })
 
-  it('publie MealLoggedEvent avec les totaux du repas', async () => {
-    const received: MealLoggedEvent[] = []
-    events.on<MealLoggedEvent>(MEAL_LOGGED, (event) => {
-      received.push(event)
-      return ok(undefined)
-    })
-
-    await useCase().execute({
-      playerId,
-      foodItemId: chicken.id,
-      grams: 150,
-      mealType: MealType.LUNCH,
-    })
-
-    expect(received).toHaveLength(1)
-    expect(received[0]?.payload.playerId).toBe(playerId)
-    expect(received[0]?.payload.entryCount).toBe(1)
-    expect(received[0]?.payload.calories).toBe(30 * 4 + 15 * 9)
-  })
-
-  it('enregistre le repas même si un abonné échoue', async () => {
-    // La gamification ne doit jamais pouvoir faire échouer le suivi nutritionnel.
-    events.on(MEAL_LOGGED, () => {
-      throw new Error('gamification en panne')
-    })
-
-    const result = await useCase().execute({
-      playerId,
-      foodItemId: chicken.id,
-      grams: 100,
-      mealType: MealType.LUNCH,
-    })
-
-    expect(isOk(result)).toBe(true)
-    if (isOk(result)) expect(unwrap(await meals.findById(result.value.id))).not.toBeNull()
-  })
-
   describe('échecs', () => {
     it('refuse une portion invalide avant toute lecture', async () => {
       const result = await useCase().execute({
@@ -221,7 +183,7 @@ describe('AddFoodToMealUseCase', () => {
         }),
       } as unknown as InMemoryMealRepository
 
-      const result = await new AddFoodToMealUseCase(foods, broken, events).execute({
+      const result = await new AddFoodToMealUseCase(foods, broken).execute({
         playerId,
         foodItemId: chicken.id,
         grams: 100,
@@ -235,26 +197,13 @@ describe('AddFoodToMealUseCase', () => {
       }
     })
 
-    it('ne publie aucun événement quand l’ajout échoue', async () => {
-      const handler = vi.fn(() => ok(undefined))
-      events.on(MEAL_LOGGED, handler)
-
-      await useCase().execute({
-        playerId,
-        foodItemId: idFrom('inconnu'),
-        grams: 100,
-        mealType: MealType.LUNCH,
-      })
-
-      expect(handler).not.toHaveBeenCalled()
-    })
   })
 })
 
 describe('modification d’un repas', () => {
   const addFood = async (): Promise<Meal> =>
     unwrap(
-      await new AddFoodToMealUseCase(foods, meals, events).execute({
+      await new AddFoodToMealUseCase(foods, meals).execute({
         playerId,
         foodItemId: chicken.id,
         grams: 100,
@@ -267,7 +216,7 @@ describe('modification d’un repas', () => {
     const entryId = meal.entries[0]!.id
 
     const updated = unwrap(
-      await new ChangeMealEntryQuantityUseCase(meals, events).execute(meal.id, entryId, 250),
+      await new ChangeMealEntryQuantityUseCase(meals).execute(meal.id, entryId, 250),
     )
 
     expect(updated.entries[0]?.quantity.grams).toBe(250)
@@ -277,7 +226,7 @@ describe('modification d’un repas', () => {
   it('refuse une quantité invalide', async () => {
     const meal = await addFood()
 
-    const result = await new ChangeMealEntryQuantityUseCase(meals, events).execute(
+    const result = await new ChangeMealEntryQuantityUseCase(meals).execute(
       meal.id,
       meal.entries[0]!.id,
       -5,
@@ -291,7 +240,7 @@ describe('modification d’un repas', () => {
     const meal = await addFood()
 
     const updated = unwrap(
-      await new RemoveMealEntryUseCase(meals, events).execute(meal.id, meal.entries[0]!.id),
+      await new RemoveMealEntryUseCase(meals).execute(meal.id, meal.entries[0]!.id),
     )
 
     expect(updated.isEmpty).toBe(true)
@@ -301,27 +250,13 @@ describe('modification d’un repas', () => {
   it('signale une ligne introuvable', async () => {
     const meal = await addFood()
 
-    const result = await new RemoveMealEntryUseCase(meals, events).execute(
+    const result = await new RemoveMealEntryUseCase(meals).execute(
       meal.id,
       idFrom('inconnue'),
     )
 
     expect(isErr(result)).toBe(true)
     if (isErr(result)) expect(result.error.code).toBe('INVALID_MEAL')
-  })
-
-  it('republie l’événement après modification, pour que les totaux suivent', async () => {
-    const meal = await addFood()
-    const handler = vi.fn(() => ok(undefined))
-    events.on(MEAL_LOGGED, handler)
-
-    await new ChangeMealEntryQuantityUseCase(meals, events).execute(
-      meal.id,
-      meal.entries[0]!.id,
-      200,
-    )
-
-    expect(handler).toHaveBeenCalledTimes(1)
   })
 
   it('supprime un repas entier', async () => {
@@ -335,7 +270,7 @@ describe('modification d’un repas', () => {
 
 describe('GetDailyJournalUseCase', () => {
   it('agrège les repas de la journée en read models', async () => {
-    const add = new AddFoodToMealUseCase(foods, meals, events)
+    const add = new AddFoodToMealUseCase(foods, meals)
     const day = new Date('2026-04-10T12:00:00')
     await add.execute({
       playerId,
@@ -369,7 +304,7 @@ describe('GetDailyJournalUseCase', () => {
   })
 
   it('ne compte que les repas effectivement pris', async () => {
-    const add = new AddFoodToMealUseCase(foods, meals, events)
+    const add = new AddFoodToMealUseCase(foods, meals)
     const day = new Date('2026-04-10T12:00:00')
     const lunch = unwrap(
       await add.execute({
@@ -401,7 +336,7 @@ describe('GetDailyJournalUseCase', () => {
   it('sort le repas des totaux quand le marquage est annulé', async () => {
     const day = new Date('2026-04-10T12:00:00')
     const lunch = unwrap(
-      await new AddFoodToMealUseCase(foods, meals, events).execute({
+      await new AddFoodToMealUseCase(foods, meals).execute({
         playerId,
         foodItemId: chicken.id,
         grams: 100,
@@ -429,7 +364,7 @@ describe('GetDailyJournalUseCase', () => {
   })
 
   it('n’expose que des read models, jamais des entités modifiables', async () => {
-    await new AddFoodToMealUseCase(foods, meals, events).execute({
+    await new AddFoodToMealUseCase(foods, meals).execute({
       playerId,
       foodItemId: chicken.id,
       grams: 100,
@@ -454,7 +389,7 @@ describe('GetDailyJournalUseCase', () => {
 describe('verrouillage d’un repas pris', () => {
   const eatenMeal = async (): Promise<Meal> => {
     const meal = unwrap(
-      await new AddFoodToMealUseCase(foods, meals, events).execute({
+      await new AddFoodToMealUseCase(foods, meals).execute({
         playerId,
         foodItemId: chicken.id,
         grams: 100,
@@ -468,7 +403,7 @@ describe('verrouillage d’un repas pris', () => {
   it('refuse de corriger la portion d’un repas déjà pris', async () => {
     const meal = await eatenMeal()
 
-    const result = await new ChangeMealEntryQuantityUseCase(meals, events).execute(
+    const result = await new ChangeMealEntryQuantityUseCase(meals).execute(
       meal.id,
       meal.entries[0]!.id,
       250,
@@ -481,7 +416,7 @@ describe('verrouillage d’un repas pris', () => {
   it('refuse d’en retirer une ligne', async () => {
     const meal = await eatenMeal()
 
-    const result = await new RemoveMealEntryUseCase(meals, events).execute(
+    const result = await new RemoveMealEntryUseCase(meals).execute(
       meal.id,
       meal.entries[0]!.id,
     )
@@ -492,7 +427,7 @@ describe('verrouillage d’un repas pris', () => {
   it('refuse d’y ajouter un aliment', async () => {
     const meal = await eatenMeal()
 
-    const result = await new AddFoodToMealUseCase(foods, meals, events).execute({
+    const result = await new AddFoodToMealUseCase(foods, meals).execute({
       playerId,
       foodItemId: rice.id,
       grams: 200,
@@ -503,28 +438,12 @@ describe('verrouillage d’un repas pris', () => {
     expect(isErr(result)).toBe(true)
   })
 
-  it('ne publie aucun événement quand la modification est refusée', async () => {
-    // Un refus ne doit pas récompenser : sans quoi une tentative avortée
-    // rapporterait de l'XP pour un repas qui n'a pas bougé.
-    const meal = await eatenMeal()
-    const handler = vi.fn(() => ok(undefined))
-    events.on(MEAL_LOGGED, handler)
-
-    await new ChangeMealEntryQuantityUseCase(meals, events).execute(
-      meal.id,
-      meal.entries[0]!.id,
-      250,
-    )
-
-    expect(handler).not.toHaveBeenCalled()
-  })
-
   it('laisse tout corriger une fois « pris » annulé', async () => {
     const meal = await eatenMeal()
     unwrap(await new MarkMealConsumedUseCase(meals).execute(meal.id, false))
 
     const updated = unwrap(
-      await new ChangeMealEntryQuantityUseCase(meals, events).execute(
+      await new ChangeMealEntryQuantityUseCase(meals).execute(
         meal.id,
         meal.entries[0]!.id,
         250,
@@ -555,7 +474,7 @@ describe('verrouillage d’un repas pris', () => {
 })
 
 describe('totaux du journal', () => {
-  const add = (): AddFoodToMealUseCase => new AddFoodToMealUseCase(foods, meals, events)
+  const add = (): AddFoodToMealUseCase => new AddFoodToMealUseCase(foods, meals)
   const day = new Date('2026-04-10T12:00:00')
 
   const eat = async (foodItemId: typeof chicken.id, grams: number): Promise<void> => {
@@ -627,7 +546,7 @@ describe('totaux du journal', () => {
 describe('MarkMealConsumedUseCase', () => {
   const addFood = async (): Promise<Meal> =>
     unwrap(
-      await new AddFoodToMealUseCase(foods, meals, events).execute({
+      await new AddFoodToMealUseCase(foods, meals).execute({
         playerId,
         foodItemId: chicken.id,
         grams: 100,
@@ -681,17 +600,6 @@ describe('MarkMealConsumedUseCase', () => {
     }
   })
 
-  it('ne publie aucun événement', async () => {
-    // L'XP récompense aujourd'hui l'enregistrement du repas. Republier
-    // `MEAL_LOGGED` ici l'attribuerait une seconde fois pour le même repas.
-    const meal = await addFood()
-    const handler = vi.fn(() => ok(undefined))
-    events.on(MEAL_LOGGED, handler)
-
-    await new MarkMealConsumedUseCase(meals).execute(meal.id, true)
-
-    expect(handler).not.toHaveBeenCalled()
-  })
 })
 
 describe('ExportInventoryUseCase', () => {
@@ -699,7 +607,7 @@ describe('ExportInventoryUseCase', () => {
 
   const addFoodAt = async (loggedAt: Date, grams = 100): Promise<Meal> =>
     unwrap(
-      await new AddFoodToMealUseCase(foods, meals, events).execute({
+      await new AddFoodToMealUseCase(foods, meals).execute({
         playerId,
         foodItemId: chicken.id,
         grams,
@@ -811,5 +719,283 @@ describe('ExportInventoryUseCase', () => {
 
     expect(isErr(result)).toBe(true)
     if (isErr(result)) expect(result.error.code).toBe('CATALOG_UNREADABLE')
+  })
+})
+
+// --- Planification -----------------------------------------------------------
+
+const dayOf = (text: string): DayKey => {
+  const parsed = parseDayKey(text)
+  if (parsed === null) throw new Error(`jour de test invalide : ${text}`)
+  return parsed
+}
+
+const planMeal = async (
+  plannedFor: DayKey,
+  type: MealType = MealType.DINNER,
+  player: PlayerId = playerId,
+): Promise<Meal> =>
+  unwrap(
+    await new AddFoodToMealUseCase(foods, meals).execute({
+      playerId: player,
+      foodItemId: chicken.id,
+      grams: 100,
+      mealType: type,
+      plannedFor,
+    }),
+  )
+
+describe('planification d’un repas', () => {
+  it('crée le repas au jour prévu, pas au jour de sa composition', async () => {
+    const meal = await planMeal(dayOf('2026-09-24'))
+
+    expect(meal.plannedFor).toBe('2026-09-24')
+    expect(unwrap(await meals.findByPlayerAndDay(playerId, new Date(2026, 8, 24)))).toHaveLength(1)
+  })
+
+  it('crée le repas aujourd’hui quand aucun jour n’est donné', async () => {
+    const meal = unwrap(
+      await new AddFoodToMealUseCase(foods, meals).execute({
+        playerId,
+        foodItemId: chicken.id,
+        grams: 100,
+        mealType: MealType.LUNCH,
+      }),
+    )
+
+    expect(meal.plannedFor).toBe(dayKeyOf(new Date()))
+  })
+
+  it('garde le jour d’un repas existant qu’on complète', async () => {
+    const meal = await planMeal(dayOf('2026-09-24'))
+
+    const completed = unwrap(
+      await new AddFoodToMealUseCase(foods, meals).execute({
+        playerId,
+        foodItemId: rice.id,
+        grams: 150,
+        mealType: MealType.DINNER,
+        mealId: meal.id,
+        plannedFor: dayOf('2026-09-30'),
+      }),
+    )
+
+    // `plannedFor` ne vaut que pour un nouveau repas : compléter n'est pas déplacer.
+    expect(completed.plannedFor).toBe('2026-09-24')
+  })
+})
+
+describe('RescheduleMealUseCase', () => {
+  const reschedule = (): RescheduleMealUseCase => new RescheduleMealUseCase(meals)
+
+  it('déplace le repas et change son type en un seul geste', async () => {
+    const meal = await planMeal(dayOf('2026-09-22'), MealType.DINNER)
+
+    const moved = unwrap(
+      await reschedule().execute(meal.id, {
+        plannedFor: dayOf('2026-09-23'),
+        type: MealType.LUNCH,
+      }),
+    )
+
+    expect(moved.plannedFor).toBe('2026-09-23')
+    expect(moved.type).toBe(MealType.LUNCH)
+    const stored = unwrap(await meals.findById(meal.id))
+    expect(stored?.plannedFor).toBe('2026-09-23')
+    expect(stored?.type).toBe(MealType.LUNCH)
+  })
+
+  it('n’écrit rien quand rien ne change', async () => {
+    const meal = await planMeal(dayOf('2026-09-22'))
+    const save = vi.spyOn(meals, 'save')
+
+    await reschedule().execute(meal.id, { plannedFor: meal.plannedFor, type: meal.type })
+
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('refuse de déplacer un repas déjà pris', async () => {
+    const meal = await planMeal(dayKeyOf(new Date()))
+    unwrap(await new MarkMealConsumedUseCase(meals).execute(meal.id, true))
+
+    const result = await reschedule().execute(meal.id, {
+      plannedFor: addDays(meal.plannedFor, 1),
+      type: meal.type,
+    })
+
+    expect(isErr(result)).toBe(true)
+    if (isErr(result)) expect(result.error.code).toBe('INVALID_MEAL')
+  })
+
+  it('laisse corriger le type d’un repas déjà pris', async () => {
+    // Le type ne déplace aucun apport d'une journée à l'autre.
+    const meal = await planMeal(dayKeyOf(new Date()), MealType.DINNER)
+    unwrap(await new MarkMealConsumedUseCase(meals).execute(meal.id, true))
+
+    const result = await reschedule().execute(meal.id, {
+      plannedFor: meal.plannedFor,
+      type: MealType.SNACK,
+    })
+
+    expect(isOk(result) && result.value.type).toBe(MealType.SNACK)
+  })
+
+  it('signale un repas introuvable', async () => {
+    const result = await reschedule().execute(idFrom('inconnu'), {
+      plannedFor: dayOf('2026-09-22'),
+      type: MealType.LUNCH,
+    })
+
+    expect(isErr(result) && result.error.code).toBe('MEAL_NOT_FOUND')
+  })
+})
+
+describe('MarkMealConsumedUseCase et jours à venir', () => {
+  it('refuse de déclarer pris un repas prévu demain', async () => {
+    const meal = await planMeal(addDays(dayKeyOf(new Date()), 1))
+
+    const result = await new MarkMealConsumedUseCase(meals).execute(meal.id, true)
+
+    expect(isErr(result)).toBe(true)
+    expect(unwrap(await meals.findById(meal.id))?.isConsumed).toBe(false)
+  })
+
+  it('accepte après coup le repas d’hier', async () => {
+    const meal = await planMeal(addDays(dayKeyOf(new Date()), -1))
+
+    const result = await new MarkMealConsumedUseCase(meals).execute(meal.id, true)
+
+    expect(isOk(result)).toBe(true)
+  })
+
+  it('retient le moment du repas quand il est donné', async () => {
+    const meal = await planMeal(dayOf('2026-09-20'))
+    const at = new Date(2026, 8, 20, 20, 0)
+
+    const eaten = unwrap(await new MarkMealConsumedUseCase(meals).execute(meal.id, true, at))
+
+    expect(eaten.consumedAt).toEqual(at)
+  })
+})
+
+describe('GetMealUseCase', () => {
+  it('retourne le read model du repas', async () => {
+    const meal = await planMeal(dayOf('2026-09-24'))
+
+    const summary = unwrap(await new GetMealUseCase(meals).execute(meal.id))
+
+    expect(summary.mealId).toBe(meal.id)
+    expect(summary.plannedFor).toBe('2026-09-24')
+    expect(summary.entries.map((entry) => entry.foodName)).toEqual(['Blanc de poulet'])
+  })
+
+  it('signale un repas introuvable', async () => {
+    const result = await new GetMealUseCase(meals).execute(idFrom('inconnu'))
+
+    expect(isErr(result) && result.error.code).toBe('MEAL_NOT_FOUND')
+  })
+})
+
+describe('GetWeekPlanUseCase', () => {
+  const week = (): GetWeekPlanUseCase => new GetWeekPlanUseCase(meals)
+
+  it('retourne les sept jours du lundi au dimanche, même vides', async () => {
+    const plan = unwrap(await week().execute(playerId, dayOf('2026-09-23')))
+
+    expect(plan.days.map((day) => day.day)).toEqual([
+      '2026-09-21',
+      '2026-09-22',
+      '2026-09-23',
+      '2026-09-24',
+      '2026-09-25',
+      '2026-09-26',
+      '2026-09-27',
+    ])
+    expect(plan.days.every((day) => day.meals.length === 0 && day.plannedCalories === 0)).toBe(
+      true,
+    )
+  })
+
+  it('range chaque repas à son jour prévu', async () => {
+    await planMeal(dayOf('2026-09-22'), MealType.LUNCH)
+    await planMeal(dayOf('2026-09-24'), MealType.DINNER)
+    await planMeal(dayOf('2026-09-28'), MealType.DINNER)
+    await planMeal(dayOf('2026-09-24'), MealType.DINNER, idFrom('autre-joueur'))
+
+    const plan = unwrap(await week().execute(playerId, dayOf('2026-09-23')))
+
+    const counts = Object.fromEntries(plan.days.map((day) => [day.day, day.meals.length]))
+    expect(counts).toMatchObject({ '2026-09-22': 1, '2026-09-24': 1, '2026-09-27': 0 })
+    expect(plan.days.reduce((sum, day) => sum + day.meals.length, 0)).toBe(2)
+  })
+
+  it('compte les calories de tous les repas du jour, pris ou non', async () => {
+    // Planifier, c'est regarder ce qu'une journée représentera : n'y compter que
+    // les repas pris afficherait zéro sur tous les jours à venir.
+    const meal = await planMeal(dayOf('2026-09-24'))
+
+    const plan = unwrap(await week().execute(playerId, dayOf('2026-09-24')))
+
+    const thursday = plan.days.find((day) => day.day === '2026-09-24')
+    expect(thursday?.plannedCalories).toBeCloseTo(meal.calculateTotals().calories, 6)
+  })
+
+  it('remonte une erreur d’application quand la semaine est illisible', async () => {
+    vi.spyOn(meals, 'findByPlayerBetween').mockResolvedValueOnce({
+      ok: false,
+      error: new RepositoryError('STORAGE_FAILURE', 'disque plein'),
+    })
+
+    const result = await week().execute(playerId, dayOf('2026-09-23'))
+
+    expect(isErr(result) && result.error.code).toBe('WEEK_UNREADABLE')
+  })
+})
+
+describe('GetConsumptionHistoryUseCase', () => {
+  const history = (): GetConsumptionHistoryUseCase => new GetConsumptionHistoryUseCase(meals)
+  const eat = async (meal: Meal): Promise<void> => {
+    unwrap(await new MarkMealConsumedUseCase(meals).execute(meal.id, true))
+  }
+
+  it('agrège les repas pris, jour par jour et dans l’ordre', async () => {
+    await eat(await planMeal(dayOf('2026-09-21'), MealType.LUNCH))
+    await eat(await planMeal(dayOf('2026-09-21'), MealType.DINNER))
+    await eat(await planMeal(dayOf('2026-09-19')))
+
+    const days = unwrap(await history().execute(playerId, dayOf('2026-09-16'), dayOf('2026-09-22')))
+
+    expect(days.map((day) => day.day)).toEqual(['2026-09-19', '2026-09-21'])
+    expect(days[1]).toMatchObject({
+      consumedMealCount: 2,
+      calories: 340,
+      macros: { proteinG: 40, carbsG: 0, fatG: 20 },
+      detail: { saturatedFatG: 6, saltG: 0.4 },
+    })
+  })
+
+  it('omet les jours dont aucun repas n’a été pris', async () => {
+    // Un jour absent n'est pas un jour à zéro calorie : c'est un jour dont on
+    // ne sait rien.
+    await planMeal(dayOf('2026-09-20'))
+    const eaten = await planMeal(dayOf('2026-09-21'), MealType.LUNCH)
+    await planMeal(dayOf('2026-09-21'), MealType.DINNER)
+    await eat(eaten)
+
+    const days = unwrap(await history().execute(playerId, dayOf('2026-09-16'), dayOf('2026-09-22')))
+
+    expect(days).toHaveLength(1)
+    expect(days[0]).toMatchObject({ day: '2026-09-21', consumedMealCount: 1, calories: 170 })
+  })
+
+  it('remonte une erreur d’application quand l’historique est illisible', async () => {
+    vi.spyOn(meals, 'findByPlayerBetween').mockResolvedValueOnce({
+      ok: false,
+      error: new RepositoryError('STORAGE_FAILURE', 'disque plein'),
+    })
+
+    const result = await history().execute(playerId, dayOf('2026-09-16'), dayOf('2026-09-22'))
+
+    expect(isErr(result) && result.error.code).toBe('HISTORY_UNREADABLE')
   })
 })

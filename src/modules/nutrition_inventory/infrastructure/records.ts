@@ -1,4 +1,4 @@
-import { dayKeyOf } from '@/core/day'
+import { dayKeyOf, parseDayKey } from '@/core/day'
 import { idFrom } from '@/core/identity'
 import { tokenize } from '@/core/infrastructure/text'
 import { Macros } from '@/core/nutrition/Macros'
@@ -97,7 +97,15 @@ export interface MealRecord {
   readonly playerId: string
   readonly type: MealType
   readonly loggedAt: string
-  /** Clé de journée `AAAA-MM-JJ` en heure locale, pour l'index `[playerId, dayKey]`. */
+  /**
+   * Jour **prévu** du repas, `AAAA-MM-JJ` en heure locale, pour l'index
+   * `[playerId, dayKey]`.
+   *
+   * Cette clé valait le jour de composition tant qu'on ne composait que pour le
+   * jour même ; elle porte désormais le jour prévu. Aucune migration n'a été
+   * nécessaire : pour tout repas écrit avant la planification, les deux
+   * coïncident, et la clé déjà stockée *est* son jour prévu.
+   */
   readonly dayKey: string
   /**
    * Date de consommation, `null` si le repas n'est que prévu.
@@ -115,7 +123,7 @@ export function mealToRecord(meal: Meal): MealRecord {
     playerId: meal.playerId,
     type: meal.type,
     loggedAt: meal.loggedAt.toISOString(),
-    dayKey: dayKeyOf(meal.loggedAt),
+    dayKey: meal.plannedFor,
     consumedAt: meal.consumedAt === null ? null : meal.consumedAt.toISOString(),
     entries: meal.entries.map((entry) => ({
       id: entry.id,
@@ -171,6 +179,10 @@ export function recordToMeal(record: MealRecord): Meal {
     playerId: idFrom(record.playerId),
     type: record.type,
     loggedAt: new Date(record.loggedAt),
+    // La clé est écrite par `mealToRecord` et donc toujours valide ; le repli ne
+    // couvre qu'un enregistrement abîmé, qu'on range alors au jour de sa création
+    // plutôt que de rendre tout le journal illisible.
+    plannedFor: parseDayKey(record.dayKey) ?? dayKeyOf(new Date(record.loggedAt)),
     consumedAt: consumedAtOf(record),
     entries: record.entries.map((entry) =>
       MealEntry.reconstitute({

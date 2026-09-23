@@ -7,7 +7,6 @@ import { provideContainer, resetContainer } from '@/app/container'
 import { collectExport, useDataExport } from '@/app/useDataExport'
 import { idFrom, type PlayerId } from '@/core/identity'
 import { isErr } from '@/core/result'
-import { PlayerProgress } from '@/modules/gamification/domain/PlayerProgress'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import { BiologicalSex, BodyMeasurements } from '@/modules/player_profile/domain/BodyMeasurements'
 import { DietaryPreferences } from '@/modules/player_profile/domain/DietaryPreferences'
@@ -48,7 +47,6 @@ const parts = {
     targetMacros: { proteinG: 117, carbsG: 331, fatG: 107 },
     referenceNutrients: { fiberG: 30, sugarsG: 100, saturatedFatG: 36.8, saltG: 5 },
   },
-  progress: { level: 3, totalXp: 420, milestones: ['FIRST_MEAL'] },
   meals: [],
   customFoods: [],
 }
@@ -68,6 +66,12 @@ describe('buildExport', () => {
 
   it('horodate en ISO sans lire l’horloge lui-même', () => {
     expect(buildExport(parts, EXPORTED_AT).exportedAt).toBe(EXPORTED_AT.toISOString())
+  })
+
+  it('ne porte plus de section de progression', () => {
+    // Le système d'XP a été retiré : une clé `progress` vide ferait croire à un
+    // futur import qu'elle a encore un sens.
+    expect(Object.keys(buildExport(parts, EXPORTED_AT))).not.toContain('progress')
   })
 
   it('survit à un aller-retour JSON', () => {
@@ -99,13 +103,10 @@ describe('collectExport', () => {
   ): ReturnType<typeof createFakeContainer> =>
     createFakeContainer({
       profile: { getCurrent: succeedsWith(player) } as never,
-      gamification: {
-        getProgress: succeedsWith(PlayerProgress.reconstitute({ playerId, totalXp: 420 })),
-      } as never,
       ...overrides,
     })
 
-  it('assemble les trois contextes en une seule archive', async () => {
+  it('assemble profil et repas en une seule archive', async () => {
     const container = containerWith({
       inventory: {
         exportData: succeedsWith({
@@ -120,19 +121,8 @@ describe('collectExport', () => {
     expect(archive.ok).toBe(true)
     if (!archive.ok) return
     expect(archive.value.player.name).toBe('Perceval')
-    expect(archive.value.progress.totalXp).toBe(420)
     expect(archive.value.meals).toHaveLength(1)
     expect(archive.value.customFoods).toHaveLength(1)
-  })
-
-  it('n’archive de la progression que ce qui est réellement stocké', async () => {
-    const archive = await collectExport(containerWith(), EXPORTED_AT)
-
-    expect(archive.ok).toBe(true)
-    if (!archive.ok) return
-    // Avancement dans le niveau et XP restante se recalculent : ils n'ont leur
-    // place que dans une jauge, pas dans une archive.
-    expect(Object.keys(archive.value.progress)).toEqual(['level', 'totalXp', 'milestones'])
   })
 
   it('refuse d’exporter quand aucun profil n’est actif', async () => {
@@ -174,18 +164,6 @@ describe('collectExport', () => {
     if (isErr(result)) expect(result.error.code).toBe('HISTORY_UNREADABLE')
   })
 
-  it('remonte l’échec de la progression', async () => {
-    const container = containerWith({
-      gamification: {
-        getProgress: failsWith(Object.assign(new Error('xp illisible'), { code: 'XP_DOWN' })),
-      } as never,
-    })
-
-    const result = await collectExport(container, EXPORTED_AT)
-
-    expect(isErr(result)).toBe(true)
-    if (isErr(result)) expect(result.error.code).toBe('XP_DOWN')
-  })
 })
 
 describe('downloadJson', () => {
@@ -266,9 +244,6 @@ describe('useDataExport', () => {
   ): ReturnType<typeof createFakeContainer> =>
     createFakeContainer({
       profile: { getCurrent: succeedsWith(player) } as never,
-      gamification: {
-        getProgress: succeedsWith(PlayerProgress.reconstitute({ playerId, totalXp: 420 })),
-      } as never,
       ...overrides,
     })
 

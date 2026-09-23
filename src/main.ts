@@ -9,6 +9,7 @@ import { provideContainer } from './app/container'
 import { registerServiceWorker } from './app/pwa/registerServiceWorker'
 import { createServiceWorkerState, provideServiceWorkerState } from './app/pwa/serviceWorker'
 import { createAppRouter } from './app/router'
+import { startSyncTriggers } from './app/sync/triggers'
 import { useThemeStore } from './app/theme/useThemeStore'
 
 const container = createContainer()
@@ -49,6 +50,9 @@ useThemeStore(pinia).initialize()
 
 app.use(createAppRouter())
 app.mount('#app')
+
+// Sans compte connecté, le moteur ignore ces déclencheurs.
+startSyncTriggers(container.sync, container.network)
 
 /**
  * Amorçage du catalogue, lancé après le montage.

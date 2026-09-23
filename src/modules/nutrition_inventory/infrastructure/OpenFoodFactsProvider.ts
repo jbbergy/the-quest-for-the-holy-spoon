@@ -17,12 +17,27 @@ import {
 const DEFAULT_BASE_URL = 'https://world.openfoodfacts.org'
 const DEFAULT_TIMEOUT_MS = 8000
 
-/** Requis par la politique d'usage de l'API Open Food Facts. */
-const USER_AGENT = 'TheQuestForTheHolySpoon/0.1 (https://github.com/holy-spoon)'
+/** Attente avant l'unique nouvelle tentative d'une recherche refusée d'emblée. */
+const DEFAULT_SEARCH_RETRY_DELAY_MS = 800
+
+/**
+ * En-têtes envoyés : `Accept`, et rien d'autre.
+ *
+ * Pas de `User-Agent` personnalisé, bien que la politique d'usage d'Open Food
+ * Facts en demande un : elle vise les scripts côté serveur, et un navigateur
+ * envoie déjà le sien. Surtout, tout en-tête hors de la liste CORS « simple »
+ * fait précéder chaque appel d'une requête `OPTIONS` de pré-vérification.
+ * Chrome ignorait l'en-tête ; Firefox l'envoie, et `/cgi/search.pl` refusait
+ * alors la pré-vérification une fois sur deux (mesuré le 2026-09-23) — une
+ * recherche devait réussir deux requêtes d'affilée, et chargeait deux fois un
+ * service saturé. Sans cet en-tête, une recherche est une seule requête.
+ */
+const REQUEST_HEADERS = { Accept: 'application/json' } as const
 
 export interface OpenFoodFactsOptions {
   readonly baseUrl?: string
   readonly timeoutMs?: number
+  readonly searchRetryDelayMs?: number
   readonly fetchImpl?: typeof fetch
 }
 
@@ -36,6 +51,7 @@ export interface OpenFoodFactsOptions {
 export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
   private readonly baseUrl: string
   private readonly timeoutMs: number
+  private readonly searchRetryDelayMs: number
   private readonly fetchImpl: typeof fetch
 
   constructor(
@@ -44,6 +60,7 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
   ) {
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
+    this.searchRetryDelayMs = options.searchRetryDelayMs ?? DEFAULT_SEARCH_RETRY_DELAY_MS
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
   }
 
@@ -101,7 +118,9 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
       fields: REQUESTED_FIELDS,
     })
 
-    const response = await this.get(`${this.baseUrl}/cgi/search.pl?${params.toString()}`)
+    const response = await this.getWithOneRetry(
+      `${this.baseUrl}/cgi/search.pl?${params.toString()}`,
+    )
     if (!response.ok) return response
 
     const parsed = openFoodFactsSearchSchema.safeParse(response.value)
@@ -120,6 +139,27 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
     return ok(items)
   }
 
+  /**
+   * Une recherche refusée d'emblée est retentée **une fois**, après un court
+   * délai.
+   *
+   * Mesuré le 2026-09-23 : `/cgi/search.pl` refusait alors d'une requête sur
+   * deux à trois sur quatre, par un 503 immédiat — que le navigateur, faute
+   * d'en-têtes CORS sur la page d'erreur, voit comme une panne réseau. Les
+   * refus étant indépendants d'une requête à l'autre, une seconde chance
+   * suffit à en rattraper une bonne part ; davantage chargerait un service
+   * déjà saturé, ce que sa politique d'usage demande d'éviter.
+   *
+   * Un délai dépassé n'est pas retenté : l'utilisateur a déjà attendu.
+   */
+  private async getWithOneRetry(url: string): Promise<Result<unknown, ProviderError>> {
+    const first = await this.get(url)
+    if (first.ok || isTimeout(first.error)) return first
+
+    await new Promise((resolve) => setTimeout(resolve, this.searchRetryDelayMs))
+    return this.get(url)
+  }
+
   /** Requête JSON commune aux deux chemins : délai borné, aucune exception qui sorte. */
   private async get(url: string): Promise<Result<unknown, ProviderError>> {
     const controller = new AbortController()
@@ -128,7 +168,7 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
     try {
       const response = await this.fetchImpl(url, {
         signal: controller.signal,
-        headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
+        headers: REQUEST_HEADERS,
       })
 
       // 404 signifie « produit absent de la base » et porte un corps exploitable :
@@ -154,6 +194,10 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
       clearTimeout(timeout)
     }
   }
+}
+
+function isTimeout(error: ProviderError): boolean {
+  return error.cause instanceof Error && error.cause.name === 'AbortError'
 }
 
 /**

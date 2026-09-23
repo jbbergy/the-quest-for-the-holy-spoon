@@ -5,10 +5,8 @@ import { provideContainer, resetContainer } from '@/app/container'
 import { useDailyTracking } from '@/app/useDailyTracking'
 import { ApplicationError } from '@/core/errors'
 import { idFrom, type PlayerId } from '@/core/identity'
-import { PlayerProgress } from '@/modules/gamification/domain/PlayerProgress'
-import { XpAmount } from '@/modules/gamification/domain/XpAmount'
-import { useProgressStore } from '@/modules/gamification/presentation/useProgressStore'
 import { MealType } from '@/modules/nutrition_inventory/application'
+import { useConsumptionHistoryStore } from '@/modules/nutrition_inventory/presentation/useConsumptionHistoryStore'
 import { useJournalStore } from '@/modules/nutrition_inventory/presentation/useJournalStore'
 import { CompletionStatus } from '@/modules/planning/application'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
@@ -20,9 +18,12 @@ import { DietaryPreferences } from '@/modules/player_profile/domain/DietaryPrefe
 import { Player } from '@/modules/player_profile/domain/Player'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 
-import { createFakeContainer, succeedsWith } from './fakeContainer'
+import { createFakeContainer, failsWith, succeedsWith } from './fakeContainer'
 
-import { SuggestMealCompletionUseCase } from '@/modules/planning/application'
+import {
+  SuggestMealCompletionUseCase,
+  SummarizeRecentIntakeUseCase,
+} from '@/modules/planning/application'
 
 const playerId: PlayerId = idFrom('player-1')
 
@@ -46,6 +47,7 @@ const festin = {
   playerId,
   type: MealType.LUNCH,
   loggedAt: '2026-04-10T12:30:00.000Z',
+  plannedFor: '2026-04-10',
   consumedAt: '2026-04-10T12:45:00.000Z',
   entryCount: 1,
   macros: { proteinG: 300, carbsG: 400, fatG: 150 },
@@ -90,7 +92,6 @@ describe('useDailyTracking', () => {
       createFakeContainer({
         profile: { getCurrent: succeedsWith(player) } as never,
         inventory: { journal: succeedsWith(emptyJournal) } as never,
-        gamification: { getProgress: succeedsWith(PlayerProgress.start(playerId)) } as never,
         planning: { suggestCompletion: new SuggestMealCompletionUseCase() },
       }),
     )
@@ -189,74 +190,66 @@ describe('useDailyTracking', () => {
     expect(tracking.suggestionError.value?.code).toBe('COMPLETION_NOT_COMPUTABLE')
   })
 
-  describe('coordination inter-contextes', () => {
-    it('charge journal et progression en parallèle', async () => {
-      const journal = vi.fn(async () => ({ ok: true as const, value: emptyJournal }))
-      const getProgress = vi.fn(async () => ({
-        ok: true as const,
-        value: PlayerProgress.start(playerId),
-      }))
-      provideContainer(
-        createFakeContainer({
-          inventory: { journal: { execute: journal } } as never,
-          gamification: { getProgress: { execute: getProgress } } as never,
-        }),
-      )
+  it('charge le journal du jour demandé', async () => {
+    const journal = vi.fn(async () => ({ ok: true as const, value: emptyJournal }))
+    provideContainer(createFakeContainer({ inventory: { journal: { execute: journal } } as never }))
+    const day = new Date(2026, 3, 10)
 
-      expect(await useDailyTracking().loadDay(playerId)).toBe(true)
-      expect(journal).toHaveBeenCalledTimes(1)
-      expect(getProgress).toHaveBeenCalledTimes(1)
-    })
+    expect(await useDailyTracking().loadDay(playerId, day)).toBe(true)
+    expect(journal).toHaveBeenCalledWith(playerId, day)
+  })
 
-    it('répercute le gain d’XP après un ajout d’aliment', async () => {
-      const awarded = PlayerProgress.start(playerId).award(XpAmount.reconstitute(40)).progress
-      provideContainer(
-        createFakeContainer({
-          inventory: {
-            addFood: succeedsWith(null),
-            journal: succeedsWith(emptyJournal),
-          } as never,
-          gamification: { getProgress: succeedsWith(awarded) } as never,
-        }),
-      )
-      const progress = useProgressStore()
+  describe('moyennes de la semaine écoulée', () => {
+    const yesterdayShort = {
+      day: '2026-04-09',
+      consumedMealCount: 2,
+      calories: player.targetCalories() - 300,
+      macros: player.targetMacros().toJSON(),
+      detail: player.referenceNutrients().toJSON(),
+    }
 
-      await useDailyTracking().logFood({
-        playerId,
-        foodItemId: idFrom('f'),
-        grams: 100,
-        mealType: MealType.LUNCH,
+    const withHistory = (history: unknown) =>
+      createFakeContainer({
+        profile: { getCurrent: succeedsWith(player) } as never,
+        inventory: { journal: succeedsWith(emptyJournal), history } as never,
+        planning: {
+          suggestCompletion: new SuggestMealCompletionUseCase(),
+          recentIntake: new SummarizeRecentIntakeUseCase(),
+        },
       })
 
-      // Le store du journal ignore la gamification : c'est cette couche qui
-      // relie les deux contextes.
-      expect(progress.view?.totalXp).toBe(40)
+    it('lit les sept jours précédant la journée demandée', async () => {
+      const history = vi.fn(async () => ({ ok: true as const, value: [] }))
+      provideContainer(withHistory({ execute: history }))
+
+      await useDailyTracking().loadDay(playerId, new Date(2026, 3, 10))
+
+      expect(history).toHaveBeenCalledWith(playerId, '2026-04-03', '2026-04-09')
     })
 
-    it('ne recharge pas la progression si l’ajout a échoué', async () => {
-      const getProgress = vi.fn(async () => ({
-        ok: true as const,
-        value: PlayerProgress.start(playerId),
-      }))
+    it('expose la moyenne sans toucher à l’objectif du jour', async () => {
+      provideContainer(withHistory(succeedsWith([yesterdayShort])))
+      await usePlayerStore().load()
+      const tracking = useDailyTracking()
+
+      await tracking.loadDay(playerId, new Date(2026, 3, 10))
+
+      expect(tracking.recent.value?.nutrients.calories.gap).toBeCloseTo(-300, 6)
+      // Un déficit passé ne se rattrape pas : l'assistant vise le besoin habituel.
+      expect(tracking.suggestion.value?.remainingCalories).toBeCloseTo(player.targetCalories(), 6)
+    })
+
+    it('n’affiche aucune moyenne quand l’historique est illisible', async () => {
       provideContainer(
-        createFakeContainer({
-          inventory: {
-            addFood: { execute: async () => ({ ok: false, error: new ApplicationError('X', 'y') }) },
-            journal: succeedsWith(emptyJournal),
-          } as never,
-          gamification: { getProgress: { execute: getProgress } } as never,
-        }),
+        withHistory(failsWith(new ApplicationError('HISTORY_UNREADABLE', 'illisible'))),
       )
+      await usePlayerStore().load()
+      const tracking = useDailyTracking()
 
-      const logged = await useDailyTracking().logFood({
-        playerId,
-        foodItemId: idFrom('f'),
-        grams: 100,
-        mealType: MealType.LUNCH,
-      })
+      expect(await tracking.loadDay(playerId, new Date(2026, 3, 10))).toBe(false)
 
-      expect(logged).toBe(false)
-      expect(getProgress).not.toHaveBeenCalled()
+      expect(tracking.recent.value).toBeNull()
+      expect(useConsumptionHistoryStore().error?.code).toBe('HISTORY_UNREADABLE')
     })
   })
 })

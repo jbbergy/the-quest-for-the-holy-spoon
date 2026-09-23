@@ -1,4 +1,3 @@
-import { EventBus } from '@/core/EventBus'
 import { StaticNetworkStatus } from '@/core/infrastructure/NetworkStatusService'
 import { ok, type Result } from '@/core/result'
 
@@ -16,21 +15,35 @@ type Executable = { execute: (...args: never[]) => unknown }
 
 const stub = (result: unknown): Executable => ({ execute: async () => result })
 
+/** Chaque use case d'un groupe peut être remplacé par n'importe quel `execute`. */
+type GroupOverrides<TGroup> = Partial<Record<keyof TGroup, Executable>>
+
 export interface FakeContainerOverrides {
-  readonly profile?: Partial<AppContainer['profile']>
-  readonly inventory?: Partial<AppContainer['inventory']>
-  readonly gamification?: Partial<AppContainer['gamification']>
-  readonly planning?: Partial<AppContainer['planning']>
+  readonly sync?: AppContainer['sync']
+  readonly account?: GroupOverrides<AppContainer['account']>
+  readonly profile?: GroupOverrides<AppContainer['profile']>
+  readonly inventory?: GroupOverrides<AppContainer['inventory']>
+  readonly planning?: GroupOverrides<AppContainer['planning']>
 }
 
 export function createFakeContainer(overrides: FakeContainerOverrides = {}): AppContainer {
-  const events = new EventBus()
-
   const base = {
-    events,
     network: new StaticNetworkStatus(true),
     databases: { get: async () => null, close: async () => undefined },
+    sync: overrides.sync ?? fakeSyncEngine(),
 
+    account: {
+      getSession: stub(ok(null)),
+      signUp: stub(ok(undefined)),
+      verifyEmail: stub(ok(null)),
+      signIn: stub(ok(null)),
+      signOut: stub(ok(undefined)),
+      requestPasswordReset: stub(ok(undefined)),
+      resetPassword: stub(ok(null)),
+      linkPlayer: stub(ok(null)),
+      deleteAccount: stub(ok(undefined)),
+      ...overrides.account,
+    },
     profile: {
       create: stub(ok(null)),
       getCurrent: stub(ok(null)),
@@ -43,21 +56,21 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       addFood: stub(ok(null)),
       removeEntry: stub(ok(null)),
       changeQuantity: stub(ok(null)),
+      reschedule: stub(ok(null)),
       deleteMeal: stub(ok(undefined)),
+      getMeal: stub(ok(null)),
       journal: stub(
         ok({ day: '2026-04-10', meals: [], consumedMeals: [], totalCalories: 0 }),
       ),
+      week: stub(ok({ days: [] })),
+      history: stub(ok([])),
       markConsumed: stub(ok(null)),
       exportData: stub(ok({ meals: [], customFoods: [] })),
       ...overrides.inventory,
     },
-    gamification: {
-      awardXp: stub(ok(null)),
-      getProgress: stub(ok(null)),
-      ...overrides.gamification,
-    },
     planning: {
       suggestCompletion: { execute: () => ok(null) },
+      recentIntake: { execute: () => ok(null) },
       ...overrides.planning,
     },
 
@@ -66,6 +79,27 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
   }
 
   return base as unknown as AppContainer
+}
+
+/**
+ * Moteur de synchronisation inerte : aucun compte, rien à transporter. Les
+ * tests de la synchronisation elle-même montent le vrai moteur.
+ */
+export function fakeSyncEngine(): AppContainer['sync'] {
+  const status = { phase: 'off', pending: 0, lastSyncedAt: null, error: null } as const
+  return {
+    status,
+    subscribe: (listener: (value: typeof status) => void) => {
+      listener(status)
+      return () => undefined
+    },
+    onRemoteChanges: () => () => undefined,
+    connect: async () => ok('resumed'),
+    schedule: () => undefined,
+    sync: async () => undefined,
+    flush: async () => 0,
+    disconnect: async () => ok(undefined),
+  } as unknown as AppContainer['sync']
 }
 
 /** Use Case qui réussit toujours avec la valeur donnée. */

@@ -3,19 +3,19 @@ import { computed, ref, shallowRef } from 'vue'
 
 import { useContainer } from '@/app/container'
 import { type BaseError, type ErrorView, toErrorView } from '@/core/errors'
-import type { MealEntryId, MealId, PlayerId } from '@/core/identity'
+import type { MealId, PlayerId } from '@/core/identity'
 
-import type { AddFoodInput, DailyJournal } from '../application'
+import type { DailyJournal } from '../application'
 
 export type StoreStatus = 'idle' | 'loading' | 'ready' | 'error'
 
 /**
- * Adaptateur d'état du journal du jour.
+ * Adaptateur d'état de la journée, tel que l'accueil l'affiche.
  *
- * Après chaque modification de repas, le journal est relu depuis les Use Cases
- * plutôt que rafistolé localement : recalculer les totaux dans le store
- * dupliquerait une règle qui vit déjà dans `Meal.calculateTotals()`, et les deux
- * finiraient par diverger.
+ * Il ne sait que lire la journée et y cocher un repas pris : composer, corriger
+ * et supprimer se font dans la semaine, par `useWeekPlanStore` et
+ * `useMealEditorStore`. Deux écrans qui modifient les mêmes repas, c'est ce que
+ * la suppression du journal a précisément retiré.
  */
 export const useJournalStore = defineStore('journal', () => {
   const journal = shallowRef<DailyJournal | null>(null)
@@ -55,51 +55,10 @@ export const useJournalStore = defineStore('journal', () => {
   }
 
   /**
-   * Relit le journal après une modification plutôt que de rafistoler l'état
-   * local : recalculer les totaux ici dupliquerait `Meal.calculateTotals()`.
-   *
-   * Ce store ne rafraîchit **que** le journal. Répercuter le gain d'XP est du
-   * ressort de la couche `app/`, seule habilitée à connaître deux contextes à
-   * la fois.
+   * Marque un repas comme pris, ou revient dessus, puis relit le journal plutôt
+   * que de rafistoler l'état local : recalculer les totaux ici dupliquerait
+   * `Meal.calculateTotals()`.
    */
-  async function refreshAfterChange(playerId: PlayerId): Promise<boolean> {
-    return load(playerId, day.value)
-  }
-
-  async function addFood(input: AddFoodInput): Promise<boolean> {
-    status.value = 'loading'
-    const result = await useContainer().inventory.addFood.execute(input)
-    if (!result.ok) return fail(result.error)
-
-    return refreshAfterChange(input.playerId)
-  }
-
-  async function removeEntry(
-    playerId: PlayerId,
-    mealId: MealId,
-    entryId: MealEntryId,
-  ): Promise<boolean> {
-    status.value = 'loading'
-    const result = await useContainer().inventory.removeEntry.execute(mealId, entryId)
-    if (!result.ok) return fail(result.error)
-
-    return refreshAfterChange(playerId)
-  }
-
-  async function changeQuantity(
-    playerId: PlayerId,
-    mealId: MealId,
-    entryId: MealEntryId,
-    grams: number,
-  ): Promise<boolean> {
-    status.value = 'loading'
-    const result = await useContainer().inventory.changeQuantity.execute(mealId, entryId, grams)
-    if (!result.ok) return fail(result.error)
-
-    return refreshAfterChange(playerId)
-  }
-
-  /** Marque un repas comme pris, ou revient dessus. */
   async function setConsumed(
     playerId: PlayerId,
     mealId: MealId,
@@ -109,15 +68,7 @@ export const useJournalStore = defineStore('journal', () => {
     const result = await useContainer().inventory.markConsumed.execute(mealId, consumed)
     if (!result.ok) return fail(result.error)
 
-    return refreshAfterChange(playerId)
-  }
-
-  async function deleteMeal(playerId: PlayerId, mealId: MealId): Promise<boolean> {
-    status.value = 'loading'
-    const result = await useContainer().inventory.deleteMeal.execute(mealId)
-    if (!result.ok) return fail(result.error)
-
-    return refreshAfterChange(playerId)
+    return load(playerId, day.value)
   }
 
   function clearError(): void {
@@ -137,11 +88,7 @@ export const useJournalStore = defineStore('journal', () => {
     totalDetail,
     isEmpty,
     load,
-    addFood,
-    removeEntry,
-    changeQuantity,
     setConsumed,
-    deleteMeal,
     clearError,
   }
 })

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { type DayKey, parseDayKey } from '@/core/day'
 import type { DatabaseProvider } from '@/core/infrastructure/database'
 import { createTestDatabase } from '@/core/infrastructure/__tests__/testDatabase'
 import { idFrom, type PlayerId } from '@/core/identity'
@@ -40,8 +41,15 @@ const unwrap = <T>(result: { ok: true; value: T } | { ok: false; error: Error })
 const entryOf = (grams: number): MealEntry =>
   unwrap(MealEntry.fromFoodItem(chicken, Quantity.reconstitute(grams)))
 
+const day = (text: string): DayKey => {
+  const parsed = parseDayKey(text)
+  if (parsed === null) throw new Error(`jour de test invalide : ${text}`)
+  return parsed
+}
+
 const mealOf = (options: {
   loggedAt: Date
+  plannedFor?: DayKey
   type?: MealType
   player?: PlayerId
   entries?: MealEntry[]
@@ -51,6 +59,7 @@ const mealOf = (options: {
       playerId: options.player ?? playerId,
       type: options.type ?? MealType.LUNCH,
       loggedAt: options.loggedAt,
+      ...(options.plannedFor === undefined ? {} : { plannedFor: options.plannedFor }),
       entries: options.entries ?? [entryOf(150)],
     }),
   )
@@ -177,6 +186,77 @@ describe('IndexedDbMealRepository', () => {
     it('retourne une liste vide pour une journée sans repas', async () => {
       const found = unwrap(
         await repository.findByPlayerAndDay(playerId, new Date('2026-01-01T12:00:00')),
+      )
+
+      expect(found).toEqual([])
+    })
+  })
+
+  describe('jour prévu', () => {
+    it('range un repas au jour prévu, pas au jour où il a été composé', async () => {
+      // Composé dimanche, prévu jeudi.
+      const meal = mealOf({
+        loggedAt: new Date('2026-09-20T18:00:00'),
+        plannedFor: day('2026-09-24'),
+        type: MealType.DINNER,
+      })
+      unwrap(await repository.save(meal))
+
+      const sunday = unwrap(
+        await repository.findByPlayerAndDay(playerId, new Date('2026-09-20T12:00:00')),
+      )
+      const thursday = unwrap(
+        await repository.findByPlayerAndDay(playerId, new Date('2026-09-24T12:00:00')),
+      )
+
+      expect(sunday).toEqual([])
+      expect(thursday.map((found) => found.id)).toEqual([meal.id])
+      expect(thursday[0]?.plannedFor).toBe('2026-09-24')
+    })
+
+    it('relit le jour prévu d’un repas écrit avant la planification', async () => {
+      // Ces enregistrements n'ont qu'une clé `dayKey`, qui valait le jour de
+      // composition — c'est-à-dire, à l'époque, le jour prévu.
+      const meal = mealOf({ loggedAt: new Date('2026-03-15T12:30:00') })
+      unwrap(await repository.save(meal))
+
+      const found = unwrap(await repository.findById(meal.id))
+
+      expect(found?.plannedFor).toBe('2026-03-15')
+    })
+  })
+
+  describe('findByPlayerBetween', () => {
+    it('retourne les repas de la plage, bornes incluses, triés par jour', async () => {
+      const composedAt = new Date('2026-09-20T18:00:00')
+      for (const plannedFor of ['2026-09-27', '2026-09-21', '2026-09-24', '2026-09-28', '2026-09-20']) {
+        unwrap(await repository.save(mealOf({ loggedAt: composedAt, plannedFor: day(plannedFor) })))
+      }
+
+      const found = unwrap(
+        await repository.findByPlayerBetween(playerId, day('2026-09-21'), day('2026-09-27')),
+      )
+
+      expect(found.map((meal) => meal.plannedFor)).toEqual([
+        '2026-09-21',
+        '2026-09-24',
+        '2026-09-27',
+      ])
+    })
+
+    it('ignore les repas des autres joueurs', async () => {
+      unwrap(
+        await repository.save(
+          mealOf({
+            loggedAt: new Date('2026-09-22T12:00:00'),
+            plannedFor: day('2026-09-22'),
+            player: otherPlayerId,
+          }),
+        ),
+      )
+
+      const found = unwrap(
+        await repository.findByPlayerBetween(playerId, day('2026-09-21'), day('2026-09-27')),
       )
 
       expect(found).toEqual([])

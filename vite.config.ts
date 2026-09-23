@@ -61,7 +61,7 @@ const pwa = VitePWA({
      */
     /** Les routes de l'application sont côté client : toute navigation retombe sur la coquille. */
     navigateFallback: 'index.html',
-    navigateFallbackDenylist: [/^\/data\//],
+    navigateFallbackDenylist: [/^\/data\//, /^\/api\//],
     cleanupOutdatedCaches: true,
     runtimeCaching: [
       {
@@ -100,8 +100,19 @@ const pwa = VitePWA({
 
 // L'alias `@/` est défini ici une seule fois : Vite, Vitest et le typecheck
 // (via tsconfig#paths) doivent rester alignés.
+/**
+ * L'API est servie sur la **même origine** que l'application : en
+ * développement, Vite relaie `/api` vers le serveur (`npm run dev:server`), en
+ * production un reverse proxy fera de même. Pas de CORS, pas de
+ * pré-vérification, et le cookie de session voyage sans configuration.
+ */
+const API_TARGET = process.env.API_TARGET ?? 'http://127.0.0.1:4319'
+const apiProxy = { '/api': { target: API_TARGET } }
+
 export default defineConfig({
   plugins: [vue(), pwa],
+  server: { proxy: apiProxy },
+  preview: { proxy: apiProxy },
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -109,7 +120,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'server/src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       include: [
@@ -119,6 +130,11 @@ export default defineConfig({
         'src/modules/*/infrastructure/**/*.ts',
         'src/modules/*/presentation/**/*.ts',
         'src/app/useDailyTracking.ts',
+        'src/app/useAccountSync.ts',
+        'src/app/sync/**/*.ts',
+        'src/contract/**/*.ts',
+        'src/app/accountForm.ts',
+        'server/src/**/*.ts',
         'src/app/container.ts',
         'src/app/dataExport.ts',
         'src/app/useDataExport.ts',
@@ -127,7 +143,7 @@ export default defineConfig({
         'src/app/theme/**/*.ts',
         'src/ui/**/*.ts',
       ],
-      exclude: ['**/__tests__/**', '**/index.ts', '**/*.d.ts'],
+      exclude: ['**/__tests__/**', '**/index.ts', '**/*.d.ts', 'server/src/main.ts'],
       thresholds: {
         lines: 90,
         functions: 90,

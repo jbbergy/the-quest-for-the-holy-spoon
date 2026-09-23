@@ -1,16 +1,17 @@
 <script setup lang="ts">
 /**
- * Accueil du profil local.
+ * Accueil : avec ou sans compte.
  *
- * L'application est entièrement locale : il n'y a ni compte, ni mot de passe, ni
- * serveur. Cet écran l'énonce clairement plutôt que d'imiter une page de
- * connexion — promettre une authentification inexistante induirait en erreur sur
- * l'endroit où vivent les données.
+ * Le compte est **facultatif**. Sans lui, tout reste sur l'appareil, comme
+ * avant ; avec lui, les repas suivent la personne d'un appareil à l'autre et le
+ * foyer devient possible. Les deux chemins sont présentés à égalité : l'usage
+ * local n'est pas un mode dégradé.
  */
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ROUTE } from '@/app/router'
+import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
@@ -18,6 +19,7 @@ import ErrorNotice from '@/ui/ErrorNotice.vue'
 
 const router = useRouter()
 const players = usePlayerStore()
+const account = useAccountStore()
 
 onMounted(async () => {
   if (players.status === 'idle') await players.load()
@@ -35,7 +37,7 @@ onMounted(async () => {
       </p>
       <h1>Bienvenue</h1>
       <p class="auth__intro">
-        Suivez vos apports, progressez, et complétez vos journées sans y penser.
+        Planifiez vos repas de la semaine, suivez vos apports, et complétez vos journées sans y penser.
       </p>
     </header>
 
@@ -56,8 +58,8 @@ onMounted(async () => {
 
     <BaseCard
       v-else
-      title="Commencer"
-      subtitle="Tout reste sur cet appareil : aucun compte, aucun serveur."
+      title="Commencer sans compte"
+      subtitle="Tout reste sur cet appareil."
     >
       <BaseButton
         block
@@ -65,6 +67,32 @@ onMounted(async () => {
       >
         Créer mon profil
       </BaseButton>
+    </BaseCard>
+
+    <BaseCard
+      v-if="account.session"
+      title="Compte"
+      :subtitle="`Connecté avec ${account.session.email}.`"
+    />
+    <BaseCard
+      v-else
+      title="Avec un compte"
+      subtitle="Retrouvez vos repas sur vos autres appareils et partagez-les avec votre foyer."
+    >
+      <div class="auth__actions">
+        <BaseButton
+          variant="secondary"
+          @click="router.push({ name: ROUTE.signIn })"
+        >
+          Se connecter
+        </BaseButton>
+        <BaseButton
+          variant="secondary"
+          @click="router.push({ name: ROUTE.signUp })"
+        >
+          Créer un compte
+        </BaseButton>
+      </div>
     </BaseCard>
   </div>
 </template>
@@ -86,6 +114,12 @@ onMounted(async () => {
   margin: 0;
   font-size: 3rem;
   line-height: 1;
+}
+
+.auth__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 
 .auth__intro {

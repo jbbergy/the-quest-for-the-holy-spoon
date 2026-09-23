@@ -1,5 +1,6 @@
 import type { RepositoryError } from '@/core/errors'
 import type { FoodItemId } from '@/core/identity'
+import { JOURNAL_STORES, journal, localChanges } from '@/core/infrastructure/changeJournal'
 import type { DatabaseProvider } from '@/core/infrastructure/database'
 import { INDEX, STORE } from '@/core/infrastructure/database'
 import {
@@ -11,7 +12,7 @@ import {
 import { tokenize } from '@/core/infrastructure/text'
 import type { Result } from '@/core/result'
 
-import type { FoodItem, FoodSource } from '../domain/FoodItem'
+import { type FoodItem, FoodSource } from '../domain/FoodItem'
 import type { IFoodRepository } from '../domain/repositories'
 
 import { foodToRecord, type FoodRecord, recordToFood } from './records'
@@ -117,12 +118,21 @@ export class IndexedDbFoodRepository implements IFoodRepository {
     })
   }
 
+  /**
+   * Seuls les aliments créés à la main partent vers le serveur : une fiche
+   * Ciqual ou Open Food Facts se retrouve à sa source, et un repas garde de
+   * toute façon l'instantané de ses aliments.
+   */
   async save(item: FoodItem): Promise<Result<void, RepositoryError>> {
     return guard('enregistrement d’un aliment', async () => {
       const db = await this.databases.get()
-      const tx = db.transaction(STORE.foods, 'readwrite')
+      const tx = db.transaction([STORE.foods, ...JOURNAL_STORES], 'readwrite')
       tx.objectStore(STORE.foods).put(foodToRecord(item))
+      const journaled =
+        item.source === FoodSource.USER &&
+        (await journal(tx, { entity: 'food', id: item.id, op: 'upsert' }, null))
       await transactionToPromise(tx)
+      if (journaled) localChanges.notify()
     })
   }
 

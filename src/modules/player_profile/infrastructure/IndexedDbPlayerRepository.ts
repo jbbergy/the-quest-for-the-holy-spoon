@@ -1,5 +1,6 @@
 import type { RepositoryError } from '@/core/errors'
 import type { PlayerId } from '@/core/identity'
+import { JOURNAL_STORES, journal, localChanges } from '@/core/infrastructure/changeJournal'
 import type { DatabaseProvider } from '@/core/infrastructure/database'
 import { META_KEY, STORE } from '@/core/infrastructure/database'
 import { guard, requestToPromise, transactionToPromise } from '@/core/infrastructure/idb'
@@ -57,17 +58,22 @@ export class IndexedDbPlayerRepository implements IPlayerRepository {
     })
   }
 
-  /** Enregistre le profil et le désigne comme courant, atomiquement. */
+  /**
+   * Enregistre le profil et le désigne comme courant, atomiquement — et le
+   * journalise pour la synchronisation s'il est celui du compte connecté.
+   */
   async save(player: Player): Promise<Result<void, RepositoryError>> {
     return guard('enregistrement du profil', async () => {
       const db = await this.databases.get()
-      const tx = db.transaction([STORE.players, STORE.meta], 'readwrite')
+      const tx = db.transaction([STORE.players, ...JOURNAL_STORES], 'readwrite')
       tx.objectStore(STORE.players).put(playerToRecord(player))
       tx.objectStore(STORE.meta).put({
         key: META_KEY.currentPlayerId,
         value: player.id,
       } satisfies MetaRecord)
+      const journaled = await journal(tx, { entity: 'player', id: player.id, op: 'upsert' }, player.id)
       await transactionToPromise(tx)
+      if (journaled) localChanges.notify()
     })
   }
 

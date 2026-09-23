@@ -14,6 +14,7 @@
  */
 import { computed, ref } from 'vue'
 
+import OnlineSearchNotice from '@/app/components/OnlineSearchNotice.vue'
 import { ROUTE } from '@/app/router'
 import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
 import BaseButton from '@/ui/BaseButton.vue'
@@ -81,13 +82,11 @@ const resultAnnouncement = computed(() => {
       {{ resultAnnouncement }}
     </p>
 
-    <p
+    <OnlineSearchNotice
       v-if="search.onlineSearchUnavailable"
-      class="foods__offline"
-    >
-      <span aria-hidden="true">⌁</span>
-      Open Food Facts n’a pas pu être interrogé — résultats du catalogue local uniquement.
-    </p>
+      :busy="search.status === 'loading'"
+      @retry="search.find(search.query)"
+    />
 
     <BaseCard
       v-if="search.hasResults"
@@ -112,7 +111,7 @@ const resultAnnouncement = computed(() => {
           <BaseButton
             size="sm"
             variant="secondary"
-            @click="$router.push({ name: ROUTE.mealBuilder, query: { food: item.id } })"
+            @click="$router.push({ name: ROUTE.mealEditor, query: { aliment: item.id } })"
           >
             Ajouter à un repas
           </BaseButton>
@@ -148,19 +147,6 @@ const resultAnnouncement = computed(() => {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.foods__offline {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  background: var(--color-accent-soft);
-  border: 1px solid var(--color-accent);
-  border-radius: var(--radius-md);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
 }
 
 .foods__list {

@@ -26,6 +26,16 @@ const MESSAGES: Readonly<Record<string, string>> = {
   STORAGE_UNAVAILABLE: 'Le stockage local est indisponible sur cet appareil.',
   REMOTE_UNAVAILABLE: 'La recherche en ligne est indisponible.',
   UNKNOWN_THEME: 'Ce thème n’existe plus.',
+  INVALID_EMAIL: 'Cette adresse e-mail n’est pas valide.',
+  WEAK_PASSWORD: 'Le mot de passe doit compter au moins 12 caractères.',
+  INVALID_CREDENTIALS: 'Adresse ou mot de passe incorrect.',
+  EMAIL_NOT_VERIFIED:
+    'Votre adresse n’est pas encore confirmée : un nouveau lien vient de vous être envoyé.',
+  TOKEN_INVALID: 'Ce lien a déjà servi ou a expiré. Demandez-en un nouveau.',
+  RATE_LIMITED: 'Trop de tentatives. Patientez quelques minutes avant de réessayer.',
+  PLAYER_ALREADY_LINKED: 'Ce profil est déjà rattaché à un autre compte.',
+  NOT_AUTHENTICATED: 'Votre session a expiré : reconnectez-vous.',
+  SERVER_UNREACHABLE: 'Le serveur ne répond pas. Vérifiez votre connexion, puis réessayez.',
 }
 
 const text = computed(() =>

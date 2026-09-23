@@ -1,6 +1,5 @@
 import { ApplicationError, type DomainError, type RepositoryError } from '@/core/errors'
-import { dayKeyOf } from '@/core/day'
-import type { EventBus } from '@/core/EventBus'
+import { type DayKey, dayKeyOf, weekOf } from '@/core/day'
 import type { FoodItemId, MealId, MealEntryId, PlayerId } from '@/core/identity'
 import type { INetworkStatus } from '@/core/infrastructure/NetworkStatusService'
 import { Macros, type MacrosProps } from '@/core/nutrition/Macros'
@@ -16,7 +15,6 @@ import type { IFoodRepository, IMealRepository } from '../domain/repositories'
 
 import {
   type FoodExport,
-  mealLoggedEvent,
   type MealExport,
   type MealSummary,
   toFoodExport,
@@ -274,6 +272,8 @@ export interface AddFoodInput {
   readonly mealType: MealType
   /** Repas existant à compléter ; un nouveau repas est créé si absent. */
   readonly mealId?: MealId
+  /** Jour d'un **nouveau** repas ; aujourd'hui si absent. Ignoré pour un repas existant. */
+  readonly plannedFor?: DayKey
   readonly loggedAt?: Date
 }
 
@@ -281,16 +281,14 @@ export interface AddFoodInput {
  * Ajoute un aliment à un repas.
  *
  * C'est le Use Case pivot de l'application : il lit la fiche, en fige un
- * instantané dans une `MealEntry`, produit un **nouveau** `Meal`, le sauvegarde,
- * puis publie `MealLoggedEvent`. La publication vient en dernier et ses échecs
- * sont ignorés : si l'attribution d'XP échoue, le repas reste enregistré — le
- * suivi nutritionnel ne doit jamais dépendre du bon fonctionnement du jeu.
+ * instantané dans une `MealEntry`, produit un **nouveau** `Meal` et le
+ * sauvegarde. Un repas n'existe en base qu'à partir de son premier aliment :
+ * ouvrir un repas puis renoncer ne laisse aucune coquille vide dans la semaine.
  */
 export class AddFoodToMealUseCase {
   constructor(
     private readonly foods: IFoodRepository,
     private readonly meals: IMealRepository,
-    private readonly events: EventBus,
   ) {}
 
   async execute(input: AddFoodInput): Promise<Result<Meal, InventoryError>> {
@@ -323,17 +321,7 @@ export class AddFoodToMealUseCase {
     const updated = meal.value.addEntry(entry.value)
     if (!updated.ok) return updated
 
-    const saved = await this.meals.save(updated.value)
-    if (!saved.ok) {
-      return err(
-        new ApplicationError('MEAL_NOT_SAVED', 'Le repas n’a pas pu être enregistré.', {
-          cause: saved.error,
-        }),
-      )
-    }
-
-    await this.events.publish(mealLoggedEvent(updated.value))
-    return ok(updated.value)
+    return saveMeal(this.meals, updated.value)
   }
 
   private async resolveMeal(input: AddFoodInput): Promise<Result<Meal, InventoryError>> {
@@ -342,31 +330,15 @@ export class AddFoodToMealUseCase {
         playerId: input.playerId,
         type: input.mealType,
         ...(input.loggedAt === undefined ? {} : { loggedAt: input.loggedAt }),
+        ...(input.plannedFor === undefined ? {} : { plannedFor: input.plannedFor }),
       })
     }
-
-    const found = await this.meals.findById(input.mealId)
-    if (!found.ok) {
-      return err(
-        new ApplicationError('MEAL_UNREADABLE', 'Le repas n’a pas pu être relu.', {
-          cause: found.error,
-        }),
-      )
-    }
-    if (found.value === null) {
-      return err(
-        new ApplicationError('MEAL_NOT_FOUND', `Aucun repas ne correspond à ${input.mealId}.`),
-      )
-    }
-    return ok(found.value)
+    return loadMeal(this.meals, input.mealId)
   }
 }
 
 export class RemoveMealEntryUseCase {
-  constructor(
-    private readonly meals: IMealRepository,
-    private readonly events: EventBus,
-  ) {}
+  constructor(private readonly meals: IMealRepository) {}
 
   async execute(mealId: MealId, entryId: MealEntryId): Promise<Result<Meal, InventoryError>> {
     const meal = await loadMeal(this.meals, mealId)
@@ -375,25 +347,12 @@ export class RemoveMealEntryUseCase {
     const updated = meal.value.removeEntry(entryId)
     if (!updated.ok) return updated
 
-    const saved = await this.meals.save(updated.value)
-    if (!saved.ok) {
-      return err(
-        new ApplicationError('MEAL_NOT_SAVED', 'Le repas n’a pas pu être enregistré.', {
-          cause: saved.error,
-        }),
-      )
-    }
-
-    await this.events.publish(mealLoggedEvent(updated.value))
-    return ok(updated.value)
+    return saveMeal(this.meals, updated.value)
   }
 }
 
 export class ChangeMealEntryQuantityUseCase {
-  constructor(
-    private readonly meals: IMealRepository,
-    private readonly events: EventBus,
-  ) {}
+  constructor(private readonly meals: IMealRepository) {}
 
   async execute(
     mealId: MealId,
@@ -409,17 +368,41 @@ export class ChangeMealEntryQuantityUseCase {
     const updated = meal.value.changeEntryQuantity(entryId, quantity.value)
     if (!updated.ok) return updated
 
-    const saved = await this.meals.save(updated.value)
-    if (!saved.ok) {
-      return err(
-        new ApplicationError('MEAL_NOT_SAVED', 'Le repas n’a pas pu être enregistré.', {
-          cause: saved.error,
-        }),
-      )
-    }
+    return saveMeal(this.meals, updated.value)
+  }
+}
 
-    await this.events.publish(mealLoggedEvent(updated.value))
-    return ok(updated.value)
+export interface MealSchedule {
+  readonly type: MealType
+  readonly plannedFor: DayKey
+}
+
+/**
+ * Change le jour et le type d'un repas.
+ *
+ * Les deux vont ensemble parce que c'est ainsi qu'on réorganise une semaine :
+ * « le dîner de mardi devient le déjeuner de mercredi » est un seul geste. Seul
+ * le changement de jour est refusé sur un repas pris ; un type, lui, se corrige
+ * sans réécrire aucune journée.
+ */
+export class RescheduleMealUseCase {
+  constructor(private readonly meals: IMealRepository) {}
+
+  async execute(mealId: MealId, schedule: MealSchedule): Promise<Result<Meal, InventoryError>> {
+    const meal = await loadMeal(this.meals, mealId)
+    if (!meal.ok) return meal
+
+    let updated = meal.value
+    if (updated.plannedFor !== schedule.plannedFor) {
+      const moved = updated.reschedule(schedule.plannedFor)
+      if (!moved.ok) return moved
+      updated = moved.value
+    }
+    if (updated.type !== schedule.type) updated = updated.retype(schedule.type)
+
+    // Rien n'a changé : inutile de réécrire le même repas.
+    if (updated === meal.value) return ok(updated)
+    return saveMeal(this.meals, updated)
   }
 }
 
@@ -428,32 +411,23 @@ export class ChangeMealEntryQuantityUseCase {
  *
  * Une seule classe pour les deux sens : ils partagent le chargement et
  * l'enregistrement, et ils sont exclusifs — un repas est pris ou ne l'est pas.
- *
- * Aucun événement n'est publié ici. `MEAL_LOGGED` récompense aujourd'hui l'acte
- * d'enregistrer un repas, pas celui de le manger ; republier cet événement
- * attribuerait une seconde fois l'XP du même repas. Déplacer la récompense vers
- * la consommation est une décision de jeu, pas de suivi nutritionnel.
  */
 export class MarkMealConsumedUseCase {
   constructor(private readonly meals: IMealRepository) {}
 
-  async execute(mealId: MealId, consumed: boolean): Promise<Result<Meal, InventoryError>> {
+  /** `at` : moment du repas, maintenant par défaut — on coche en général en sortant de table. */
+  async execute(
+    mealId: MealId,
+    consumed: boolean,
+    at: Date = new Date(),
+  ): Promise<Result<Meal, InventoryError>> {
     const meal = await loadMeal(this.meals, mealId)
     if (!meal.ok) return meal
 
-    const updated = consumed ? meal.value.markConsumed() : meal.value.markNotConsumed()
+    const updated = consumed ? meal.value.markConsumed(at) : meal.value.markNotConsumed()
     if (!updated.ok) return updated
 
-    const saved = await this.meals.save(updated.value)
-    if (!saved.ok) {
-      return err(
-        new ApplicationError('MEAL_NOT_SAVED', 'Le repas n’a pas pu être enregistré.', {
-          cause: saved.error,
-        }),
-      )
-    }
-
-    return ok(updated.value)
+    return saveMeal(this.meals, updated.value)
   }
 }
 
@@ -470,6 +444,16 @@ export class DeleteMealUseCase {
       )
     }
     return ok(undefined)
+  }
+}
+
+/** Un repas, pour l'écran qui le compose. */
+export class GetMealUseCase {
+  constructor(private readonly meals: IMealRepository) {}
+
+  async execute(mealId: MealId): Promise<Result<MealSummary, InventoryError>> {
+    const meal = await loadMeal(this.meals, mealId)
+    return meal.ok ? ok(toMealSummary(meal.value)) : meal
   }
 }
 
@@ -514,25 +498,150 @@ export class GetDailyJournalUseCase {
     const summaries = found.value.map(toMealSummary)
     const consumedMeals = summaries.filter((meal) => meal.consumedAt !== null)
 
-    // Les totaux sont agrégés **ici**, et non dans chaque écran : le tableau de
-    // bord et le journal en affichaient déjà deux versions du même calcul, et
-    // rien ne garantissait qu'elles filtrent sur le même critère.
-    const totalMacros = consumedMeals.reduce(
-      (sum, meal) => sum.plus(Macros.reconstitute(meal.macros)),
-      Macros.zero(),
-    )
-    const totalDetail = consumedMeals.reduce(
-      (sum, meal) => sum.plus(NutrientDetail.reconstitute(meal.detail)),
-      NutrientDetail.zero(),
-    )
+    const totals = totalsOf(consumedMeals)
 
     return ok({
       day: dayKeyOf(day),
       meals: summaries,
       consumedMeals,
-      totalCalories: consumedMeals.reduce((sum, meal) => sum + meal.calories, 0),
-      totalMacros: totalMacros.toJSON(),
-      totalDetail: totalDetail.toJSON(),
+      totalCalories: totals.calories,
+      totalMacros: totals.macros,
+      totalDetail: totals.detail,
+    })
+  }
+}
+
+interface ConsumedTotals {
+  readonly calories: number
+  readonly macros: MacrosProps
+  readonly detail: NutrientDetailProps
+}
+
+/**
+ * Somme des repas pris.
+ *
+ * Agrégée **ici**, et non dans chaque écran : le journal du jour et
+ * l'historique doivent compter exactement de la même façon, sans quoi la
+ * moyenne de la semaine ne correspondrait pas aux jauges des jours passés.
+ */
+function totalsOf(consumedMeals: readonly MealSummary[]): ConsumedTotals {
+  const macros = consumedMeals.reduce(
+    (sum, meal) => sum.plus(Macros.reconstitute(meal.macros)),
+    Macros.zero(),
+  )
+  const detail = consumedMeals.reduce(
+    (sum, meal) => sum.plus(NutrientDetail.reconstitute(meal.detail)),
+    NutrientDetail.zero(),
+  )
+  return {
+    calories: consumedMeals.reduce((sum, meal) => sum + meal.calories, 0),
+    macros: macros.toJSON(),
+    detail: detail.toJSON(),
+  }
+}
+
+// --- Historique --------------------------------------------------------------
+
+/** Ce qui a été effectivement pris un jour donné. */
+export interface DailyConsumption extends ConsumedTotals {
+  readonly day: DayKey
+  readonly consumedMealCount: number
+}
+
+/**
+ * Apports réels, jour par jour, sur une période.
+ *
+ * Seuls figurent les jours où **au moins un repas a été pris**. Un jour absent
+ * n'est pas un jour à zéro calorie : c'est un jour dont on ne sait rien, et
+ * c'est à l'appelant d'en décider — pas à ce Use Case de le travestir en jeûne.
+ */
+export class GetConsumptionHistoryUseCase {
+  constructor(private readonly meals: IMealRepository) {}
+
+  async execute(
+    playerId: PlayerId,
+    from: DayKey,
+    to: DayKey,
+  ): Promise<Result<readonly DailyConsumption[], InventoryError>> {
+    const found = await this.meals.findByPlayerBetween(playerId, from, to)
+    if (!found.ok) {
+      return err(
+        new ApplicationError('HISTORY_UNREADABLE', 'L’historique des repas n’a pas pu être lu.', {
+          cause: found.error,
+        }),
+      )
+    }
+
+    const consumedByDay = new Map<DayKey, MealSummary[]>()
+    for (const meal of found.value) {
+      if (!meal.isConsumed) continue
+      const sameDay = consumedByDay.get(meal.plannedFor) ?? []
+      consumedByDay.set(meal.plannedFor, [...sameDay, toMealSummary(meal)])
+    }
+
+    return ok(
+      [...consumedByDay.entries()]
+        .sort(([a], [b]) => (a < b ? -1 : 1))
+        .map(([day, meals]) => ({ day, consumedMealCount: meals.length, ...totalsOf(meals) })),
+    )
+  }
+}
+
+// --- Semaine -----------------------------------------------------------------
+
+export interface PlannedDay {
+  readonly day: DayKey
+  /** Repas du jour, pris ou prévus, dans l'ordre où ils ont été composés. */
+  readonly meals: readonly MealSummary[]
+  /**
+   * Calories de **tous** les repas du jour, pris ou non.
+   *
+   * L'inverse du tableau de bord, et volontairement : planifier, c'est regarder
+   * ce qu'une journée représentera une fois vécue. N'y compter que les repas
+   * pris afficherait zéro sur tous les jours à venir.
+   */
+  readonly plannedCalories: number
+}
+
+export interface WeekPlan {
+  /** Les sept jours, du lundi au dimanche, y compris ceux sans aucun repas. */
+  readonly days: readonly PlannedDay[]
+}
+
+/**
+ * Semaine de repas contenant un jour donné.
+ *
+ * Les jours vides figurent dans le résultat : c'est sur eux que la
+ * planification se fait, et les laisser à la présentation obligerait chaque
+ * écran à recalculer le calendrier.
+ */
+export class GetWeekPlanUseCase {
+  constructor(private readonly meals: IMealRepository) {}
+
+  async execute(playerId: PlayerId, anyDay: DayKey): Promise<Result<WeekPlan, InventoryError>> {
+    const days = weekOf(anyDay)
+    const first = days[0]
+    const last = days[days.length - 1]
+    if (first === undefined || last === undefined) return ok({ days: [] })
+
+    const found = await this.meals.findByPlayerBetween(playerId, first, last)
+    if (!found.ok) {
+      return err(
+        new ApplicationError('WEEK_UNREADABLE', 'La semaine n’a pas pu être lue.', {
+          cause: found.error,
+        }),
+      )
+    }
+
+    return ok({
+      days: days.map((day) => {
+        const meals = found.value.filter((meal) => meal.plannedFor === day).map(toMealSummary)
+        return {
+          day,
+          meals,
+          plannedCalories: meals.reduce((sum, meal) => sum + meal.calories, 0),
+        }
+      }),
     })
   }
 }
@@ -602,4 +711,19 @@ async function loadMeal(
     return err(new ApplicationError('MEAL_NOT_FOUND', `Aucun repas ne correspond à ${mealId}.`))
   }
   return ok(found.value)
+}
+
+async function saveMeal(
+  meals: IMealRepository,
+  meal: Meal,
+): Promise<Result<Meal, InventoryError>> {
+  const saved = await meals.save(meal)
+  if (!saved.ok) {
+    return err(
+      new ApplicationError('MEAL_NOT_SAVED', 'Le repas n’a pas pu être enregistré.', {
+        cause: saved.error,
+      }),
+    )
+  }
+  return ok(meal)
 }

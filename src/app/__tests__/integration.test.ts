@@ -5,8 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { type AppContainer, createContainer } from '@/app/composition'
 import { collectExport } from '@/app/useDataExport'
+import { addDays, dayKeyOf } from '@/core/day'
 import { StaticNetworkStatus } from '@/core/infrastructure/NetworkStatusService'
-import { toProgressView } from '@/modules/gamification/application'
 import { MealType } from '@/modules/nutrition_inventory/application'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import { BiologicalSex } from '@/modules/player_profile/domain/BodyMeasurements'
@@ -16,9 +16,8 @@ import { toNutritionalNeeds } from '@/modules/player_profile/application'
  * Test d'intégration du **vrai** conteneur.
  *
  * Aucun double ici, hormis la source du catalogue : vraies entités, vrais
- * repositories IndexedDB, vrai bus d'événements, vrai câblage de
- * `composition.ts`. C'est le seul endroit qui vérifie que les quatre contextes
- * fonctionnent ensemble — chacun étant déjà couvert isolément par ailleurs.
+ * repositories IndexedDB, vrai câblage de `composition.ts`. C'est le seul
+ * endroit qui vérifie que les trois contextes fonctionnent ensemble — chacun étant déjà couvert isolément par ailleurs.
  */
 const CATALOG = [
   {
@@ -73,7 +72,7 @@ describe('parcours complet', () => {
     await second.dispose()
   })
 
-  it('enchaîne onboarding, recherche, repas, XP et recommandation', async () => {
+  it('enchaîne onboarding, recherche, repas et recommandation', async () => {
     await container.seedCatalog()
 
     // 1. Onboarding.
@@ -112,13 +111,7 @@ describe('parcours complet', () => {
 
     unwrap(await container.inventory.markConsumed.execute(meal.id, true))
 
-    // 4. L'XP a été attribuée par l'abonné, sans que nutrition_inventory
-    //    ne connaisse gamification.
-    const progress = unwrap(await container.gamification.getProgress.execute(player.id))
-    expect(progress.totalXp.value).toBeGreaterThan(0)
-    expect(toProgressView(progress).level).toBeGreaterThanOrEqual(1)
-
-    // 5. Journal et recommandation.
+    // 4. Journal et recommandation.
     const journal = unwrap(
       await container.inventory.journal.execute(player.id, new Date()),
     )
@@ -138,7 +131,7 @@ describe('parcours complet', () => {
     )
   })
 
-  it('n’attribue pas d’XP deux fois pour un même ajout', async () => {
+  it('planifie un repas pour un autre jour sans toucher à la journée en cours', async () => {
     await container.seedCatalog()
     const player = unwrap(
       await container.profile.create.execute({
@@ -151,23 +144,46 @@ describe('parcours complet', () => {
       }),
     )
     const food = unwrap(await container.inventory.find.execute('riz')).items[0]!
+    const today = dayKeyOf(new Date())
+    const tomorrow = addDays(today, 1)
 
-    await container.inventory.addFood.execute({
-      playerId: player.id,
-      foodItemId: food.id,
-      grams: 100,
-      mealType: MealType.LUNCH,
-    })
-    const afterFirst = unwrap(await container.gamification.getProgress.execute(player.id))
+    const meal = unwrap(
+      await container.inventory.addFood.execute({
+        playerId: player.id,
+        foodItemId: food.id,
+        grams: 200,
+        mealType: MealType.DINNER,
+        plannedFor: tomorrow,
+      }),
+    )
 
-    await container.inventory.journal.execute(player.id, new Date())
-    const afterRead = unwrap(await container.gamification.getProgress.execute(player.id))
+    // Le repas de demain n'apparaît pas sur l'accueil d'aujourd'hui…
+    const todayJournal = unwrap(await container.inventory.journal.execute(player.id, new Date()))
+    expect(todayJournal.meals).toEqual([])
 
-    // Lire le journal ne publie rien : seul un ajout ou une modification le fait.
-    expect(afterRead.totalXp.value).toBe(afterFirst.totalXp.value)
+    // … mais bien dans la semaine, à son jour, avec ses calories prévues.
+    const week = unwrap(await container.inventory.week.execute(player.id, tomorrow))
+    const planned = week.days.find((day) => day.day === tomorrow)
+    expect(planned?.meals.map((summary) => summary.mealId)).toEqual([meal.id])
+    expect(planned?.plannedCalories).toBeGreaterThan(0)
+
+    // Il ne peut pas encore être déclaré pris.
+    const eaten = await container.inventory.markConsumed.execute(meal.id, true)
+    expect(eaten.ok).toBe(false)
+
+    // Ramené à aujourd'hui, il rejoint l'accueil et peut l'être.
+    unwrap(
+      await container.inventory.reschedule.execute(meal.id, {
+        plannedFor: today,
+        type: MealType.DINNER,
+      }),
+    )
+    unwrap(await container.inventory.markConsumed.execute(meal.id, true))
+    const after = unwrap(await container.inventory.journal.execute(player.id, new Date()))
+    expect(after.consumedMeals.map((summary) => summary.mealId)).toEqual([meal.id])
   })
 
-  it('exporte les données du joueur en traversant les trois contextes', async () => {
+  it('exporte les données du joueur en traversant les deux contextes', async () => {
     await container.seedCatalog()
 
     const player = unwrap(
@@ -202,7 +218,6 @@ describe('parcours complet', () => {
     const archive = unwrap(await collectExport(container, new Date('2026-09-22T21:45:00')))
 
     expect(archive.player.name).toBe('Perceval')
-    expect(archive.progress.totalXp).toBeGreaterThan(0)
     expect(archive.meals).toHaveLength(1)
     expect(archive.meals[0]?.consumedAt).not.toBeNull()
     expect(archive.meals[0]?.entries[0]?.grams).toBe(150)
@@ -254,35 +269,4 @@ describe('parcours complet', () => {
     expect(found.onlineSearched).toBe(false)
   })
 
-  it('libère ses abonnements au démontage', async () => {
-    await container.seedCatalog()
-    const player = unwrap(
-      await container.profile.create.execute({
-        name: 'Perceval',
-        heightCm: 180,
-        weightKg: 80,
-        ageYears: 30,
-        biologicalSex: BiologicalSex.MALE,
-        activityLevel: ActivityLevel.MODERATE,
-      }),
-    )
-    const food = unwrap(await container.inventory.find.execute('riz')).items[0]!
-
-    await container.dispose()
-
-    const report = await container.events.publish({
-      name: 'nutrition_inventory.meal_logged',
-      occurredAt: new Date(),
-      payload: {
-        mealId: food.id,
-        playerId: player.id,
-        type: MealType.SNACK,
-        entryCount: 1,
-        macros: { proteinG: 1, carbsG: 1, fatG: 1 },
-        calories: 20,
-      },
-    })
-
-    expect(report.handled).toBe(0)
-  })
 })

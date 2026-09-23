@@ -25,6 +25,7 @@ const mealOf = (calories: number, consumedAt: string | null) => ({
   playerId,
   type: MealType.LUNCH,
   loggedAt: '2026-04-10T12:30:00.000Z',
+  plannedFor: '2026-04-10',
   consumedAt,
   entryCount: 1,
   macros: { proteinG: 20, carbsG: 0, fatG: 10 },
@@ -112,51 +113,6 @@ describe('useJournalStore', () => {
   })
 
   describe('modifications', () => {
-    it('relit le journal après un ajout plutôt que de rafistoler l’état', async () => {
-      const journal = vi.fn(async () => ({ ok: true as const, value: journalOf(170) }))
-      provideContainer(
-        createFakeContainer({
-          inventory: { addFood: succeedsWith(null), journal: { execute: journal } } as never,
-        }),
-      )
-      const store = useJournalStore()
-      await store.load(playerId)
-
-      await store.addFood({
-        playerId,
-        foodItemId: chicken.id,
-        grams: 100,
-        mealType: MealType.LUNCH,
-      })
-
-      // Recalculer les totaux dans le store dupliquerait `Meal.calculateTotals()`.
-      expect(journal).toHaveBeenCalledTimes(2)
-    })
-
-    it('n’écrase pas l’état quand l’ajout échoue', async () => {
-      provideContainer(
-        createFakeContainer({
-          inventory: {
-            journal: succeedsWith(journalOf(170)),
-            addFood: failsWith(new ApplicationError('FOOD_NOT_FOUND', 'introuvable')),
-          } as never,
-        }),
-      )
-      const store = useJournalStore()
-      await store.load(playerId)
-
-      const added = await store.addFood({
-        playerId,
-        foodItemId: idFrom('inconnu'),
-        grams: 100,
-        mealType: MealType.LUNCH,
-      })
-
-      expect(added).toBe(false)
-      expect(store.error?.code).toBe('FOOD_NOT_FOUND')
-      expect(store.totalCalories).toBe(170)
-    })
-
     it('n’expose en consumedMeals que les repas pris', async () => {
       provideContainer(
         createFakeContainer({
@@ -190,30 +146,16 @@ describe('useJournalStore', () => {
       expect(journal).not.toHaveBeenCalled()
     })
 
-    it.each([
-      ['removeEntry', (s: ReturnType<typeof useJournalStore>) =>
-        s.removeEntry(playerId, idFrom('m'), idFrom('e'))],
-      ['changeQuantity', (s: ReturnType<typeof useJournalStore>) =>
-        s.changeQuantity(playerId, idFrom('m'), idFrom('e'), 200)],
-      ['deleteMeal', (s: ReturnType<typeof useJournalStore>) => s.deleteMeal(playerId, idFrom('m'))],
-      ['setConsumed', (s: ReturnType<typeof useJournalStore>) =>
-        s.setConsumed(playerId, idFrom('m'), true)],
-    ])('%s relit le journal après succès', async (_label, action) => {
+    it('relit le journal après un marquage réussi', async () => {
       const journal = vi.fn(async () => ({ ok: true as const, value: journalOf(0) }))
       provideContainer(
         createFakeContainer({
-          inventory: {
-            journal: { execute: journal },
-            removeEntry: succeedsWith(null),
-            changeQuantity: succeedsWith(null),
-            deleteMeal: succeedsWith(undefined),
-            markConsumed: succeedsWith(null),
-          } as never,
+          inventory: { journal: { execute: journal }, markConsumed: succeedsWith(null) } as never,
         }),
       )
       const store = useJournalStore()
 
-      expect(await action(store)).toBe(true)
+      expect(await store.setConsumed(playerId, idFrom('m'), true)).toBe(true)
       expect(journal).toHaveBeenCalledTimes(1)
     })
   })

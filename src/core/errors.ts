@@ -53,6 +53,32 @@ export class RemoteUnavailableError extends RemoteError {
 }
 
 /**
+ * Le serveur de l'application ne répond pas : hors connexion, en panne, ou pas
+ * démarré. Distinct de `REMOTE_UNAVAILABLE`, qui désigne Open Food Facts — les
+ * deux pannes n'appellent pas le même message.
+ */
+export class ServerUnreachableError extends RemoteError {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super('SERVER_UNREACHABLE', message, options)
+  }
+}
+
+/**
+ * Le serveur de l'application a répondu, mais par un refus : identifiants
+ * erronés, lien expiré, trop de tentatives… Le `code` est celui qu'il a
+ * renvoyé, et la présentation le traduit comme n'importe quel autre.
+ */
+export class RemoteRejectedError extends RemoteError {
+  constructor(
+    code: string,
+    message: string,
+    readonly status: number,
+  ) {
+    super(code, message)
+  }
+}
+
+/**
  * Projection d'une erreur pour la couche présentation.
  *
  * Les stores exposent cette forme plutôt qu'une chaîne : les composants Vue
@@ -101,12 +127,6 @@ export class IncompatibleDietaryRestrictionError extends DomainError {
   }
 }
 
-export class InvalidXpAmountError extends DomainError {
-  constructor(message: string) {
-    super('INVALID_XP_AMOUNT', message)
-  }
-}
-
 export class InvalidFoodItemError extends DomainError {
   constructor(message: string) {
     super('INVALID_FOOD_ITEM', message)
@@ -128,6 +148,18 @@ export class InvalidPlayerError extends DomainError {
 export class InvalidNutritionalNeedsError extends DomainError {
   constructor(message: string) {
     super('INVALID_NUTRITIONAL_NEEDS', message)
+  }
+}
+
+export class InvalidEmailError extends DomainError {
+  constructor(message: string) {
+    super('INVALID_EMAIL', message)
+  }
+}
+
+export class WeakPasswordError extends DomainError {
+  constructor(message: string) {
+    super('WEAK_PASSWORD', message)
   }
 }
 

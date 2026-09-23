@@ -1,14 +1,17 @@
 import { ApplicationError } from '@/core/errors'
 import { err, ok, type Result } from '@/core/result'
 
+import { addDays, type DayKey } from '@/core/day'
+
 import {
   type IdealFoodProfile,
   MealCompletionService,
 } from '../domain/MealCompletionService'
+import { RECENT_DAYS, type RecentIntake, RecentIntakeService } from '../domain/RecentIntakeService'
 
-import { toConsumedTotals, toDailyTarget } from './adapters'
+import { toConsumedTotals, toDailyIntakes, toDailyTarget, toNutrientBase } from './adapters'
 
-import type { MealSummary } from '@/modules/nutrition_inventory/application'
+import type { DailyConsumption, MealSummary } from '@/modules/nutrition_inventory/application'
 import type { PlayerNutritionalNeeds } from '@/modules/player_profile/application'
 
 export type PlanningError = ApplicationError
@@ -42,5 +45,48 @@ export class SuggestMealCompletionUseCase {
     }
 
     return ok(profile.value)
+  }
+}
+
+/**
+ * Jours dont l'historique est nécessaire pour les moyennes de `day`.
+ *
+ * Exposé plutôt que laissé à l'appelant : la période observée est une règle de
+ * `planning`, et l'écran qui charge l'historique n'a pas à la connaître.
+ */
+export function recentWindow(day: DayKey): { readonly from: DayKey; readonly to: DayKey } {
+  return { from: addDays(day, -RECENT_DAYS), to: addDays(day, -1) }
+}
+
+/**
+ * Apports moyens des sept jours précédents, face aux repères habituels.
+ *
+ * Synchrone et sans lecture, comme la suggestion : l'historique arrive déjà
+ * chargé par `nutrition_inventory`, sous forme de read model. Les objectifs du
+ * jour n'en dépendent pas — la moyenne se regarde, elle ne se rattrape pas.
+ */
+export class SummarizeRecentIntakeUseCase {
+  execute(
+    needs: PlayerNutritionalNeeds,
+    history: readonly DailyConsumption[],
+    day: DayKey,
+  ): Result<RecentIntake, PlanningError> {
+    const recent = RecentIntakeService.summarize(
+      day,
+      toNutrientBase(needs),
+      toDailyIntakes(history),
+    )
+
+    if (!recent.ok) {
+      return err(
+        new ApplicationError(
+          'RECENT_INTAKE_NOT_COMPUTABLE',
+          'Les moyennes de la semaine n’ont pas pu être calculées.',
+          { cause: recent.error },
+        ),
+      )
+    }
+
+    return ok(recent.value)
   }
 }

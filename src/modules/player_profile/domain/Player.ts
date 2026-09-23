@@ -28,9 +28,8 @@ export interface PlayerProps {
 /**
  * Le joueur : son corps, son rythme, son régime.
  *
- * Immuable — chaque mise à jour retourne un nouveau `Player`. Aucune notion de
- * jeu (XP, niveau) ici : la progression appartient au contexte `gamification`,
- * qui ne connaît de ce module que le read model `PlayerNutritionalNeeds`.
+ * Immuable — chaque mise à jour retourne un nouveau `Player`. Les autres
+ * contextes n'en connaissent que le read model `PlayerNutritionalNeeds`.
  */
 export class Player {
   private constructor(

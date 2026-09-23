@@ -22,7 +22,10 @@ const providerWith = (
   fetchImpl: typeof fetch,
   online = true,
 ): OpenFoodFactsProvider =>
-  new OpenFoodFactsProvider(new StaticNetworkStatus(online), { fetchImpl })
+  new OpenFoodFactsProvider(new StaticNetworkStatus(online), {
+    fetchImpl,
+    searchRetryDelayMs: 0,
+  })
 
 const fetchReturning = (body: unknown, status = 200): typeof fetch =>
   vi.fn(async () => jsonResponse(body, status)) as unknown as typeof fetch
@@ -432,6 +435,68 @@ describe('OpenFoodFactsProvider', () => {
       expect(isErr(result)).toBe(true)
       expect(fetchImpl).not.toHaveBeenCalled()
     })
+
+    describe('nouvelle tentative', () => {
+      it('retente une fois une recherche refusée, et rend le second résultat', async () => {
+        const fetchImpl = vi
+          .fn()
+          .mockResolvedValueOnce(jsonResponse({}, 503))
+          .mockResolvedValueOnce(jsonResponse(searchFixture)) as unknown as typeof fetch
+
+        const result = await providerWith(fetchImpl).searchByName('riz complet', 4)
+
+        expect(isOk(result)).toBe(true)
+        expect(fetchImpl).toHaveBeenCalledTimes(2)
+      })
+
+      it('retente aussi quand le navigateur ne voit qu’une panne réseau', async () => {
+        // Le 503 d'Open Food Facts arrive sans en-têtes CORS : dans un
+        // navigateur, `fetch` lève « Failed to fetch » au lieu de rendre le statut.
+        const fetchImpl = vi
+          .fn()
+          .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+          .mockResolvedValueOnce(jsonResponse(searchFixture)) as unknown as typeof fetch
+
+        expect(isOk(await providerWith(fetchImpl).searchByName('riz', 4))).toBe(true)
+      })
+
+      it('ne retente qu’une fois, pour ne pas charger un service saturé', async () => {
+        const fetchImpl = vi.fn(async () => jsonResponse({}, 503)) as unknown as typeof fetch
+
+        const result = await providerWith(fetchImpl).searchByName('riz', 4)
+
+        expect(isErr(result) && result.error.code).toBe('REMOTE_UNAVAILABLE')
+        expect(fetchImpl).toHaveBeenCalledTimes(2)
+      })
+
+      it('ne retente pas après un délai dépassé', async () => {
+        const fetchImpl = vi.fn(async (_url: unknown, init?: RequestInit) => {
+          await new Promise((_, reject) =>
+            init?.signal?.addEventListener('abort', () =>
+              reject(Object.assign(new Error('aborted'), { name: 'AbortError' })),
+            ),
+          )
+          return jsonResponse({})
+        }) as unknown as typeof fetch
+        const provider = new OpenFoodFactsProvider(new StaticNetworkStatus(true), {
+          fetchImpl,
+          timeoutMs: 5,
+          searchRetryDelayMs: 0,
+        })
+
+        await provider.searchByName('riz', 4)
+
+        expect(fetchImpl).toHaveBeenCalledTimes(1)
+      })
+
+      it('ne retente pas la lecture par code-barres, qui n’est pas bridée', async () => {
+        const fetchImpl = vi.fn(async () => jsonResponse({}, 503)) as unknown as typeof fetch
+
+        await providerWith(fetchImpl).findByBarcode('3017620422003')
+
+        expect(fetchImpl).toHaveBeenCalledTimes(1)
+      })
+    })
   })
 
   describe('indisponibilité', () => {
@@ -490,6 +555,19 @@ describe('OpenFoodFactsProvider', () => {
         expect(result.error.message).toContain('délai')
       }
     })
+  })
+
+  it('n’envoie que des en-têtes CORS « simples », pour éviter toute pré-vérification', async () => {
+    // Un `User-Agent` personnalisé déclenchait dans Firefox une requête OPTIONS
+    // avant chaque recherche, refusée une fois sur deux par Open Food Facts.
+    const fetchImpl = vi.fn(async () => jsonResponse(searchFixture)) as unknown as typeof fetch
+
+    await providerWith(fetchImpl).searchByName('riz', 4)
+    await providerWith(fetchImpl).findByBarcode('3017620422003')
+
+    for (const [, init] of vi.mocked(fetchImpl).mock.calls as unknown as [unknown, RequestInit][]) {
+      expect(Object.keys(init.headers ?? {})).toEqual(['Accept'])
+    }
   })
 
   it('restreint les champs demandés à l’API', async () => {

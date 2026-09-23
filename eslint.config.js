@@ -2,7 +2,7 @@ import js from '@eslint/js'
 import vue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 
-const MODULES = ['player_profile', 'gamification', 'nutrition_inventory', 'planning']
+const MODULES = ['account', 'player_profile', 'nutrition_inventory', 'planning']
 
 /** Paquets interdits dans le domaine : il reste du TypeScript pur. */
 const FRAMEWORK_FREE_PATHS = [
@@ -56,7 +56,7 @@ const moduleConfigs = MODULES.flatMap((self) => [
 ])
 
 export default tseslint.config(
-  { ignores: ['dist', 'coverage', 'node_modules'] },
+  { ignores: ['dist', 'coverage', 'node_modules', 'server/.data'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   ...vue.configs['flat/recommended'],
@@ -90,6 +90,34 @@ export default tseslint.config(
     files: ['scripts/**/*.{js,mjs}', 'eslint.config.js', 'vite.config.ts'],
     languageOptions: {
       globals: { process: 'readonly', Buffer: 'readonly', console: 'readonly' },
+    },
+  },
+  {
+    // Serveur : exécuté par Node.
+    files: ['server/**/*.ts'],
+    languageOptions: {
+      globals: { process: 'readonly', Buffer: 'readonly', console: 'readonly' },
+    },
+  },
+  {
+    // Domaine et use cases du serveur : purs, comme ceux du client.
+    files: ['server/src/modules/*/domain/**/*.ts', 'server/src/modules/*/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['fastify', '@fastify/*', 'kysely', 'kysely/*', 'pg', '@node-rs/*', 'zod', 'node:*'],
+              message: 'Le domaine et les use cases du serveur ignorent toute technologie.',
+            },
+            {
+              group: ['**/infrastructure/**', '**/http/**', '**/shared/**'],
+              message: 'Les adaptateurs dépendent du domaine, jamais l’inverse.',
+            },
+          ],
+        },
+      ],
     },
   },
   {

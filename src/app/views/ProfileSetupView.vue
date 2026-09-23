@@ -10,6 +10,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ROUTE } from '@/app/router'
+import { useAccountSync } from '@/app/useAccountSync'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import { BiologicalSex } from '@/modules/player_profile/domain/BodyMeasurements'
 import { DietaryRestriction } from '@/modules/player_profile/domain/DietaryPreferences'
@@ -21,6 +22,7 @@ import ErrorNotice from '@/ui/ErrorNotice.vue'
 
 const router = useRouter()
 const players = usePlayerStore()
+const { connect } = useAccountSync()
 
 const name = ref('')
 const heightCm = ref(175)
@@ -74,7 +76,10 @@ async function submit(): Promise<void> {
   })
   submitting.value = false
 
-  if (created) await router.push({ name: ROUTE.dashboard })
+  if (!created) return
+  // Connecté avant d'avoir un profil : le nouveau profil rejoint le compte.
+  await connect()
+  await router.push({ name: ROUTE.dashboard })
 }
 </script>
 
@@ -84,7 +89,7 @@ async function submit(): Promise<void> {
       <h1>Créons votre profil</h1>
       <p class="setup__intro">
         Ces informations servent à estimer vos besoins caloriques. Elles restent sur cet
-        appareil.
+        appareil. Si vous vous connectez, vos mensurations ne sont jamais montrées à personne.
       </p>
     </header>
 

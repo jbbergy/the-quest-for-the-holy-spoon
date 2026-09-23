@@ -10,11 +10,10 @@ import {
 import { downloadJson } from '@/app/download'
 import { ApplicationError, type BaseError, type ErrorView, toErrorView } from '@/core/errors'
 import { err, ok, type Result } from '@/core/result'
-import { toProgressView } from '@/modules/gamification/application'
 import { toPlayerExport } from '@/modules/player_profile/application'
 
 /**
- * Rassemble les données des trois contextes qui appartiennent à l'utilisateur.
+ * Rassemble les données des deux contextes qui appartiennent à l'utilisateur.
  *
  * Comme `useDailyTracking`, ce module vit dans `src/app/` parce qu'il connaît
  * plusieurs contextes — et chacun n'est atteint que par sa façade. Aucun accès
@@ -37,27 +36,13 @@ export async function collectExport(
   }
   const player = current.value
 
-  const [progress, inventory] = await Promise.all([
-    container.gamification.getProgress.execute(player.id),
-    container.inventory.exportData.execute(player.id),
-  ])
-  if (!progress.ok) return progress
+  const inventory = await container.inventory.exportData.execute(player.id)
   if (!inventory.ok) return inventory
-
-  const view = toProgressView(progress.value)
 
   return ok(
     buildExport(
       {
         player: toPlayerExport(player),
-        // Seules les valeurs stockées sont archivées : le reste de
-        // `PlayerProgressView` (avancement dans le niveau, XP restante) se
-        // recalcule et n'aurait sa place que dans une jauge.
-        progress: {
-          level: view.level,
-          totalXp: view.totalXp,
-          milestones: view.milestones,
-        },
         meals: inventory.value.meals,
         customFoods: inventory.value.customFoods,
       },

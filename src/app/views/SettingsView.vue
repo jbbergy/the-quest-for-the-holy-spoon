@@ -7,18 +7,34 @@
  * applique le nouveau immédiatement, sans rechargement ni confirmation : c'est
  * un réglage dont l'effet est sa propre prévisualisation.
  */
-import { ref, watch } from 'vue'
+import { defineAsyncComponent, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
+import { ROUTE } from '@/app/router'
+import { useAccountSync } from '@/app/useAccountSync'
 import { useDataExport } from '@/app/useDataExport'
 import { useThemeStore } from '@/app/theme/useThemeStore'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
+import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import PasswordField from '@/ui/PasswordField.vue'
 
+/**
+ * Panneau de données de démonstration, en développement seulement. Vite
+ * remplace `import.meta.env.DEV` par une constante au build : en production,
+ * la branche disparaît, et l'import dynamique avec elle.
+ */
+const DemoDataPanel = import.meta.env.DEV
+  ? defineAsyncComponent(() => import('@/app/dev/DemoDataPanel.vue'))
+  : null
+
+const router = useRouter()
 const players = usePlayerStore()
+const account = useAccountStore()
 const theme = useThemeStore()
 const dataExport = useDataExport()
 
@@ -45,6 +61,36 @@ const ACTIVITY_OPTIONS = [
   { value: ActivityLevel.ACTIVE, label: 'Soutenue' },
   { value: ActivityLevel.VERY_ACTIVE, label: 'Intense' },
 ] as const
+
+const accountSync = useAccountSync()
+const accountMessage = ref('')
+const deletePassword = ref('')
+/** Modifications qui n'ont pas pu partir : la déconnexion attend une confirmation. */
+const unsent = ref<number | null>(null)
+
+async function signOut(force = false): Promise<void> {
+  accountMessage.value = ''
+  const outcome = await accountSync.signOut({ force })
+  if (!outcome.signedOut) {
+    unsent.value = outcome.pending > 0 ? outcome.pending : null
+    return
+  }
+  unsent.value = null
+  // La copie locale du compte est effacée : sans autre profil sur l'appareil,
+  // on revient à l'accueil.
+  if (players.player === null) {
+    await router.push({ name: ROUTE.auth })
+    return
+  }
+  accountMessage.value = 'Vous êtes déconnecté. Les données du compte ont été retirées de cet appareil.'
+}
+
+async function deleteAccount(): Promise<void> {
+  accountMessage.value = ''
+  if (!(await accountSync.deleteAccount(deletePassword.value))) return
+  deletePassword.value = ''
+  accountMessage.value = 'Compte supprimé. Vos données restent sur cet appareil.'
+}
 
 async function save(): Promise<void> {
   saved.value = ''
@@ -152,12 +198,129 @@ async function save(): Promise<void> {
     </BaseCard>
 
     <BaseCard
+      title="Compte"
+      :subtitle="
+        account.session
+          ? `Connecté avec ${account.session.email}.`
+          : 'Sans compte, tout reste sur cet appareil.'
+      "
+    >
+      <ErrorNotice :error="account.error" />
+
+      <template v-if="account.session">
+        <div
+          v-if="unsent !== null"
+          class="settings__warning"
+          role="alert"
+        >
+          <p>
+            {{ unsent === Infinity ? 'Des modifications' : `${unsent} modification${unsent > 1 ? 's' : ''}` }}
+            n’ont pas pu être envoyées : le serveur est injoignable. En vous déconnectant
+            maintenant, vous les perdrez.
+          </p>
+          <div class="settings__actions">
+            <BaseButton
+              variant="danger"
+              @click="signOut(true)"
+            >
+              Me déconnecter quand même
+            </BaseButton>
+            <BaseButton
+              variant="secondary"
+              @click="unsent = null"
+            >
+              Rester connecté
+            </BaseButton>
+          </div>
+        </div>
+        <BaseButton
+          v-else
+          variant="secondary"
+          :loading="account.status === 'loading'"
+          @click="signOut()"
+        >
+          Se déconnecter
+        </BaseButton>
+        <p class="settings__note">
+          À la déconnexion, les données du compte sont retirées de cet appareil ; elles restent
+          sur votre compte.
+        </p>
+
+        <details class="settings__danger">
+          <summary>Supprimer mon compte</summary>
+          <form
+            class="settings__form"
+            novalidate
+            @submit.prevent="deleteAccount"
+          >
+            <p class="settings__note settings__note--body">
+              Le compte est effacé du serveur, définitivement. Les données de cet appareil sont
+              conservées : vous pourrez continuer sans compte.
+            </p>
+            <PasswordField
+              v-model="deletePassword"
+              label="Mot de passe, pour confirmer"
+              autocomplete="current-password"
+              required
+            />
+            <BaseButton
+              type="submit"
+              variant="danger"
+              :loading="account.status === 'loading'"
+            >
+              Supprimer définitivement
+            </BaseButton>
+          </form>
+        </details>
+      </template>
+
+      <template v-else-if="account.status === 'unreachable'">
+        <p class="settings__note settings__note--body">
+          Le serveur des comptes ne répond pas : impossible de savoir si vous êtes connecté.
+        </p>
+        <BaseButton
+          variant="secondary"
+          @click="account.load()"
+        >
+          Réessayer
+        </BaseButton>
+      </template>
+
+      <div
+        v-else
+        class="settings__actions"
+      >
+        <BaseButton @click="router.push({ name: ROUTE.signIn })">
+          Se connecter
+        </BaseButton>
+        <BaseButton
+          variant="secondary"
+          @click="router.push({ name: ROUTE.signUp })"
+        >
+          Créer un compte
+        </BaseButton>
+      </div>
+
+      <p
+        class="settings__saved"
+        role="status"
+        aria-live="polite"
+      >
+        {{ accountMessage }}
+      </p>
+    </BaseCard>
+
+    <BaseCard
       title="Vos données"
-      subtitle="Tout est stocké sur cet appareil, et nulle part ailleurs."
+      :subtitle="
+        account.session
+          ? 'Votre profil et vos repas sont sur cet appareil et sur votre compte.'
+          : 'Votre profil et vos repas sont stockés sur cet appareil.'
+      "
     >
       <p class="settings__note settings__note--body">
-        Le fichier contient votre profil, votre progression, tout votre historique
-        de repas et les aliments que vous avez créés. Le catalogue Ciqual en est
+        Le fichier contient votre profil, tous vos repas — passés et prévus — et
+        les aliments que vous avez créés. Le catalogue Ciqual en est
         absent : l’application le régénère seule.
       </p>
 
@@ -196,14 +359,20 @@ async function save(): Promise<void> {
           <dd>{{ Math.round(players.profileView.totalDailyEnergyExpenditure) }} kcal</dd>
         </div>
         <div>
-          <dt>Cible du jour</dt>
+          <dt>Besoin habituel</dt>
           <dd>{{ Math.round(players.profileView.targetCalories) }} kcal</dd>
         </div>
       </dl>
       <p class="settings__note">
         Estimation par l’équation de Mifflin-St Jeor, pondérée par votre niveau d’activité.
+        L’accueil compare aussi vos apports moyens des sept derniers jours à ces besoins.
       </p>
     </BaseCard>
+
+    <component
+      :is="DemoDataPanel"
+      v-if="DemoDataPanel"
+    />
   </div>
 </template>
 
@@ -218,6 +387,37 @@ async function save(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+.settings__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.settings__warning {
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+}
+
+.settings__danger {
+  margin-top: var(--space-4);
+}
+
+.settings__danger summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-danger);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings__danger[open] summary {
+  margin-bottom: var(--space-3);
 }
 
 .settings__fieldset {

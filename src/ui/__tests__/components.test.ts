@@ -7,7 +7,6 @@ import BaseButton from '@/ui/BaseButton.vue'
 import BaseField from '@/ui/BaseField.vue'
 import MacroGauge from '@/ui/MacroGauge.vue'
 import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
-import XpBar from '@/ui/XpBar.vue'
 
 /**
  * `matchMedia` n'existe pas dans happy-dom : sans lui, `useReducedMotion` et le
@@ -245,62 +244,96 @@ describe('MacroGauge', () => {
     // la jauge continuerait de bouger chez qui a demandé à l'éviter.
     expect(wrapper.find('.gauge__fill').attributes('style')).toContain('80.0%')
   })
-})
 
-describe('XpBar', () => {
-  const props = {
-    level: 3,
-    ratio: 0.4,
-    xpIntoLevel: 40,
-    xpToNextLevel: 60,
-  }
+  it('dit « au minimum » pour un minimum à atteindre', () => {
+    const wrapper = mount(MacroGauge, {
+      props: { label: 'Fibres', value: 12, target: 30, mode: 'floor' as const },
+    })
 
-  it('décrit la progression en toutes lettres', () => {
-    const wrapper = mount(XpBar, { props })
-
-    const bar = wrapper.find('[role="progressbar"]')
-    expect(bar.attributes('aria-valuenow')).toBe('40')
-    expect(bar.attributes('aria-valuetext')).toContain('Niveau 3')
-    expect(bar.attributes('aria-valuetext')).toContain('60 XP avant le niveau suivant')
-  })
-
-  it('décrit le niveau maximum sans promettre une suite', () => {
-    const wrapper = mount(XpBar, { props: { ...props, xpToNextLevel: null } })
-
-    expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toContain(
-      'maximum atteint',
+    expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
+      'Fibres : 12 sur 30 g au minimum',
     )
-    expect(wrapper.text()).toContain('Niveau maximum atteint')
+    expect(wrapper.find('.gauge__target').text()).toContain('min')
   })
 
-  it('joue la célébration puis acquitte le palier', async () => {
-    const wrapper = mount(XpBar, { props, attachTo: document.body })
+  describe('moyenne des jours précédents', () => {
+    const calories = (average: number | null, extra: Record<string, unknown> = {}) =>
+      mount(MacroGauge, {
+        props: { label: 'Calories', unit: 'kcal', value: 1000, target: 2000, average, ...extra },
+      })
 
-    await wrapper.setProps({ levelledUp: true })
-    // La frise dure moins d'une seconde ; on lui laisse le temps de s'achever.
-    await new Promise((resolve) => setTimeout(resolve, 900))
+    it('ne montre rien sans moyenne', () => {
+      const wrapper = calories(null)
 
-    expect(wrapper.emitted('celebrated')).toHaveLength(1)
-    wrapper.unmount()
-  })
+      expect(wrapper.find('.gauge__average').exists()).toBe(false)
+      expect(wrapper.find('.gauge__marker').exists()).toBe(false)
+      expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
+        'Calories : 1000 sur 2000 kcal',
+      )
+    })
 
-  it('acquitte immédiatement le palier en mouvement réduit', async () => {
-    stubMatchMedia(true)
-    const wrapper = mount(XpBar, { props, attachTo: document.body })
+    it('chiffre la moyenne, nomme le déficit et place le trait', () => {
+      const wrapper = calories(1700)
 
-    await wrapper.setProps({ levelledUp: true })
-    await nextTick()
+      expect(wrapper.find('.gauge__average').text()).toMatch(
+        /Moyenne sur 7 jours : 1700 kcal\s+· déficit moyen de 300 kcal/,
+      )
+      expect(wrapper.find('.gauge__marker').attributes('style')).toContain('left: 85.0%')
+    })
 
-    // Le drapeau ne doit jamais rester armé : sinon l'animation serait rejouée
-    // au prochain rendu.
-    expect(wrapper.emitted('celebrated')).toHaveLength(1)
-    wrapper.unmount()
-  })
+    it('ne change pas l’objectif du jour', () => {
+      const bar = calories(1700).find('[role="progressbar"]')
 
-  it('annonce la montée de niveau aux lecteurs d’écran', async () => {
-    const wrapper = mount(XpBar, { props: { ...props, levelledUp: true } })
+      expect(bar.attributes('aria-valuemax')).toBe('2000')
+    })
 
-    expect(wrapper.find('[aria-live="polite"]').text()).toContain('Niveau 3 atteint')
+    it('annonce la moyenne aux lecteurs d’écran, en mots', () => {
+      expect(
+        calories(2300, { averageDays: 3 }).find('[role="progressbar"]').attributes('aria-valuetext'),
+      ).toBe(
+        'Calories : 1000 sur 2000 kcal. Moyenne sur 3 jours renseignés : 2300 kcal ' +
+          'par jour, excès moyen de 300 kcal',
+      )
+    })
+
+    it('précise quand un seul jour est renseigné', () => {
+      expect(calories(1900, { averageDays: 1 }).find('.gauge__average').text()).toContain(
+        'Moyenne sur un seul jour renseigné',
+      )
+    })
+
+    it('garde le trait au bout de la barre quand la moyenne dépasse le repère', () => {
+      expect(calories(2600).find('.gauge__marker').attributes('style')).toContain('left: 100.0%')
+    })
+
+    it('tait un écart sous le centième du repère', () => {
+      expect(calories(1990).find('.gauge__average').text()).toContain('au niveau du besoin')
+    })
+
+    it('le trait est décoratif : l’information est dans le texte', () => {
+      expect(calories(1700).find('.gauge__swatch').attributes('aria-hidden')).toBe('true')
+    })
+
+    it('lit un plafond dans le bon sens, au dixième de gramme', () => {
+      const salt = (average: number) =>
+        mount(MacroGauge, {
+          props: { label: 'Sel', value: 2, target: 5, mode: 'limit' as const, average },
+        }).find('.gauge__average')
+
+      expect(salt(6.24).text()).toContain('6,2 g')
+      expect(salt(6.24).text()).toContain('excès moyen de 1,2 g')
+      expect(salt(3).text()).toContain('sous le plafond')
+    })
+
+    it('ne parle jamais d’excès de fibres', () => {
+      const fiber = (average: number) =>
+        mount(MacroGauge, {
+          props: { label: 'Fibres', value: 10, target: 30, mode: 'floor' as const, average },
+        }).find('.gauge__average')
+
+      expect(fiber(40).text()).toContain('minimum atteint')
+      expect(fiber(22).text()).toContain('déficit moyen de 8 g')
+    })
   })
 })
 

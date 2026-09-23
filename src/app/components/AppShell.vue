@@ -12,25 +12,47 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import ServiceWorkerNotice from '@/app/components/ServiceWorkerNotice.vue'
-import { ROUTE } from '@/app/router'
+import SyncIndicator from '@/app/components/SyncIndicator.vue'
+import { ACCOUNT_ROUTES, ROUTE } from '@/app/router'
 
 const route = useRoute()
 const announcement = ref('')
 const main = ref<HTMLElement | null>(null)
 
 /**
- * Libellés courts : la barre doit tenir sur quatre colonnes à 320 px de large.
- * « Tableau de bord » y passait sur deux lignes et désalignait toute la rangée.
+ * Libellés courts : « Tableau de bord » passait sur deux lignes à 320 px de
+ * large et désalignait toute la rangée.
+ *
+ * Plus d'entrée « Journal » : la semaine montre aussi les jours passés, et deux
+ * écrans qui modifient les mêmes repas compliquaient l'usage plus qu'ils ne
+ * l'aidaient.
  */
 const LINKS = [
-  { name: ROUTE.dashboard, label: 'Accueil', icon: '◎' },
-  { name: ROUTE.mealBuilder, label: 'Repas', icon: '＋' },
-  { name: ROUTE.journal, label: 'Journal', icon: '☰' },
-  { name: ROUTE.settings, label: 'Réglages', icon: '⚙' },
+  { name: ROUTE.dashboard, label: 'Accueil', icon: '◎', also: [] },
+  { name: ROUTE.weekPlan, label: 'Semaine', icon: '▦', also: [ROUTE.mealEditor] },
+  { name: ROUTE.settings, label: 'Réglages', icon: '⚙', also: [] },
 ] as const
 
-/** La coquille disparaît pendant l'accueil et l'onboarding, qui sont plein écran. */
-const BARE_ROUTES: readonly string[] = [ROUTE.splash, ROUTE.auth, ROUTE.profileSetup]
+/**
+ * `page` pour l'écran lui-même, `true` pour un écran qui en dépend : l'éditeur
+ * d'un repas appartient à la semaine, et l'onglet doit rester allumé sans
+ * prétendre au lecteur d'écran que c'est la même page.
+ */
+function currentness(link: (typeof LINKS)[number]): 'page' | 'true' | undefined {
+  if (route.name === link.name) return 'page'
+  return (link.also as readonly string[]).includes(String(route.name)) ? 'true' : undefined
+}
+
+/**
+ * La coquille disparaît pendant l'accueil, l'onboarding et les écrans de
+ * compte, qui sont plein écran.
+ */
+const BARE_ROUTES: readonly string[] = [
+  ROUTE.splash,
+  ROUTE.auth,
+  ROUTE.profileSetup,
+  ...ACCOUNT_ROUTES,
+]
 const isBare = computed(() => BARE_ROUTES.includes(String(route.name)))
 
 watch(
@@ -77,6 +99,8 @@ watch(
       {{ announcement }}
     </p>
 
+    <SyncIndicator v-if="!isBare" />
+
     <main
       id="contenu"
       ref="main"
@@ -99,7 +123,7 @@ watch(
         :key="link.name"
         class="shell__link touch-target"
         :to="{ name: link.name }"
-        :aria-current="route.name === link.name ? 'page' : undefined"
+        :aria-current="currentness(link)"
       >
         <span
           class="shell__icon"
@@ -170,7 +194,7 @@ watch(
   white-space: nowrap;
 }
 
-.shell__link[aria-current='page'] {
+.shell__link[aria-current] {
   background: var(--color-accent-soft);
   color: var(--color-accent);
   font-weight: 700;
