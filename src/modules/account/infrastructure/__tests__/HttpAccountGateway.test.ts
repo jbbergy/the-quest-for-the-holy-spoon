@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { idFrom } from '@/core/identity'
 
-import { Email } from '../../domain/Email'
+import { Email } from '@/core/Email'
 import { ApiClient } from '@/contract/apiClient'
 
 import { HttpAccountGateway } from '../HttpAccountGateway'

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { idFrom } from '@/core/identity'
-import { Email } from '@/modules/account/domain/Email'
+import { Email } from '@/core/Email'
 
 import { Account } from '../Account'
 import { SESSION_TTL_MS, shouldExtendSession } from '../policies'

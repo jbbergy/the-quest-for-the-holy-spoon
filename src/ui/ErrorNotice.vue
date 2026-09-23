@@ -36,6 +36,19 @@ const MESSAGES: Readonly<Record<string, string>> = {
   PLAYER_ALREADY_LINKED: 'Ce profil est déjà rattaché à un autre compte.',
   NOT_AUTHENTICATED: 'Votre session a expiré : reconnectez-vous.',
   SERVER_UNREACHABLE: 'Le serveur ne répond pas. Vérifiez votre connexion, puis réessayez.',
+  INVALID_HOUSEHOLD_NAME: 'Le nom du foyer doit compter de 1 à 60 caractères.',
+  NOT_HOUSEHOLD_OWNER: 'Seul le propriétaire du foyer peut faire cela.',
+  NO_HOUSEHOLD: 'Vous ne faites plus partie d’aucun foyer.',
+  ALREADY_IN_HOUSEHOLD:
+    'Vous faites déjà partie d’un foyer : quittez-le avant d’en créer ou d’en rejoindre un autre.',
+  ALREADY_HOUSEHOLD_MEMBER: 'Cette personne fait déjà partie du foyer.',
+  ALREADY_INVITED: 'Une invitation attend déjà la réponse de cette personne.',
+  HOUSEHOLD_FULL: 'Le foyer est complet : 12 membres au plus, invitations en attente comprises.',
+  INVITATION_NOT_FOUND: 'Cette invitation n’existe plus : elle a expiré ou a été annulée.',
+  MEMBER_NOT_FOUND: 'Cette personne ne fait plus partie du foyer.',
+  OWNER_CANNOT_LEAVE: 'Le propriétaire ne quitte pas son foyer : il peut le dissoudre.',
+  HOUSEHOLD_CONFLICT:
+    'Le foyer a changé entre-temps. Voici son état actuel : réessayez si besoin.',
 }
 
 const text = computed(() =>

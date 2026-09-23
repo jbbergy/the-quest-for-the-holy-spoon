@@ -13,7 +13,13 @@ import { describe, expect, it } from 'vitest'
  * l'érosion progressive des frontières.
  */
 const SRC = fileURLToPath(new URL('../..', import.meta.url))
-const MODULES = ['account', 'player_profile', 'nutrition_inventory', 'planning'] as const
+const MODULES = [
+  'account',
+  'household',
+  'player_profile',
+  'nutrition_inventory',
+  'planning',
+] as const
 
 const FORBIDDEN_IN_DOMAIN = ['vue', 'pinia', 'zod', 'idb', 'gsap', 'dexie'] as const
 

@@ -48,6 +48,7 @@ export class RateLimiter {
 
 const MINUTE = 60_000
 const HOUR = 60 * MINUTE
+const DAY = 24 * HOUR
 
 export const RATE = {
   signInPerEmail: { limit: 10, windowMs: 15 * MINUTE },
@@ -55,4 +56,6 @@ export const RATE = {
   mailPerEmail: { limit: 5, windowMs: HOUR },
   mailPerIp: { limit: 20, windowMs: HOUR },
   tokenPerIp: { limit: 30, windowMs: HOUR },
+  /** Seul le propriétaire invite : compter par compte revient à compter par foyer. */
+  invitationsPerAccount: { limit: 20, windowMs: DAY },
 } as const satisfies Record<string, RateRule>

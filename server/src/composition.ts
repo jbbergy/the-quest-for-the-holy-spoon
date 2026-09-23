@@ -16,6 +16,22 @@ import { KyselyAccountRepository } from './modules/account/infrastructure/Kysely
 import { KyselyEmailTokenStore } from './modules/account/infrastructure/KyselyEmailTokenStore'
 import { KyselySessionStore } from './modules/account/infrastructure/KyselySessionStore'
 import { MailAccountNotifier } from './modules/account/infrastructure/MailAccountNotifier'
+import {
+  AcceptInvitationUseCase,
+  CreateHouseholdUseCase,
+  DeclineInvitationUseCase,
+  DissolveHouseholdUseCase,
+  GetHouseholdUseCase,
+  type HouseholdDependencies,
+  InviteUseCase,
+  LeaveHouseholdUseCase,
+  ListReceivedInvitationsUseCase,
+  RemoveMemberUseCase,
+  RevokeInvitationUseCase,
+  SetDaySharingUseCase,
+} from './modules/household/application/useCases'
+import { KyselyHouseholdRepository } from './modules/household/infrastructure/KyselyHouseholdRepository'
+import { MailHouseholdNotifier } from './modules/household/infrastructure/MailHouseholdNotifier'
 import { PullChangesUseCase, PushChangesUseCase } from './modules/sync/application/useCases'
 import { KyselyRecordStore } from './modules/sync/infrastructure/KyselyRecordStore'
 import type { Db } from './shared/db/database'
@@ -42,8 +58,26 @@ export function createServerContainer(options: {
   }
 
   const records = new KyselyRecordStore(options.db)
+  const household: HouseholdDependencies = {
+    households: new KyselyHouseholdRepository(options.db),
+    notifier: new MailHouseholdNotifier(options.mailer),
+    clock: options.clock,
+  }
 
   return {
+    household: {
+      get: new GetHouseholdUseCase(household),
+      create: new CreateHouseholdUseCase(household),
+      invite: new InviteUseCase(household),
+      revoke: new RevokeInvitationUseCase(household),
+      removeMember: new RemoveMemberUseCase(household),
+      setDaySharing: new SetDaySharingUseCase(household),
+      leave: new LeaveHouseholdUseCase(household),
+      dissolve: new DissolveHouseholdUseCase(household),
+      received: new ListReceivedInvitationsUseCase(household),
+      accept: new AcceptInvitationUseCase(household),
+      decline: new DeclineInvitationUseCase(household),
+    },
     sync: {
       push: new PushChangesUseCase(records),
       pull: new PullChangesUseCase(records),

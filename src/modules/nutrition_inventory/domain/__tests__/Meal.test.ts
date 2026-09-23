@@ -446,10 +446,18 @@ describe('jour prévu', () => {
 
   it('peut viser un autre jour que celui de la composition', () => {
     // Composer dimanche le dîner de jeudi : c'est tout l'objet de la planification.
-    const meal = plannedMeal('2026-09-24')
+    // La date de composition est fixée : prise à l'horloge, elle tomberait un
+    // jour sur le jeudi visé, et le test échouerait ce jour-là.
+    const loggedAt = new Date(2026, 8, 20, 18, 0)
+    const result = Meal.create({
+      playerId,
+      type: MealType.DINNER,
+      loggedAt,
+      plannedFor: day('2026-09-24'),
+    })
 
-    expect(meal.plannedFor).toBe('2026-09-24')
-    expect(dayKeyOf(meal.loggedAt)).not.toBe('2026-09-24')
+    expect(isOk(result) && result.value.plannedFor).toBe('2026-09-24')
+    expect(isOk(result) && dayKeyOf(result.value.loggedAt)).toBe('2026-09-20')
   })
 
   it('reschedule déplace le repas dans une nouvelle instance', () => {

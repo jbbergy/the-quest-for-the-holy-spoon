@@ -6,6 +6,7 @@ import { API_PREFIX } from '@/contract/http'
 import { createServerContainer } from './composition'
 import { SessionTransport } from './modules/account/http/authenticate'
 import { registerAccountRoutes } from './modules/account/http/routes'
+import { registerHouseholdRoutes } from './modules/household/http/routes'
 import { registerSyncRoutes } from './modules/sync/http/routes'
 import type { ServerConfig } from './shared/config'
 import type { Db } from './shared/db/database'
@@ -53,14 +54,22 @@ export async function buildApp(deps: AppDependencies): Promise<FastifyInstance> 
     async (api) => {
       api.get('/health', async () => ({ status: 'ok' }))
 
+      const limiter = new RateLimiter(clock)
       registerAccountRoutes(api, {
         useCases: container.account,
         sessions,
-        limiter: new RateLimiter(clock),
+        limiter,
         appUrl: deps.config.appUrl,
         allowedOrigins: deps.config.allowedOrigins,
       })
       registerSyncRoutes(api, { useCases: container.sync, authenticator: sessions })
+      registerHouseholdRoutes(api, {
+        useCases: container.household,
+        authenticator: sessions,
+        limiter,
+        appUrl: deps.config.appUrl,
+        allowedOrigins: deps.config.allowedOrigins,
+      })
     },
     { prefix: API_PREFIX },
   )

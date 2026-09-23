@@ -18,6 +18,21 @@ import {
 } from '@/modules/account/application'
 import { HttpAccountGateway } from '@/modules/account/infrastructure/HttpAccountGateway'
 
+import {
+  AcceptInvitationUseCase,
+  CreateHouseholdUseCase,
+  DeclineInvitationUseCase,
+  DissolveHouseholdUseCase,
+  GetHouseholdUseCase,
+  InviteToHouseholdUseCase,
+  LeaveHouseholdUseCase,
+  ListReceivedInvitationsUseCase,
+  RemoveMemberUseCase,
+  RevokeInvitationUseCase,
+  SetDaySharingUseCase,
+} from '@/modules/household/application'
+import { HttpHouseholdGateway } from '@/modules/household/infrastructure/HttpHouseholdGateway'
+
 import { HttpSyncGateway } from './sync/HttpSyncGateway'
 import { IndexedDbReplica } from './sync/IndexedDbReplica'
 import { SyncEngine } from './sync/SyncEngine'
@@ -79,6 +94,20 @@ export interface AppContainer {
     readonly linkPlayer: LinkPlayerUseCase
     readonly deleteAccount: DeleteAccountUseCase
   }
+  /** Le foyer n'existe qu'en ligne : aucun de ces use cases ne touche l'appareil. */
+  readonly household: {
+    readonly get: GetHouseholdUseCase
+    readonly create: CreateHouseholdUseCase
+    readonly invite: InviteToHouseholdUseCase
+    readonly revoke: RevokeInvitationUseCase
+    readonly removeMember: RemoveMemberUseCase
+    readonly setDaySharing: SetDaySharingUseCase
+    readonly leave: LeaveHouseholdUseCase
+    readonly dissolve: DissolveHouseholdUseCase
+    readonly receivedInvitations: ListReceivedInvitationsUseCase
+    readonly accept: AcceptInvitationUseCase
+    readonly decline: DeclineInvitationUseCase
+  }
   readonly profile: {
     readonly create: CreatePlayerProfileUseCase
     readonly getCurrent: GetCurrentPlayerUseCase
@@ -120,6 +149,7 @@ export function createContainer(
   const mealRepository = new IndexedDbMealRepository(databases)
 
   const accountGateway = new HttpAccountGateway()
+  const householdGateway = new HttpHouseholdGateway()
   const remoteCatalog = new OpenFoodFactsProvider(network)
   const seeder = new CiqualSeeder(databases, foodRepository)
 
@@ -138,6 +168,19 @@ export function createContainer(
       resetPassword: new ResetPasswordUseCase(accountGateway),
       linkPlayer: new LinkPlayerUseCase(accountGateway),
       deleteAccount: new DeleteAccountUseCase(accountGateway),
+    },
+    household: {
+      get: new GetHouseholdUseCase(householdGateway),
+      create: new CreateHouseholdUseCase(householdGateway),
+      invite: new InviteToHouseholdUseCase(householdGateway),
+      revoke: new RevokeInvitationUseCase(householdGateway),
+      removeMember: new RemoveMemberUseCase(householdGateway),
+      setDaySharing: new SetDaySharingUseCase(householdGateway),
+      leave: new LeaveHouseholdUseCase(householdGateway),
+      dissolve: new DissolveHouseholdUseCase(householdGateway),
+      receivedInvitations: new ListReceivedInvitationsUseCase(householdGateway),
+      accept: new AcceptInvitationUseCase(householdGateway),
+      decline: new DeclineInvitationUseCase(householdGateway),
     },
     profile: {
       create: new CreatePlayerProfileUseCase(playerRepository),

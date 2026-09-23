@@ -31,6 +31,16 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   [API_ERROR.playerAlreadyLinked]: 409,
   [API_ERROR.noProfileLinked]: 409,
   [API_ERROR.notFound]: 404,
+  [API_ERROR.notHouseholdOwner]: 403,
+  [API_ERROR.noHousehold]: 404,
+  [API_ERROR.invitationNotFound]: 404,
+  [API_ERROR.memberNotFound]: 404,
+  [API_ERROR.alreadyInHousehold]: 409,
+  [API_ERROR.alreadyHouseholdMember]: 409,
+  [API_ERROR.alreadyInvited]: 409,
+  [API_ERROR.householdFull]: 409,
+  [API_ERROR.ownerCannotLeave]: 409,
+  [API_ERROR.householdConflict]: 409,
 }
 
 /** Traduit le refus d'un use case en réponse HTTP. */

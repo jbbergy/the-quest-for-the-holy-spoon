@@ -7,7 +7,7 @@ import type {
   AccountSession,
   IAccountGateway,
 } from '../domain/AccountGateway'
-import { Email } from '../domain/Email'
+import { Email } from '@/core/Email'
 import { checkPassword } from '../domain/PasswordPolicy'
 
 export type AccountError = DomainError | AccountGatewayError

@@ -2,7 +2,7 @@ import type { RemoteError, ValidationError } from '@/core/errors'
 import type { AccountId, PlayerId } from '@/core/identity'
 import type { Result } from '@/core/result'
 
-import type { Email } from './Email'
+import type { Email } from '@/core/Email'
 
 /**
  * Session ouverte sur le serveur de l'application.

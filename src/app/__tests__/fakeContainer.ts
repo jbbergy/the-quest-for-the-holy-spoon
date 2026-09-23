@@ -21,6 +21,7 @@ type GroupOverrides<TGroup> = Partial<Record<keyof TGroup, Executable>>
 export interface FakeContainerOverrides {
   readonly sync?: AppContainer['sync']
   readonly account?: GroupOverrides<AppContainer['account']>
+  readonly household?: GroupOverrides<AppContainer['household']>
   readonly profile?: GroupOverrides<AppContainer['profile']>
   readonly inventory?: GroupOverrides<AppContainer['inventory']>
   readonly planning?: GroupOverrides<AppContainer['planning']>
@@ -43,6 +44,20 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       linkPlayer: stub(ok(null)),
       deleteAccount: stub(ok(undefined)),
       ...overrides.account,
+    },
+    household: {
+      get: stub(ok(null)),
+      create: stub(ok(null)),
+      invite: stub(ok(undefined)),
+      revoke: stub(ok(null)),
+      removeMember: stub(ok(null)),
+      setDaySharing: stub(ok(null)),
+      leave: stub(ok(undefined)),
+      dissolve: stub(ok(undefined)),
+      receivedInvitations: stub(ok([])),
+      accept: stub(ok(null)),
+      decline: stub(ok(undefined)),
+      ...overrides.household,
     },
     profile: {
       create: stub(ok(null)),

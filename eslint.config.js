@@ -2,7 +2,7 @@ import js from '@eslint/js'
 import vue from 'eslint-plugin-vue'
 import tseslint from 'typescript-eslint'
 
-const MODULES = ['account', 'player_profile', 'nutrition_inventory', 'planning']
+const MODULES = ['account', 'household', 'player_profile', 'nutrition_inventory', 'planning']
 
 /** Paquets interdits dans le domaine : il reste du TypeScript pur. */
 const FRAMEWORK_FREE_PATHS = [

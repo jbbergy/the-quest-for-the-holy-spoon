@@ -14,8 +14,17 @@ import { useRoute } from 'vue-router'
 import ServiceWorkerNotice from '@/app/components/ServiceWorkerNotice.vue'
 import SyncIndicator from '@/app/components/SyncIndicator.vue'
 import { ACCOUNT_ROUTES, ROUTE } from '@/app/router'
+import { useHousehold } from '@/app/useHousehold'
+import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 
 const route = useRoute()
+const account = useAccountStore()
+/**
+ * Les invitations sont lues dès l'ouverture de session : une personne qui
+ * vient de créer son compte depuis un e-mail d'invitation doit la voir
+ * signalée sans avoir à deviner où chercher.
+ */
+const household = useHousehold()
 const announcement = ref('')
 const main = ref<HTMLElement | null>(null)
 
@@ -27,20 +36,35 @@ const main = ref<HTMLElement | null>(null)
  * écrans qui modifient les mêmes repas compliquaient l'usage plus qu'ils ne
  * l'aidaient.
  */
-const LINKS = [
-  { name: ROUTE.dashboard, label: 'Accueil', icon: '◎', also: [] },
-  { name: ROUTE.weekPlan, label: 'Semaine', icon: '▦', also: [ROUTE.mealEditor] },
-  { name: ROUTE.settings, label: 'Réglages', icon: '⚙', also: [] },
-] as const
+interface NavLink {
+  readonly name: string
+  readonly label: string
+  readonly icon: string
+  readonly also: readonly string[]
+}
+
+const HOME: NavLink = { name: ROUTE.dashboard, label: 'Accueil', icon: '◎', also: [] }
+const WEEK: NavLink = { name: ROUTE.weekPlan, label: 'Semaine', icon: '▦', also: [ROUTE.mealEditor] }
+const HOUSEHOLD: NavLink = { name: ROUTE.household, label: 'Foyer', icon: '⌂', also: [ROUTE.invitation] }
+const SETTINGS: NavLink = { name: ROUTE.settings, label: 'Réglages', icon: '⚙', also: [] }
+
+/** Le foyer n'existe qu'avec un compte : sans session, l'onglet n'aurait rien à montrer. */
+const links = computed<readonly NavLink[]>(() =>
+  account.isSignedIn ? [HOME, WEEK, HOUSEHOLD, SETTINGS] : [HOME, WEEK, SETTINGS],
+)
+
+const pendingInvitations = computed(() =>
+  household.household === null ? household.invitations.length : 0,
+)
 
 /**
  * `page` pour l'écran lui-même, `true` pour un écran qui en dépend : l'éditeur
  * d'un repas appartient à la semaine, et l'onglet doit rester allumé sans
  * prétendre au lecteur d'écran que c'est la même page.
  */
-function currentness(link: (typeof LINKS)[number]): 'page' | 'true' | undefined {
+function currentness(link: NavLink): 'page' | 'true' | undefined {
   if (route.name === link.name) return 'page'
-  return (link.also as readonly string[]).includes(String(route.name)) ? 'true' : undefined
+  return link.also.includes(String(route.name)) ? 'true' : undefined
 }
 
 /**
@@ -58,7 +82,7 @@ const isBare = computed(() => BARE_ROUTES.includes(String(route.name)))
 watch(
   () => route.name,
   async (name, previous) => {
-    const link = LINKS.find((entry) => entry.name === name)
+    const link = links.value.find((entry) => entry.name === name)
     announcement.value = link === undefined ? '' : `${link.label} — page chargée`
 
     /**
@@ -119,7 +143,7 @@ watch(
       aria-label="Navigation principale"
     >
       <RouterLink
-        v-for="link in LINKS"
+        v-for="link in links"
         :key="link.name"
         class="shell__link touch-target"
         :to="{ name: link.name }"
@@ -130,6 +154,15 @@ watch(
           aria-hidden="true"
         >{{ link.icon }}</span>
         <span class="shell__label">{{ link.label }}</span>
+        <span
+          v-if="link === HOUSEHOLD && pendingInvitations > 0"
+          class="shell__badge"
+        >
+          <span aria-hidden="true">{{ pendingInvitations }}</span>
+          <span class="sr-only">
+            , {{ pendingInvitations }} invitation{{ pendingInvitations > 1 ? 's' : '' }} en attente
+          </span>
+        </span>
       </RouterLink>
     </nav>
   </div>
@@ -180,6 +213,7 @@ watch(
 }
 
 .shell__link {
+  position: relative;
   display: flex;
   flex: 1;
   max-width: 7rem;
@@ -192,6 +226,21 @@ watch(
   font-size: var(--font-size-xs);
   text-decoration: none;
   white-space: nowrap;
+}
+
+.shell__badge {
+  position: absolute;
+  top: 2px;
+  left: calc(50% + 0.5rem);
+  min-width: 1.1rem;
+  padding: 0 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.1rem;
+  text-align: center;
 }
 
 .shell__link[aria-current] {

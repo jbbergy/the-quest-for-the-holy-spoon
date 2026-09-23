@@ -1,5 +1,5 @@
 import { type AccountId, idFrom } from '@/core/identity'
-import { Email } from '@/modules/account/domain/Email'
+import { Email } from '@/core/Email'
 
 import type { Db } from '../../../shared/db/database'
 import type { AccountRow } from '../../../shared/db/schema'

@@ -9,7 +9,7 @@ import type {
   AccountSession,
   IAccountGateway,
 } from '../domain/AccountGateway'
-import type { Email } from '../domain/Email'
+import type { Email } from '@/core/Email'
 
 /** Adaptateur HTTP du service de comptes, sur le client du contrat. */
 export class HttpAccountGateway implements IAccountGateway {

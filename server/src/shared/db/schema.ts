@@ -14,6 +14,9 @@ export interface Database {
   sessions: SessionsTable
   email_tokens: EmailTokensTable
   records: RecordsTable
+  households: HouseholdsTable
+  household_members: HouseholdMembersTable
+  household_invitations: HouseholdInvitationsTable
 }
 
 type CreatedAt = ColumnType<Date, Date | undefined, never>
@@ -59,4 +62,29 @@ export interface RecordsTable {
   /** `bigint` : le pilote le rend en chaîne, convertie à la lecture. */
   revision: ColumnType<string, never, never>
   updated_at: ColumnType<Date, Date | undefined, Date>
+}
+
+export interface HouseholdsTable {
+  id: string
+  name: string
+  owner_account_id: string
+  /** Incrémentée à chaque écriture : verrou optimiste. */
+  version: Generated<number>
+  created_at: CreatedAt
+}
+
+export interface HouseholdMembersTable {
+  /** Clé primaire : un compte n'appartient qu'à un foyer. */
+  account_id: string
+  household_id: string
+  joined_at: Date
+  shares_days: boolean
+}
+
+export interface HouseholdInvitationsTable {
+  id: string
+  household_id: string
+  email: string
+  invited_at: Date
+  expires_at: Date
 }

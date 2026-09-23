@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type Router } from 'vue-router'
 
 import { APP_LINK } from '@/contract/account'
+import { HOUSEHOLD_APP_LINK } from '@/contract/household'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 
@@ -22,6 +23,8 @@ export const ROUTE = {
   foodSearch: 'food-search',
   customFood: 'custom-food',
   settings: 'settings',
+  household: 'household',
+  invitation: 'invitation',
   signIn: 'sign-in',
   signUp: 'sign-up',
   verifyEmail: 'verify-email',
@@ -45,6 +48,15 @@ const PUBLIC_ROUTES: readonly string[] = [
   ROUTE.profileSetup,
   ...ACCOUNT_ROUTES,
 ]
+
+/**
+ * Page où revenir après la connexion, passée en `?suite=`. Seul un chemin
+ * interne est retenu : suivre une adresse quelconque ferait de l'écran de
+ * connexion un tremplin vers un site tiers.
+ */
+export function returnPath(raw: unknown): string | null {
+  return typeof raw === 'string' && raw.startsWith('/') && !raw.startsWith('//') ? raw : null
+}
 
 export function createAppRouter(): Router {
   const router = createRouter({
@@ -91,6 +103,17 @@ export function createAppRouter(): Router {
         path: '/reglages',
         name: ROUTE.settings,
         component: () => import('./views/SettingsView.vue'),
+      },
+      {
+        // Chemin fixé par le contrat : c'est celui du lien de l'e-mail d'invitation.
+        path: HOUSEHOLD_APP_LINK,
+        name: ROUTE.household,
+        component: () => import('./views/HouseholdView.vue'),
+      },
+      {
+        path: `${HOUSEHOLD_APP_LINK}/invitations/:invitationId`,
+        name: ROUTE.invitation,
+        component: () => import('./views/InvitationView.vue'),
       },
       {
         path: '/connexion',

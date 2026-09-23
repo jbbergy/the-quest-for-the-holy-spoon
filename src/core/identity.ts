@@ -14,6 +14,8 @@ export type FoodItemId = Id<'FoodItemId'>
 export type MealId = Id<'MealId'>
 export type MealEntryId = Id<'MealEntryId'>
 export type AccountId = Id<'AccountId'>
+export type HouseholdId = Id<'HouseholdId'>
+export type InvitationId = Id<'InvitationId'>
 
 /** Génère un identifiant neuf. `crypto` est un standard web comme Node. */
 export function newId<TBrand extends string>(): Id<TBrand> {

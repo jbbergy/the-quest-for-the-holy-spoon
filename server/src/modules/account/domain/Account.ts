@@ -1,6 +1,6 @@
 import type { AccountId, PlayerId } from '@/core/identity'
 import { err, ok, type Result } from '@/core/result'
-import type { Email } from '@/modules/account/domain/Email'
+import type { Email } from '@/core/Email'
 
 import { AccountAlreadyVerifiedError, PlayerAlreadyLinkedError } from './errors'
 

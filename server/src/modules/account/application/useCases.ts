@@ -1,7 +1,7 @@
 import type { DomainError } from '@/core/errors'
 import { type AccountId, newId, type PlayerId } from '@/core/identity'
 import { err, ok, type Result } from '@/core/result'
-import { Email } from '@/modules/account/domain/Email'
+import { Email } from '@/core/Email'
 import { checkPassword } from '@/modules/account/domain/PasswordPolicy'
 
 import { Account } from '../domain/Account'

@@ -7,11 +7,11 @@
  * l'appareil n'en a pas.
  */
 import { onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { useAccountFormErrors } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
-import { ROUTE } from '@/app/router'
+import { returnPath, ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
@@ -22,6 +22,7 @@ import ErrorNotice from '@/ui/ErrorNotice.vue'
 import PasswordField from '@/ui/PasswordField.vue'
 
 const router = useRouter()
+const route = useRoute()
 const account = useAccountStore()
 const players = usePlayerStore()
 const { connect } = useAccountSync()
@@ -36,7 +37,12 @@ async function submit(): Promise<void> {
   if (!(await account.signIn({ email: email.value, password: password.value }))) return
 
   await connect()
-  await router.push({ name: players.player === null ? ROUTE.profileSetup : ROUTE.dashboard })
+  if (players.player === null) {
+    await router.push({ name: ROUTE.profileSetup })
+    return
+  }
+  // Venu d'un lien — une invitation au foyer, par exemple : on y retourne.
+  await router.push(returnPath(route.query.suite) ?? { name: ROUTE.dashboard })
 }
 </script>
 

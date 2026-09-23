@@ -1,5 +1,5 @@
 import { APP_LINK, LINK_TOKEN_PARAM } from '@/contract/account'
-import type { Email } from '@/modules/account/domain/Email'
+import type { Email } from '@/core/Email'
 
 import type { IMailer } from '../../../shared/mail/Mailer'
 import type { IAccountNotifier } from '../domain/ports'

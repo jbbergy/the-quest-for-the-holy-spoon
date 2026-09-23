@@ -12,6 +12,7 @@ import { useRouter } from 'vue-router'
 
 import { ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
+import { useHousehold } from '@/app/useHousehold'
 import { useDataExport } from '@/app/useDataExport'
 import { useThemeStore } from '@/app/theme/useThemeStore'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
@@ -37,6 +38,7 @@ const players = usePlayerStore()
 const account = useAccountStore()
 const theme = useThemeStore()
 const dataExport = useDataExport()
+const household = useHousehold()
 
 const weightKg = ref(players.player?.measurements.weightKg ?? 70)
 const activityLevel = ref<ActivityLevel>(players.player?.activityLevel ?? ActivityLevel.MODERATE)
@@ -90,6 +92,19 @@ async function deleteAccount(): Promise<void> {
   if (!(await accountSync.deleteAccount(deletePassword.value))) return
   deletePassword.value = ''
   accountMessage.value = 'Compte supprimé. Vos données restent sur cet appareil.'
+}
+
+const sharingMessage = ref('')
+
+async function toggleSharing(event: Event): Promise<void> {
+  const sharesDays = (event.target as HTMLInputElement).checked
+  sharingMessage.value = ''
+  household.clearError()
+  if (await household.setDaySharing(sharesDays)) {
+    sharingMessage.value = sharesDays
+      ? 'Les membres du foyer voient de nouveau vos journées.'
+      : 'Vos journées ne sont plus visibles par le foyer.'
+  }
 }
 
 async function save(): Promise<void> {
@@ -311,6 +326,40 @@ async function save(): Promise<void> {
     </BaseCard>
 
     <BaseCard
+      v-if="account.session && household.household"
+      title="Foyer"
+      :subtitle="`Vous faites partie de « ${household.household.name} ».`"
+    >
+      <ErrorNotice :error="household.error" />
+
+      <label class="switch">
+        <input
+          type="checkbox"
+          role="switch"
+          :checked="household.household.sharesDays"
+          aria-describedby="sharing-hint"
+          @change="toggleSharing"
+        >
+        <span>Partager mes journées avec le foyer</span>
+      </label>
+      <p
+        id="sharing-hint"
+        class="settings__note"
+      >
+        Les autres membres voient vos repas et vos jauges. Vos mensurations restent privées dans
+        tous les cas.
+      </p>
+
+      <p
+        class="settings__saved"
+        role="status"
+        aria-live="polite"
+      >
+        {{ sharingMessage }}
+      </p>
+    </BaseCard>
+
+    <BaseCard
       title="Vos données"
       :subtitle="
         account.session
@@ -521,6 +570,54 @@ async function save(): Promise<void> {
   width: 1.15rem;
   height: 1.15rem;
   flex-shrink: 0;
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Un interrupteur dessiné sur la case native : le rôle `switch`, le clavier et
+   l'annonce « activé / désactivé » restent ceux du navigateur. */
+.switch input {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 1.5rem;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.switch input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(1.5rem - 6px);
+  height: calc(1.5rem - 6px);
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.switch input:checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.switch input:checked::after {
+  background: var(--color-accent-contrast);
+  transform: translateX(1.25rem);
 }
 
 .choice:has(input:checked) {

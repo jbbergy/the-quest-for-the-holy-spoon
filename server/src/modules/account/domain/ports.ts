@@ -1,5 +1,5 @@
 import type { AccountId } from '@/core/identity'
-import type { Email } from '@/modules/account/domain/Email'
+import type { Email } from '@/core/Email'
 
 import type { Account } from './Account'
 import type { EmailTokenPurpose } from './policies'

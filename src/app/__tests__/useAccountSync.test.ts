@@ -7,6 +7,7 @@ import { ServerUnreachableError } from '@/core/errors'
 import { idFrom } from '@/core/identity'
 import { ok } from '@/core/result'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
+import { useHouseholdStore } from '@/modules/household/presentation/useHouseholdStore'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import { BiologicalSex, BodyMeasurements } from '@/modules/player_profile/domain/BodyMeasurements'
 import { DietaryPreferences } from '@/modules/player_profile/domain/DietaryPreferences'
@@ -126,12 +127,27 @@ describe('useAccountSync — synchronisation', () => {
     expect(useAccountStore().session).toBeNull()
   })
 
-  it('garde la copie locale quand le compte est supprimé', async () => {
+  it('oublie le foyer à la déconnexion', async () => {
+    withEngine({})
+    useAccountStore().session = linked
+    const household = useHouseholdStore()
+    household.household = { name: 'Les Martin' } as never
+
+    await useAccountSync().signOut()
+
+    expect(household.household).toBeNull()
+    expect(household.status).toBe('idle')
+  })
+
+  it('garde la copie locale quand le compte est supprimé, mais oublie le foyer', async () => {
     const disconnect = vi.fn(async () => ok(undefined))
     withEngine({ disconnect })
+    const household = useHouseholdStore()
+    household.household = { name: 'Les Martin' } as never
 
     expect(await useAccountSync().deleteAccount('phrase')).toBe(true)
     expect(disconnect).toHaveBeenCalledWith({ wipe: false })
+    expect(household.household).toBeNull()
   })
 
   it('ne touche à rien si le serveur refuse la suppression', async () => {

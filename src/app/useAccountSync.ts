@@ -1,6 +1,7 @@
 import { useContainer } from '@/app/container'
 import type { ConnectOutcome } from '@/app/sync/SyncEngine'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
+import { useHouseholdStore } from '@/modules/household/presentation/useHouseholdStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 
 export interface SignOutOutcome {
@@ -12,13 +13,15 @@ export interface SignOutOutcome {
 /**
  * Le compte, le profil et la synchronisation, coordonnés.
  *
- * Trois contextes se rencontrent ici — `account` connaît la session,
- * `player_profile` le profil, la synchronisation l'appareil — et c'est donc
+ * Plusieurs contextes se rencontrent ici — `account` connaît la session,
+ * `player_profile` le profil, `household` le foyer, la synchronisation
+ * l'appareil — et c'est donc
  * dans `src/app/` que cette coordination vit, jamais dans un store.
  */
 export function useAccountSync() {
   const account = useAccountStore()
   const players = usePlayerStore()
+  const household = useHouseholdStore()
   const engine = useContainer().sync
 
   /**
@@ -63,6 +66,7 @@ export function useAccountSync() {
     if (pending > 0 && options.force !== true) return { signedOut: false, pending }
 
     if (!(await account.signOut())) return { signedOut: false, pending: 0 }
+    household.reset()
     await engine.disconnect({ wipe: true })
     await players.load()
     return { signedOut: true, pending: 0 }
@@ -74,6 +78,7 @@ export function useAccountSync() {
    */
   async function deleteAccount(password: string): Promise<boolean> {
     if (!(await account.deleteAccount(password))) return false
+    household.reset()
     await engine.disconnect({ wipe: false })
     return true
   }
