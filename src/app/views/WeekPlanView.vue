@@ -15,9 +15,11 @@ import { useRouter } from 'vue-router'
 
 import { formatDay, formatWeek, mealLabel, mealOrder } from '@/app/mealLabels'
 import { ROUTE } from '@/app/router'
+import { useTodayStore } from '@/app/day/useTodayStore'
 import { memberName, useHousehold } from '@/app/useHousehold'
+import { useOpenDaysStore } from '@/app/useOpenDays'
 import { useSyncStatus } from '@/app/sync/useSyncStatus'
-import { addDays, type DayKey, dayKeyOf } from '@/core/day'
+import { addDays, type DayKey, startOfWeek } from '@/core/day'
 import type { MealId } from '@/core/identity'
 import { type MealSummary, MealType, type PlannedDay } from '@/modules/nutrition_inventory/application'
 import { useWeekPlanStore } from '@/modules/nutrition_inventory/presentation/useWeekPlanStore'
@@ -31,8 +33,12 @@ const router = useRouter()
 const players = usePlayerStore()
 const week = useWeekPlanStore()
 const household = useHousehold()
+const openDays = useOpenDaysStore()
 
-const today = dayKeyOf(new Date())
+const clock = useTodayStore()
+/** Journée en cours, selon l'heure de début choisie ; bascule sans rechargement. */
+const today = computed(() => clock.today)
+const isCurrentWeek = computed(() => week.weekStart === startOfWeek(today.value))
 
 const range = computed(() => {
   const first = week.days[0]?.day
@@ -42,7 +48,7 @@ const range = computed(() => {
 
 async function load(anyDay?: DayKey): Promise<void> {
   const playerId = players.playerId
-  if (playerId !== null) await week.load(playerId, anyDay)
+  if (playerId !== null) await week.load(playerId, anyDay ?? today.value)
 }
 
 onMounted(() => load())
@@ -81,9 +87,18 @@ async function setConsumed(mealId: MealId, consumed: boolean): Promise<void> {
   if (playerId !== null) await week.setConsumed(playerId, mealId, consumed)
 }
 
+/**
+ * « Lundi 22 septembre » : une capitale initiale fait lire le jour comme un
+ * intitulé, pas comme une phrase coupée.
+ */
+function dayTitle(day: DayKey): string {
+  const text = formatDay(day)
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
 function subtitle(day: PlannedDay): string {
   const total = day.meals.length === 0 ? 'Rien de prévu' : `${Math.round(day.plannedCalories)} kcal`
-  return day.day === today ? `Aujourd’hui · ${total}` : total
+  return day.day === today.value ? `Aujourd’hui · ${total}` : total
 }
 </script>
 
@@ -122,7 +137,7 @@ function subtitle(day: PlannedDay): string {
     </nav>
 
     <BaseButton
-      v-if="!week.isCurrentWeek"
+      v-if="!isCurrentWeek"
       variant="secondary"
       size="sm"
       @click="load(today)"
@@ -138,9 +153,12 @@ function subtitle(day: PlannedDay): string {
         :key="day.day"
       >
         <BaseCard
-          :title="formatDay(day.day)"
+          :title="dayTitle(day.day)"
           :subtitle="subtitle(day)"
           :class="{ 'week__day--today': day.day === today }"
+          collapsible
+          :open="openDays.isOpen(day.day)"
+          @update:open="(next) => openDays.setOpen(day.day, next)"
         >
           <ul
             v-if="day.meals.length > 0"
@@ -220,12 +238,6 @@ function subtitle(day: PlannedDay): string {
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-/* Les titres de jour s'écrivent « lundi 22 septembre » : une capitale initiale
-   les fait lire comme des intitulés, pas comme une phrase coupée. */
-.week__days :deep(.card__title::first-letter) {
-  text-transform: uppercase;
 }
 
 /* Aujourd'hui se repère d'un coup d'œil ; le sous-titre « Aujourd'hui » porte la

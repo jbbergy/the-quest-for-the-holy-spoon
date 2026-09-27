@@ -187,4 +187,48 @@ describe('MealCompletionService', () => {
       expect(sum).toBeCloseTo(1, 10)
     }
   })
+
+  describe('fibres', () => {
+    const withFiber: DailyTarget = { ...target, fiberG: 30 }
+    const fiberMeal = (calories: number, fiberG: number): ConsumedTotals => ({
+      ...meal(calories, 0, 0, 0),
+      fiberG,
+    })
+
+    it('renvoie le repère entier pour une journée vierge', () => {
+      expect(compute([], withFiber).remainingFiberG).toBe(30)
+    })
+
+    it('soustrait les fibres des repas pris', () => {
+      expect(compute([fiberMeal(500, 6), fiberMeal(700, 9.5)], withFiber).remainingFiberG)
+        .toBeCloseTo(14.5, 10)
+    })
+
+    it('signale un manque de fibres même quand les calories sont atteintes', () => {
+      const profile = compute([fiberMeal(2000, 12)], withFiber)
+
+      expect(profile.status).toBe(CompletionStatus.COMPLETE)
+      expect(profile.remainingFiberG).toBe(18)
+    })
+
+    it('ne descend pas sous zéro : le repère est un plancher, pas une cible à ne pas dépasser', () => {
+      expect(compute([fiberMeal(800, 42)], withFiber).remainingFiberG).toBe(0)
+    })
+
+    it('ne dit rien des fibres sans repère', () => {
+      expect(compute([fiberMeal(800, 5)]).remainingFiberG).toBe(0)
+    })
+
+    it('ne change ni le statut ni les ratios', () => {
+      const without = compute([meal(600, 40, 60, 20)])
+      const withIt = compute([{ ...meal(600, 40, 60, 20), fiberG: 10 }], withFiber)
+
+      expect(withIt.status).toBe(without.status)
+      expect(withIt.idealRatios).toEqual(without.idealRatios)
+    })
+
+    it.each([-1, Number.NaN, Number.POSITIVE_INFINITY])('refuse un repère de %p', (fiberG) => {
+      expect(isErr(MealCompletionService.computeMissing({ ...target, fiberG }, []))).toBe(true)
+    })
+  })
 })

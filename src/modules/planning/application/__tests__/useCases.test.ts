@@ -28,6 +28,7 @@ const needs: PlayerNutritionalNeeds = {
 const summary = (
   calories: number,
   macros: { proteinG: number; carbsG: number; fatG: number },
+  fiberG = 0,
 ): MealSummary => ({
   mealId: idFrom('meal-1'),
   playerId: needs.playerId,
@@ -39,9 +40,8 @@ const summary = (
   plannedBy: null,
   entryCount: 2,
   macros,
-  // `planning` ignore ces valeurs : sa suggestion reste calorique et
-  // macronutritionnelle. Elles figurent au read model, donc à la fixture.
-  detail: { fiberG: 0, sugarsG: 0, saturatedFatG: 0, saltG: 0 },
+  // Des quatre nutriments, la suggestion ne lit que les fibres.
+  detail: { fiberG, sugarsG: 0, saturatedFatG: 0, saltG: 0 },
   calories,
   entries: [],
 })
@@ -142,6 +142,17 @@ describe('SuggestMealCompletionUseCase', () => {
     const result = useCase.execute(needs, [])
 
     expect(result).not.toBeInstanceOf(Promise)
+  })
+
+  it('dit combien de fibres manquent pour atteindre le repère du profil', () => {
+    const profile = unwrap(
+      useCase.execute(needs, [
+        summary(600, { proteinG: 40, carbsG: 60, fatG: 20 }, 8),
+        summary(700, { proteinG: 40, carbsG: 80, fatG: 25 }, 4.5),
+      ]),
+    )
+
+    expect(profile.remainingFiberG).toBeCloseTo(17.5, 10)
   })
 })
 

@@ -1,4 +1,4 @@
-import { DomainError } from '@/core/errors'
+import { DomainError, InvalidMealError } from '@/core/errors'
 import { type FoodItemId, type MealEntryId, newId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
@@ -115,7 +115,49 @@ export class MealEntry {
     )
   }
 
+  /**
+   * La même ligne — même identifiant, même portion — recalculée depuis la fiche
+   * telle qu'elle est aujourd'hui. Réservé aux repas encore prévus : c'est
+   * `Meal.refreshFrom` qui en décide.
+   */
+  refreshedFrom(foodItem: FoodItem): Result<MealEntry, DomainError> {
+    if (foodItem.id !== this.foodItemId) {
+      return err(
+        new InvalidMealError(`La fiche ${foodItem.id} ne correspond pas à la ligne ${this.id}.`),
+      )
+    }
+    return MealEntry.fromFoodItem(foodItem, this.quantity, this.id)
+  }
+
+  /**
+   * Même instantané, aux arrondis de calcul près : une portion corrigée est
+   * remise à l'échelle depuis l'instantané, un rafraîchissement depuis la fiche,
+   * et les deux chemins ne donnent pas toujours le même dernier bit.
+   */
+  hasSameSnapshotAs(other: MealEntry): boolean {
+    const a = this.snapshot
+    const b = other.snapshot
+    return (
+      a.foodName === b.foodName &&
+      a.tags.length === b.tags.length &&
+      a.tags.every((tag) => b.tags.includes(tag)) &&
+      sameValues(a.macros.toJSON(), b.macros.toJSON()) &&
+      sameValues(a.detail.toJSON(), b.detail.toJSON())
+    )
+  }
+
   equals(other: MealEntry): boolean {
     return this.id === other.id
   }
+}
+
+/** Écart en deçà duquel deux quantités de nutriment sont tenues pour égales, en grammes. */
+const SNAPSHOT_TOLERANCE_G = 1e-6
+
+function sameValues<T extends object>(a: T, b: T): boolean {
+  return Object.keys(a).every(
+    (key) =>
+      Math.abs((a as Record<string, number>)[key]! - (b as Record<string, number>)[key]!) <
+      SNAPSHOT_TOLERANCE_G,
+  )
 }

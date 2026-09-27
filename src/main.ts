@@ -10,6 +10,7 @@ import { registerServiceWorker } from './app/pwa/registerServiceWorker'
 import { createServiceWorkerState, provideServiceWorkerState } from './app/pwa/serviceWorker'
 import { createAppRouter } from './app/router'
 import { startSyncTriggers } from './app/sync/triggers'
+import { useTodayStore } from './app/day/useTodayStore'
 import { useThemeStore } from './app/theme/useThemeStore'
 
 const container = createContainer()
@@ -47,6 +48,10 @@ app.use(pinia)
  * produirait un éclair clair chez tout utilisateur ayant choisi un thème sombre.
  */
 useThemeStore(pinia).initialize()
+
+// La journée en cours, à l'heure de début choisie : lue avant le premier rendu
+// pour que l'accueil n'affiche pas la veille puis le jour, ou l'inverse.
+useTodayStore(pinia).initialize()
 
 app.use(createAppRouter())
 app.mount('#app')

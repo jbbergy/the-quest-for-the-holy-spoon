@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Réglages : profil et thème.
+ * Réglages : profil, thème et début de la journée.
  *
  * La liste des thèmes est **générée** depuis les `theme.json` du dossier
  * `styles/themes/` — aucune énumération codée en dur ici. Changer de thème
@@ -10,6 +10,8 @@
 import { defineAsyncComponent, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { DAY_START_HOURS } from '@/app/day/DayStartPreference'
+import { useTodayStore } from '@/app/day/useTodayStore'
 import { ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
 import { useHousehold } from '@/app/useHousehold'
@@ -39,6 +41,15 @@ const account = useAccountStore()
 const theme = useThemeStore()
 const dataExport = useDataExport()
 const household = useHousehold()
+const clock = useTodayStore()
+
+function hourLabel(hour: number): string {
+  return hour === 0 ? 'Minuit' : hour === 12 ? 'Midi' : `${hour} h`
+}
+
+function selectDayStart(event: Event): void {
+  clock.setStartHour(Number((event.target as HTMLSelectElement).value))
+}
 
 const weightKg = ref(players.player?.measurements.weightKg ?? 70)
 const activityLevel = ref<ActivityLevel>(players.player?.activityLevel ?? ActivityLevel.MODERATE)
@@ -153,6 +164,41 @@ async function save(): Promise<void> {
           </li>
         </ul>
       </fieldset>
+    </BaseCard>
+
+    <BaseCard
+      title="Journée"
+      subtitle="Réglage mémorisé sur cet appareil."
+    >
+      <label
+        class="settings__legend"
+        for="day-start"
+      >
+        La journée commence à
+      </label>
+      <select
+        id="day-start"
+        class="settings__select"
+        aria-describedby="day-start-hint"
+        :value="clock.startHour"
+        @change="selectDayStart"
+      >
+        <option
+          v-for="hour in DAY_START_HOURS"
+          :key="hour"
+          :value="hour"
+        >
+          {{ hourLabel(hour) }}
+        </option>
+      </select>
+      <p
+        id="day-start-hint"
+        class="settings__note"
+      >
+        Avant cette heure, l’accueil affiche encore la veille. Minuit convient à la plupart ;
+        une heure plus tardive garde un dîner après minuit sur la bonne journée, et suit un
+        rythme décalé si vous travaillez de nuit.
+      </p>
     </BaseCard>
 
     <BaseCard
@@ -479,6 +525,22 @@ async function save(): Promise<void> {
   padding: 0 0 var(--space-2);
   font-size: var(--font-size-sm);
   font-weight: 600;
+}
+
+.settings__select {
+  display: block;
+  min-width: 10rem;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.settings__select:focus-visible {
+  border-color: var(--color-accent);
 }
 
 .settings__choices {

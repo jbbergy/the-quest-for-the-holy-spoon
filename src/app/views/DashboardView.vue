@@ -8,7 +8,9 @@
  */
 import { computed, onMounted, watch } from 'vue'
 
+import { useTodayStore } from '@/app/day/useTodayStore'
 import { useDailyTracking } from '@/app/useDailyTracking'
+import { dateOfDay } from '@/core/day'
 import { KCAL_PER_GRAM } from '@/core/nutrition/Macros'
 import { CompletionStatus } from '@/modules/planning/application'
 import type { MealSummary } from '@/modules/nutrition_inventory/application'
@@ -29,17 +31,19 @@ const players = usePlayerStore()
 const journal = useJournalStore()
 const history = useConsumptionHistoryStore()
 const tracking = useDailyTracking()
+const clock = useTodayStore()
 
 async function load(): Promise<void> {
   const playerId = players.playerId
-  if (playerId !== null) await tracking.loadDay(playerId)
+  if (playerId !== null) await tracking.loadDay(playerId, dateOfDay(clock.today))
 }
 
 onMounted(load)
 
-// Un repas coché sur un autre appareil apparaît ici sans recharger la page.
+// Un repas coché sur un autre appareil apparaît ici sans recharger la page ;
+// la journée suivante aussi, dès l'heure de début choisie passée.
 const { remoteRevision } = useSyncStatus()
-watch([remoteRevision, () => players.playerId], load)
+watch([remoteRevision, () => players.playerId, () => clock.today], load)
 
 /**
  * Formulations volontairement neutres : elles décrivent où en est la journée,
@@ -65,6 +69,16 @@ const priority = computed(() => {
 
   const top = entries[0]
   return top === undefined || top.share === 0 ? null : top
+})
+
+/**
+ * Fibres manquantes, arrondies au gramme ; `null` en deçà d'un gramme. Dites à
+ * part des macros : une journée dont les calories sont atteintes peut encore en
+ * manquer, et c'est le cas le plus courant.
+ */
+const fiberGap = computed(() => {
+  const missing = Math.round(tracking.suggestion.value?.remainingFiberG ?? 0)
+  return missing >= 1 ? missing : null
 })
 
 /** Les repas prévus aujourd'hui, dans l'ordre où on les mange. */
@@ -128,7 +142,14 @@ async function setConsumed(mealId: MealSummary['mealId'], consumed: boolean): Pr
         v-else
         class="dashboard__hint"
       >
-        Vos apports couvrent vos besoins du jour.
+        Vos apports couvrent vos besoins en énergie et en macronutriments.
+      </p>
+      <p
+        v-if="fiberGap !== null"
+        class="dashboard__hint"
+      >
+        Côté fibres, il en manque {{ fiberGap }} g : légumes, fruits, légumineuses et céréales
+        complètes en apportent.
       </p>
       <BaseButton
         variant="secondary"

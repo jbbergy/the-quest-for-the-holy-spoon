@@ -74,3 +74,26 @@ export function weekOf(key: DayKey): readonly DayKey[] {
   const monday = startOfWeek(key)
   return Array.from({ length: 7 }, (_, offset) => addDays(monday, offset))
 }
+
+/**
+ * Journée en cours pour quelqu'un dont la journée commence à `startHour`.
+ *
+ * Minuit par défaut. Avec 3 h, il est encore « hier » à 1 h du matin : le
+ * dîner tardif et la collation de minuit restent sur la journée qu'on est en
+ * train de vivre, plutôt que d'ouvrir une journée vide au milieu de la soirée.
+ */
+export function currentDay(now: Date, startHour = 0): DayKey {
+  const calendar = dayKeyOf(now)
+  return now.getHours() < startHour ? addDays(calendar, -1) : calendar
+}
+
+/**
+ * Instant où `currentDay` changera de valeur : le prochain `startHour` pile.
+ * Calculé sur le calendrier local, pour tomber juste les jours de changement
+ * d'heure.
+ */
+export function nextDayStart(now: Date, startHour = 0): Date {
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), startHour)
+  if (start.getTime() <= now.getTime()) start.setDate(start.getDate() + 1)
+  return start
+}

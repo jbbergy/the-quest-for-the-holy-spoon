@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { addDays, dateOfDay, dayKeyOf, parseDayKey, startOfWeek, weekOf } from '../day'
+import {
+  addDays,
+  currentDay,
+  dateOfDay,
+  dayKeyOf,
+  nextDayStart,
+  parseDayKey,
+  startOfWeek,
+  weekOf,
+} from '../day'
 
 const key = (text: string) => {
   const parsed = parseDayKey(text)
@@ -57,5 +66,36 @@ describe('calendrier', () => {
       '2026-09-26',
       '2026-09-27',
     ])
+  })
+})
+
+describe('début de journée', () => {
+  it('suit le calendrier quand la journée commence à minuit', () => {
+    expect(currentDay(new Date(2026, 8, 28, 0, 30))).toBe('2026-09-28')
+  })
+
+  it('reste sur la veille avant l’heure de début choisie', () => {
+    expect(currentDay(new Date(2026, 8, 28, 2, 59), 3)).toBe('2026-09-27')
+    expect(currentDay(new Date(2026, 8, 28, 3, 0), 3)).toBe('2026-09-28')
+  })
+
+  it('passe d’un mois et d’une année à l’autre', () => {
+    expect(currentDay(new Date(2027, 0, 1, 1, 0), 4)).toBe('2026-12-31')
+  })
+
+  it('annonce la prochaine bascule le jour même si l’heure n’est pas passée', () => {
+    expect(nextDayStart(new Date(2026, 8, 28, 1, 0), 3)).toEqual(new Date(2026, 8, 28, 3))
+  })
+
+  it('annonce la prochaine bascule le lendemain une fois l’heure passée', () => {
+    expect(nextDayStart(new Date(2026, 8, 28, 3, 0), 3)).toEqual(new Date(2026, 8, 29, 3))
+    expect(nextDayStart(new Date(2026, 8, 28, 22, 0))).toEqual(new Date(2026, 8, 29))
+  })
+
+  it('tombe juste le jour du passage à l’heure d’hiver', () => {
+    const next = nextDayStart(new Date(2026, 9, 25, 12, 0), 4)
+
+    expect(next.getDate()).toBe(26)
+    expect(next.getHours()).toBe(4)
   })
 })

@@ -1,11 +1,12 @@
 import { type DayKey, dayKeyOf } from '@/core/day'
 import { DomainError, InvalidMealError } from '@/core/errors'
-import { type MealId, newId, type PlayerId } from '@/core/identity'
+import { type FoodItemId, type MealId, newId, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
 import { Quantity } from '@/core/nutrition/Quantity'
 import { err, ok, type Result } from '@/core/result'
 
+import type { FoodItem } from './FoodItem'
 import { MealEntry } from './MealEntry'
 
 export const MealType = {
@@ -280,6 +281,44 @@ export class Meal {
         input.plannedBy,
       ),
     )
+  }
+
+  /**
+   * Remet les lignes d'un repas **prévu** à jour des fiches actuelles.
+   *
+   * Tant qu'un repas n'est pas pris, il dit ce qu'on s'apprête à manger : si la
+   * fiche d'un aliment a été corrigée entre-temps, c'est la fiche corrigée qui
+   * compte. Une fois pris, il devient un fait, et son instantané ne bouge plus.
+   *
+   * `foods` : les fiches connues, par identifiant. Une ligne dont la fiche est
+   * introuvable — aliment en ligne jamais mis en cache, fiche d'un ancien
+   * membre du foyer — garde son instantané : mieux vaut une valeur d'hier
+   * qu'une ligne vide. Renvoie le repas lui-même quand rien n'a changé, ce qui
+   * épargne une écriture — et un envoi — inutiles.
+   */
+  refreshFrom(foods: ReadonlyMap<FoodItemId, FoodItem>): Result<Meal, DomainError> {
+    const locked = this.editingRefusal()
+    if (locked !== null) return err(locked)
+
+    let changed = false
+    const entries: MealEntry[] = []
+    for (const entry of this.entries) {
+      const food = foods.get(entry.foodItemId)
+      if (food === undefined) {
+        entries.push(entry)
+        continue
+      }
+      const refreshed = entry.refreshedFrom(food)
+      if (!refreshed.ok) return refreshed
+      if (refreshed.value.hasSameSnapshotAs(entry)) {
+        entries.push(entry)
+      } else {
+        entries.push(refreshed.value)
+        changed = true
+      }
+    }
+
+    return ok(changed ? this.withEntries(entries) : this)
   }
 
   /**

@@ -19,6 +19,7 @@ import {
   GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
   PlanMealForMembersUseCase,
+  RefreshPlannedMealsUseCase,
   RemoveMealEntryUseCase,
   RescheduleMealUseCase,
 } from '@/modules/nutrition_inventory/application/useCases'
@@ -951,6 +952,90 @@ describe('GetWeekPlanUseCase', () => {
     const result = await week().execute(playerId, dayOf('2026-09-23'))
 
     expect(isErr(result) && result.error.code).toBe('WEEK_UNREADABLE')
+  })
+})
+
+describe('RefreshPlannedMealsUseCase', () => {
+  const refresh = (): RefreshPlannedMealsUseCase => new RefreshPlannedMealsUseCase(meals, foods)
+  const correctChicken = async (): Promise<void> => {
+    unwrap(await foods.save(chicken.withMacros(Macros.reconstitute({ proteinG: 31, carbsG: 0, fatG: 3 }))))
+  }
+  const proteinOf = async (meal: Meal): Promise<number | undefined> =>
+    unwrap(await meals.findById(meal.id))?.calculateTotals().macros.proteinG
+
+  it('recalcule un repas prévu dont la fiche a été corrigée', async () => {
+    const meal = await planMeal(dayOf('2026-09-24'))
+    await correctChicken()
+
+    const rewritten = unwrap(await refresh().execute(playerId, dayOf('2026-09-21'), dayOf('2026-09-27')))
+
+    expect(rewritten).toBe(1)
+    expect(await proteinOf(meal)).toBeCloseTo(31, 10)
+  })
+
+  it('laisse intact un repas pris', async () => {
+    const meal = await planMeal(dayOf('2026-09-22'))
+    unwrap(await new MarkMealConsumedUseCase(meals).execute(meal.id, true))
+    await correctChicken()
+
+    const rewritten = unwrap(await refresh().execute(playerId, dayOf('2026-09-21'), dayOf('2026-09-27')))
+
+    expect(rewritten).toBe(0)
+    expect(await proteinOf(meal)).toBe(20)
+  })
+
+  it('n’écrit rien quand aucune fiche n’a changé', async () => {
+    await planMeal(dayOf('2026-09-24'))
+    const save = vi.spyOn(meals, 'save')
+
+    const rewritten = unwrap(await refresh().execute(playerId, dayOf('2026-09-21'), dayOf('2026-09-27')))
+
+    expect(rewritten).toBe(0)
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('ne touche qu’aux repas du joueur et de la période', async () => {
+    const outside = await planMeal(dayOf('2026-09-29'))
+    const someoneElse = await planMeal(dayOf('2026-09-24'), MealType.DINNER, idFrom('autre-joueur'))
+    await correctChicken()
+
+    unwrap(await refresh().execute(playerId, dayOf('2026-09-21'), dayOf('2026-09-27')))
+
+    expect(await proteinOf(outside)).toBe(20)
+    expect(await proteinOf(someoneElse)).toBe(20)
+  })
+
+  it('remonte une erreur quand les repas sont illisibles', async () => {
+    vi.spyOn(meals, 'findByPlayerBetween').mockResolvedValueOnce(
+      err(new RepositoryError('STORAGE_FAILURE', 'disque plein')),
+    )
+
+    const result = await refresh().execute(playerId, dayOf('2026-09-21'), dayOf('2026-09-27'))
+
+    expect(isErr(result) && result.error.code).toBe('MEALS_UNREADABLE')
+  })
+
+  it('remonte une erreur quand le catalogue est illisible', async () => {
+    await planMeal(dayOf('2026-09-24'))
+    vi.spyOn(foods, 'findById').mockResolvedValueOnce(
+      err(new RepositoryError('STORAGE_FAILURE', 'disque plein')),
+    )
+
+    const result = await refresh().execute(playerId, dayOf('2026-09-21'), dayOf('2026-09-27'))
+
+    expect(isErr(result) && result.error.code).toBe('CATALOG_UNREADABLE')
+  })
+
+  it('remonte une erreur quand un repas rafraîchi ne s’enregistre pas', async () => {
+    await planMeal(dayOf('2026-09-24'))
+    await correctChicken()
+    vi.spyOn(meals, 'save').mockResolvedValueOnce(
+      err(new RepositoryError('STORAGE_FAILURE', 'disque plein')),
+    )
+
+    const result = await refresh().execute(playerId, dayOf('2026-09-21'), dayOf('2026-09-27'))
+
+    expect(isErr(result) && result.error.code).toBe('MEAL_NOT_SAVED')
   })
 })
 

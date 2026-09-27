@@ -3,7 +3,7 @@ import { computed, ref, shallowRef } from 'vue'
 
 import { useContainer } from '@/app/container'
 import { type BaseError, type ErrorView, toErrorView } from '@/core/errors'
-import { type DayKey, dayKeyOf, startOfWeek } from '@/core/day'
+import { addDays, type DayKey, dayKeyOf, startOfWeek } from '@/core/day'
 import type { MealId, PlayerId } from '@/core/identity'
 
 import type { WeekPlan } from '../application'
@@ -24,9 +24,6 @@ export const useWeekPlanStore = defineStore('weekPlan', () => {
   const error = ref<ErrorView | null>(null)
 
   const days = computed(() => plan.value?.days ?? [])
-  const isCurrentWeek = computed(
-    () => weekStart.value === startOfWeek(dayKeyOf(new Date())),
-  )
 
   function fail(cause: BaseError): false {
     error.value = toErrorView(cause)
@@ -38,6 +35,14 @@ export const useWeekPlanStore = defineStore('weekPlan', () => {
   async function load(playerId: PlayerId, anyDay: DayKey = weekStart.value): Promise<boolean> {
     status.value = 'loading'
     weekStart.value = startOfWeek(anyDay)
+
+    // Les repas prévus suivent les fiches du moment. Un échec ici n'empêche
+    // pas d'afficher la semaine : elle garde alors ses chiffres d'hier.
+    await useContainer().inventory.refreshPlanned.execute(
+      playerId,
+      weekStart.value,
+      addDays(weekStart.value, 6),
+    )
 
     const result = await useContainer().inventory.week.execute(playerId, weekStart.value)
     if (!result.ok) return fail(result.error)
@@ -79,7 +84,6 @@ export const useWeekPlanStore = defineStore('weekPlan', () => {
     status,
     error,
     days,
-    isCurrentWeek,
     load,
     setConsumed,
     deleteMeal,

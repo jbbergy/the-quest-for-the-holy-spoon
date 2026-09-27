@@ -32,6 +32,7 @@ export {
   GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
   PlanMealForMembersUseCase,
+  RefreshPlannedMealsUseCase,
   RemoveMealEntryUseCase,
   RescheduleMealUseCase,
   type AddFoodInput,

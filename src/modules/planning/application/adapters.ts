@@ -10,11 +10,19 @@ import type { ConsumedTotals, DailyTarget } from '../domain/MealCompletionServic
 import type { DailyIntake, NutrientValues } from '../domain/RecentIntakeService'
 
 export function toDailyTarget(needs: PlayerNutritionalNeeds): DailyTarget {
-  return { calories: needs.targetCalories, macros: needs.targetMacros }
+  return {
+    calories: needs.targetCalories,
+    macros: needs.targetMacros,
+    fiberG: needs.referenceNutrients.fiberG,
+  }
 }
 
 export function toConsumedTotals(summaries: readonly MealSummary[]): ConsumedTotals[] {
-  return summaries.map((summary) => ({ calories: summary.calories, macros: summary.macros }))
+  return summaries.map((summary) => ({
+    calories: summary.calories,
+    macros: summary.macros,
+    fiberG: summary.detail.fiberG,
+  }))
 }
 
 /** Repères habituels, à plat : la forme sur laquelle raisonnent les moyennes. */

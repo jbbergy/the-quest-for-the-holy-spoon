@@ -81,6 +81,22 @@ describe('useJournalStore', () => {
     expect(store.totalCalories).toBe(170)
   })
 
+  it('met à jour les repas prévus du jour avant de le lire', async () => {
+    const refreshPlanned = vi.fn(async () => ({ ok: true as const, value: 0 }))
+    provideContainer(
+      createFakeContainer({
+        inventory: {
+          journal: succeedsWith(journalOf(170)),
+          refreshPlanned: { execute: refreshPlanned },
+        } as never,
+      }),
+    )
+
+    await useJournalStore().load(playerId, new Date('2026-04-10T10:00:00'))
+
+    expect(refreshPlanned).toHaveBeenCalledWith(playerId, '2026-04-10', '2026-04-10')
+  })
+
   it('expose une erreur typée en cas d’échec', async () => {
     provideContainer(
       createFakeContainer({

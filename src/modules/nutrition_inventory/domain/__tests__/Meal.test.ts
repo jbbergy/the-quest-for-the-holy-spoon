@@ -591,3 +591,62 @@ describe('portionScale', () => {
     expect(scalePortion(100, 1)).toBe(100)
   })
 })
+
+describe('Meal.refreshFrom', () => {
+  const corrected = chicken.withMacros(Macros.reconstitute({ proteinG: 31, carbsG: 0, fatG: 3 }))
+  const catalog = (...items: FoodItem[]) => new Map(items.map((item) => [item.id, item]))
+  const unwrap = <T>(result: { ok: true; value: T } | { ok: false; error: Error }): T => {
+    if (!result.ok) throw new Error(`échec : ${result.error.message}`)
+    return result.value
+  }
+
+  it('recalcule les lignes d’un repas prévu depuis la fiche corrigée', () => {
+    const meal = mealOf([entryOf(chicken, 150), entryOf(rice, 200)])
+
+    const refreshed = unwrap(meal.refreshFrom(catalog(corrected, rice)))
+
+    expect(refreshed).not.toBe(meal)
+    expect(refreshed.entries[0]?.macros.proteinG).toBeCloseTo(46.5, 10)
+    expect(refreshed.entries[0]?.id).toBe(meal.entries[0]?.id)
+    expect(refreshed.entries[0]?.quantity.grams).toBe(150)
+    // La ligne du riz n'a pas bougé : c'est la même instance.
+    expect(refreshed.entries[1]).toBe(meal.entries[1])
+  })
+
+  it('renvoie le repas lui-même quand aucune fiche n’a changé', () => {
+    const meal = mealOf([entryOf(chicken, 150), entryOf(rice, 200)])
+
+    expect(unwrap(meal.refreshFrom(catalog(chicken, rice)))).toBe(meal)
+  })
+
+  it('ignore les écarts d’arrondi dus à une portion corrigée', () => {
+    const base = mealOf([entryOf(rice, 70)])
+    const entryId = base.entries[0]!.id
+    const meal = unwrap(base.changeEntryQuantity(entryId, quantityOf(130)))
+
+    expect(unwrap(meal.refreshFrom(catalog(rice)))).toBe(meal)
+  })
+
+  it('garde l’instantané d’une ligne dont la fiche est introuvable', () => {
+    const meal = mealOf([entryOf(chicken, 150)])
+
+    expect(unwrap(meal.refreshFrom(catalog(rice)))).toBe(meal)
+  })
+
+  it('reprend le nouveau nom de la fiche', () => {
+    const renamed = unwrap(chicken.rename('Filet de poulet'))
+    const meal = mealOf([entryOf(chicken, 100)])
+
+    expect(unwrap(meal.refreshFrom(catalog(renamed))).entries[0]?.foodName).toBe('Filet de poulet')
+  })
+
+  it('refuse de toucher à un repas pris : c’est un fait, plus un projet', () => {
+    const meal = unwrap(mealOf([entryOf(chicken, 150)]).markConsumed(new Date()))
+
+    const result = meal.refreshFrom(catalog(corrected))
+
+    expect(isErr(result)).toBe(true)
+    if (isErr(result)) expect(result.error.code).toBe('INVALID_MEAL')
+  })
+})
+

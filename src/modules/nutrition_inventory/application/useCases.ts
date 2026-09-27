@@ -516,6 +516,78 @@ export class DeleteMealUseCase {
   }
 }
 
+/**
+ * Remet les repas **prévus** d'une période à jour des fiches actuelles.
+ *
+ * Une fiche change par plusieurs chemins — nouvelle édition de Ciqual, produit
+ * Open Food Facts relu, aliment d'un membre du foyer reçu par synchronisation.
+ * Plutôt que de guetter chacun, les écrans appellent ce Use Case avant de lire
+ * leurs repas : ce qu'ils affichent d'un repas non pris est alors toujours
+ * calculé sur la fiche du moment. Les repas pris ne sont pas touchés.
+ *
+ * Renvoie le nombre de repas réécrits. Seuls ceux-là sont enregistrés — et donc
+ * envoyés au serveur : relire une semaine inchangée n'écrit rien.
+ */
+export class RefreshPlannedMealsUseCase {
+  constructor(
+    private readonly meals: IMealRepository,
+    private readonly foods: IFoodRepository,
+  ) {}
+
+  async execute(
+    playerId: PlayerId,
+    from: DayKey,
+    to: DayKey,
+  ): Promise<Result<number, InventoryError>> {
+    const found = await this.meals.findByPlayerBetween(playerId, from, to)
+    if (!found.ok) {
+      return err(
+        new ApplicationError('MEALS_UNREADABLE', 'Les repas prévus n’ont pas pu être relus.', {
+          cause: found.error,
+        }),
+      )
+    }
+
+    const planned = found.value.filter((meal) => !meal.isConsumed && !meal.isEmpty)
+    if (planned.length === 0) return ok(0)
+
+    const catalog = await this.catalogFor(planned)
+    if (!catalog.ok) return catalog
+
+    let rewritten = 0
+    for (const meal of planned) {
+      const refreshed = meal.refreshFrom(catalog.value)
+      if (!refreshed.ok) return refreshed
+      if (refreshed.value === meal) continue
+
+      const saved = await saveMeal(this.meals, refreshed.value)
+      if (!saved.ok) return saved
+      rewritten += 1
+    }
+    return ok(rewritten)
+  }
+
+  /** Les fiches des aliments de ces repas, chacune lue une seule fois. */
+  private async catalogFor(
+    meals: readonly Meal[],
+  ): Promise<Result<Map<FoodItemId, FoodItem>, InventoryError>> {
+    const ids = new Set(meals.flatMap((meal) => meal.entries.map((entry) => entry.foodItemId)))
+    const catalog = new Map<FoodItemId, FoodItem>()
+    for (const id of ids) {
+      const food = await this.foods.findById(id)
+      if (!food.ok) {
+        return err(
+          new ApplicationError('CATALOG_UNREADABLE', 'Le catalogue local est illisible.', {
+            cause: food.error,
+          }),
+        )
+      }
+      if (food.value !== null) catalog.set(id, food.value)
+    }
+    return ok(catalog)
+  }
+}
+
 /** Un repas, pour l'écran qui le compose. */
 export class GetMealUseCase {
   constructor(private readonly meals: IMealRepository) {}

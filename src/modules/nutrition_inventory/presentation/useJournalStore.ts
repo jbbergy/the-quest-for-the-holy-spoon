@@ -3,6 +3,7 @@ import { computed, ref, shallowRef } from 'vue'
 
 import { useContainer } from '@/app/container'
 import { type BaseError, type ErrorView, toErrorView } from '@/core/errors'
+import { dayKeyOf } from '@/core/day'
 import type { MealId, PlayerId } from '@/core/identity'
 
 import type { DailyJournal } from '../application'
@@ -44,6 +45,11 @@ export const useJournalStore = defineStore('journal', () => {
   async function load(playerId: PlayerId, date: Date = day.value): Promise<boolean> {
     status.value = 'loading'
     day.value = date
+
+    // Comme la semaine : un repas prévu suit les fiches du moment, et un échec
+    // de cette mise à jour n'empêche pas de lire la journée.
+    const today = dayKeyOf(date)
+    await useContainer().inventory.refreshPlanned.execute(playerId, today, today)
 
     const result = await useContainer().inventory.journal.execute(playerId, date)
     if (!result.ok) return fail(result.error)

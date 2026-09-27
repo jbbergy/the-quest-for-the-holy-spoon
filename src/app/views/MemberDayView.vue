@@ -16,7 +16,8 @@ import type { MemberDay } from '@/app/household/memberDays'
 import { formatDay, mealLabel, mealOrder } from '@/app/mealLabels'
 import { ROUTE } from '@/app/router'
 import { memberName, useHousehold } from '@/app/useHousehold'
-import { addDays, type DayKey, dayKeyOf, parseDayKey } from '@/core/day'
+import { addDays, type DayKey, parseDayKey } from '@/core/day'
+import { useTodayStore } from '@/app/day/useTodayStore'
 import { type ErrorView, toErrorView } from '@/core/errors'
 import { idFrom } from '@/core/identity'
 import BaseButton from '@/ui/BaseButton.vue'
@@ -28,12 +29,13 @@ const route = useRoute()
 const router = useRouter()
 const household = useHousehold()
 
-const today = dayKeyOf(new Date())
+const clock = useTodayStore()
+const today = computed(() => clock.today)
 const playerId = computed(() => idFrom<'PlayerId'>(String(route.params.playerId)))
 /** Jour consulté, `?jour=` ; aujourd'hui par défaut, jamais au-delà. */
 const day = computed<DayKey>(() => {
   const asked = parseDayKey(String(route.query.jour ?? ''))
-  return asked === null || asked > today ? today : asked
+  return asked === null || asked > today.value ? today.value : asked
 })
 
 const member = shallowRef<MemberDay | null>(null)

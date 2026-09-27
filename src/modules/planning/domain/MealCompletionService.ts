@@ -13,11 +13,17 @@ import { err, ok, type Result } from '@/core/result'
 export interface DailyTarget {
   readonly calories: number
   readonly macros: MacrosProps
+  /**
+   * Apport en fibres à atteindre, en grammes. Facultatif : sans repère, le
+   * service ne dit rien des fibres plutôt que d'en inventer un.
+   */
+  readonly fiberG?: number
 }
 
 export interface ConsumedTotals {
   readonly calories: number
   readonly macros: MacrosProps
+  readonly fiberG?: number
 }
 
 export const CompletionStatus = {
@@ -41,6 +47,15 @@ export interface IdealFoodProfile {
   readonly status: CompletionStatus
   readonly remainingCalories: number
   readonly remainingMacros: MacrosProps
+  /**
+   * Fibres manquantes pour atteindre le repère, en grammes (0 sans repère).
+   *
+   * Hors du statut et des ratios : les fibres n'apportent presque pas
+   * d'énergie, et le repère est un plancher — une journée dont les calories
+   * sont atteintes peut encore en manquer, et c'est précisément ce qu'il faut
+   * pouvoir dire.
+   */
+  readonly remainingFiberG: number
   readonly idealRatios: { readonly protein: number; readonly carbs: number; readonly fat: number }
   readonly completionRatio: number
   readonly excessCalories: number
@@ -69,6 +84,7 @@ export const MealCompletionService = {
       Macros.zero(),
     )
     const consumedCalories = consumed.reduce((sum, entry) => sum + entry.calories, 0)
+    const consumedFiber = consumed.reduce((sum, entry) => sum + (entry.fiberG ?? 0), 0)
 
     const remaining = targetMacros.minus(consumedMacros)
     const remainingCalories = Math.max(0, target.calories - consumedCalories)
@@ -78,6 +94,7 @@ export const MealCompletionService = {
       status: statusFor(completionRatio),
       remainingCalories,
       remainingMacros: remaining.toJSON(),
+      remainingFiberG: Math.max(0, (target.fiberG ?? 0) - consumedFiber),
       idealRatios: caloricRatios(remaining),
       completionRatio,
       excessCalories: Math.max(0, consumedCalories - target.calories),
@@ -99,6 +116,12 @@ function validateTarget(target: DailyTarget): InvalidNutritionalNeedsError | nul
         `Les macros cibles doivent être des nombres positifs (reçu ${value}).`,
       )
     }
+  }
+
+  if (target.fiberG !== undefined && (!Number.isFinite(target.fiberG) || target.fiberG < 0)) {
+    return new InvalidNutritionalNeedsError(
+      `Le repère de fibres doit être un nombre positif (reçu ${target.fiberG}).`,
+    )
   }
 
   return null

@@ -20,7 +20,8 @@ import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
 import { formatDay, MEAL_OPTIONS, mealLabel } from '@/app/mealLabels'
 import { ROUTE } from '@/app/router'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
-import { dayKeyOf, parseDayKey } from '@/core/day'
+import { parseDayKey } from '@/core/day'
+import { useTodayStore } from '@/app/day/useTodayStore'
 import type { FoodItemId, MealEntryId, MealId } from '@/core/identity'
 import { MealType } from '@/modules/nutrition_inventory/application'
 import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
@@ -41,7 +42,8 @@ const editor = useMealEditorStore()
 const search = useFoodSearchStore()
 const household = useHousehold()
 
-const today = dayKeyOf(new Date())
+const clock = useTodayStore()
+const today = computed(() => clock.today)
 
 const query = ref('')
 const grams = ref(100)
@@ -51,7 +53,7 @@ const feedback = ref('')
 const meal = computed(() => editor.meal)
 const isNew = computed(() => meal.value === null)
 /** « Pris » n'a de sens qu'aujourd'hui et avant : le domaine refuse un jour à venir. */
-const canBeConsumed = computed(() => meal.value !== null && editor.schedule.plannedFor <= today)
+const canBeConsumed = computed(() => meal.value !== null && editor.schedule.plannedFor <= today.value)
 
 const title = computed(() =>
   isNew.value
@@ -95,7 +97,7 @@ onMounted(async () => {
     const day = typeof route.query.jour === 'string' ? parseDayKey(route.query.jour) : null
     const type = route.query.type
     editor.startNew({
-      plannedFor: day ?? today,
+      plannedFor: day ?? today.value,
       type: isMealType(type) ? type : mealTypeAt(new Date()),
     })
   }

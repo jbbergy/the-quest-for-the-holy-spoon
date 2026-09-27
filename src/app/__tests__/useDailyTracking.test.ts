@@ -50,7 +50,9 @@ const festin = {
   plannedFor: '2026-04-10',
   consumedAt: '2026-04-10T12:45:00.000Z',
   entryCount: 1,
+  plannedBy: null,
   macros: { proteinG: 300, carbsG: 400, fatG: 150 },
+  detail: { fiberG: 12, sugarsG: 40, saturatedFatG: 50, saltG: 6 },
   calories: 6000,
   entries: [],
 }

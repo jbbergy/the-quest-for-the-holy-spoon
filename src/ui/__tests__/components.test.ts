@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import BaseButton from '@/ui/BaseButton.vue'
+import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
 import MacroGauge from '@/ui/MacroGauge.vue'
 import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
@@ -383,3 +384,45 @@ describe('MealConsumedToggle', () => {
     expect(wrapper.text()).toContain('Pas encore compté')
   })
 })
+
+describe('BaseCard', () => {
+  it('reste un simple titre quand la carte n’est pas repliable', () => {
+    const wrapper = mount(BaseCard, { props: { title: 'Profil' }, slots: { default: 'Contenu' } })
+
+    expect(wrapper.find('h2').text()).toBe('Profil')
+    expect(wrapper.find('button').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Contenu')
+  })
+
+  it('repliée, garde son titre et son sous-titre et masque son contenu', () => {
+    const wrapper = mount(BaseCard, {
+      props: { title: 'Lundi', subtitle: '1800 kcal', collapsible: true, open: false },
+      slots: { default: '<p>Repas</p>' },
+    })
+
+    const toggle = wrapper.find('h2 button')
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('.card__subtitle').text()).toBe('1800 kcal')
+    const body = wrapper.find(`#${toggle.attributes('aria-controls')}`)
+    expect(body.attributes('hidden')).toBeDefined()
+  })
+
+  it('dépliée, montre son contenu', () => {
+    const wrapper = mount(BaseCard, {
+      props: { title: 'Lundi', collapsible: true, open: true },
+      slots: { default: '<p>Repas</p>' },
+    })
+
+    expect(wrapper.find('h2 button').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('.card__body').attributes('hidden')).toBeUndefined()
+  })
+
+  it('demande le changement d’état à son parent', async () => {
+    const wrapper = mount(BaseCard, { props: { title: 'Lundi', collapsible: true, open: false } })
+
+    await wrapper.find('h2 button').trigger('click')
+
+    expect(wrapper.emitted('update:open')).toEqual([[true]])
+  })
+})
+

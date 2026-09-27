@@ -54,6 +54,42 @@ describe('useWeekPlanStore', () => {
     expect(week).toHaveBeenCalledWith(playerId, '2026-09-21')
   })
 
+  it('met à jour les repas prévus de la semaine avant de la lire', async () => {
+    const calls: string[] = []
+    const refreshPlanned = vi.fn(async () => {
+      calls.push('refresh')
+      return { ok: true as const, value: 0 }
+    })
+    const week = vi.fn(async () => {
+      calls.push('week')
+      return { ok: true as const, value: { days: [] } }
+    })
+    provideContainer(
+      createFakeContainer({
+        inventory: { week: { execute: week }, refreshPlanned: { execute: refreshPlanned } } as never,
+      }),
+    )
+
+    await useWeekPlanStore().load(playerId, day('2026-09-24'))
+
+    expect(refreshPlanned).toHaveBeenCalledWith(playerId, '2026-09-21', '2026-09-27')
+    expect(calls).toEqual(['refresh', 'week'])
+  })
+
+  it('affiche la semaine même quand la mise à jour des repas prévus échoue', async () => {
+    provideContainer(
+      createFakeContainer({
+        inventory: {
+          refreshPlanned: failsWith(new ApplicationError('MEALS_UNREADABLE', 'illisible')),
+        } as never,
+      }),
+    )
+    const store = useWeekPlanStore()
+
+    expect(await store.load(playerId, day('2026-09-24'))).toBe(true)
+    expect(store.error).toBeNull()
+  })
+
   it('relit la semaine après une suppression', async () => {
     const week = vi.fn(async () => ({ ok: true as const, value: { days: [] } }))
     provideContainer(
