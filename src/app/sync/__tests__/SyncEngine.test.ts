@@ -174,3 +174,22 @@ describe('SyncEngine', () => {
     expect(phases).toEqual(['off', 'off', 'syncing', 'syncing', 'idle'])
   })
 })
+
+describe('Foyer connu', () => {
+  it('se lit dans l’état de synchronisation, même hors ligne', async () => {
+    const withHousehold = memoryReplica({ ...SESSION, cursor: 3, household: 'foyer-1:a,b' })
+    const withoutHousehold = memoryReplica({ ...SESSION, cursor: 3, household: null })
+    const offline = new StaticNetworkStatus(false)
+
+    expect(await new SyncEngine(withHousehold.replica, gateway(), offline).knownHouseholdId()).toBe('foyer-1')
+    expect(await new SyncEngine(withoutHousehold.replica, gateway(), offline).knownHouseholdId()).toBeNull()
+    expect(await new SyncEngine(memoryReplica().replica, gateway(), offline).knownHouseholdId()).toBeNull()
+  })
+
+  it('vaut `null` quand l’état est illisible', async () => {
+    const { replica } = memoryReplica()
+    const broken = { ...replica, state: async () => err(new RemoteRejectedError('X', 'x', 500)) }
+
+    expect(await new SyncEngine(broken as never, gateway(), new StaticNetworkStatus(true)).knownHouseholdId()).toBeNull()
+  })
+})

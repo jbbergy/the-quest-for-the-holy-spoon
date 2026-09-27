@@ -61,16 +61,16 @@ const unavailable = ref(false)
 /**
  * Où aller une fois l'aliment créé.
  *
- * Venu d'un repas (`?retour=`), on y revient avec l'aliment présélectionné —
- * seule une adresse d'éditeur de repas est acceptée : une autre destination
+ * Venu d'un repas ou de la liste de courses (`?retour=`), on y revient avec
+ * l'aliment présélectionné — seules ces deux adresses sont acceptées : une autre destination
  * n'aurait que faire d'un aliment présélectionné. Sinon, on ouvre la fiche.
  */
 function returnTo(foodId: string): RouteLocationRaw {
   const requested = route.query.retour
   if (typeof requested === 'string') {
     const target = router.resolve(requested)
-    if (target.name === ROUTE.mealEditor) {
-      return { name: ROUTE.mealEditor, params: target.params, query: { ...target.query, aliment: foodId } }
+    if (target.name === ROUTE.mealEditor || target.name === ROUTE.shoppingList) {
+      return { name: target.name, params: target.params, query: { ...target.query, aliment: foodId } }
     }
   }
   return { name: ROUTE.foodDetail, params: { foodId } }

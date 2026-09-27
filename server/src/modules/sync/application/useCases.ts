@@ -45,6 +45,7 @@ export class PushChangesUseCase {
     const own: IncomingChange[] = []
     const reject = (key: RecordKey, code: string) =>
       rejected.push({ entity: key.entity, id: key.id, code })
+    const household = await this.household.householdOf(account.id)
 
     for (const change of changes) {
       const verdict = authorizeChange(change, playerId)
@@ -52,6 +53,11 @@ export class PushChangesUseCase {
         reject(change, verdict.error.code)
       } else if (verdict.value.kind === 'own') {
         own.push(verdict.value.change)
+      } else if (verdict.value.kind === 'shared') {
+        // Commun au foyer : seulement le sien. Un ancien membre dont l'appareil
+        // enverrait encore une modification n'y touche plus.
+        if (verdict.value.householdId === household) own.push(verdict.value.change)
+        else reject(change, 'NOT_OWNER')
       } else {
         // Repas prévu pour un autre : il faut un membre du même foyer, et un
         // identifiant encore libre — on crée chez autrui, on n'y modifie rien.
@@ -62,7 +68,7 @@ export class PushChangesUseCase {
       }
     }
 
-    const notOwned = await this.records.apply(account.id, own)
+    const notOwned = await this.records.apply(account.id, own, household)
     for (const key of notOwned) reject(key, 'NOT_OWNER')
     return ok(rejected)
   }
@@ -70,7 +76,8 @@ export class PushChangesUseCase {
 
 /**
  * Lecture des modifications survenues depuis une révision donnée : les
- * siennes, et les aliments créés par les autres membres du foyer.
+ * siennes, les aliments créés par les autres membres du foyer, et la liste de
+ * courses du foyer.
  */
 export class PullChangesUseCase {
   constructor(
@@ -79,7 +86,10 @@ export class PullChangesUseCase {
   ) {}
 
   async execute(account: SyncAccount, since: number, limit: number): Promise<ChangePage> {
-    const foodAuthors = await this.household.coMembers(account.id)
-    return this.records.changesSince(account.id, foodAuthors, since, limit)
+    const [foodAuthors, household] = await Promise.all([
+      this.household.coMembers(account.id),
+      this.household.householdOf(account.id),
+    ])
+    return this.records.changesSince(account.id, foodAuthors, household, since, limit)
   }
 }

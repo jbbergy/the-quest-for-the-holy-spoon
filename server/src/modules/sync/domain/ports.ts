@@ -27,20 +27,30 @@ export interface IRecordStore {
   /**
    * Applique les modifications d'un compte, dans l'ordre et d'un bloc. Renvoie
    * celles qui visent un enregistrement appartenant à un autre compte.
+   *
+   * `household` : le foyer du compte. Un enregistrement commun au foyer
+   * s'écrit et se supprime par tout membre de **ce** foyer — l'appelant a
+   * déjà vérifié que ceux qu'il transmet en sont.
    */
-  apply(owner: AccountId, changes: readonly IncomingChange[]): Promise<readonly RecordKey[]>
+  apply(
+    owner: AccountId,
+    changes: readonly IncomingChange[],
+    household: string | null,
+  ): Promise<readonly RecordKey[]>
   /**
    * Crée un enregistrement au nom d'un autre compte. Création seulement : rien
    * n'est écrit si l'identifiant existe déjà, et la méthode renvoie alors `false`.
    */
   offer(owner: AccountId, change: IncomingUpsert): Promise<boolean>
   /**
-   * Ce qui a changé depuis `since` : les enregistrements du compte, plus les
-   * aliments créés par les comptes de `foodAuthors`.
+   * Ce qui a changé depuis `since` : les enregistrements du compte, les
+   * aliments créés par les comptes de `foodAuthors`, et ce qui est commun au
+   * foyer `household`.
    */
   changesSince(
     owner: AccountId,
     foodAuthors: readonly AccountId[],
+    household: string | null,
     since: number,
     limit: number,
   ): Promise<ChangePage>
@@ -55,6 +65,8 @@ export interface IHouseholdDirectory {
   coMembers(account: AccountId): Promise<readonly AccountId[]>
   /** Compte du membre du même foyer rattaché à ce profil, ou `null`. */
   memberAccountOf(account: AccountId, playerId: PlayerId): Promise<AccountId | null>
+  /** Foyer du compte, ou `null`. */
+  householdOf(account: AccountId): Promise<string | null>
 }
 
 export type { SyncEntity }

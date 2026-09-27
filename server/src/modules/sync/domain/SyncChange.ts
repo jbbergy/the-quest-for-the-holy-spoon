@@ -2,7 +2,7 @@ import { DomainError } from '@/core/errors'
 import { idFrom, type PlayerId } from '@/core/identity'
 import { err, ok, type Result } from '@/core/result'
 
-export type SyncEntity = 'player' | 'meal' | 'food' | 'needs'
+export type SyncEntity = 'player' | 'meal' | 'food' | 'needs' | 'shopping'
 
 export interface RecordKey {
   readonly entity: SyncEntity
@@ -26,6 +26,7 @@ export type IncomingUpsert = Extract<IncomingChange, { op: 'upsert' }>
 export type AuthorizedChange =
   | { readonly kind: 'own'; readonly change: IncomingChange }
   | { readonly kind: 'forMember'; readonly change: IncomingUpsert; readonly playerId: PlayerId }
+  | { readonly kind: 'shared'; readonly change: IncomingUpsert; readonly householdId: string }
 
 /** Modification refusée pour de bon : la renvoyer n'y changerait rien. */
 export class SyncRejectedError extends DomainError {}
@@ -38,9 +39,12 @@ export class SyncRejectedError extends DomainError {}
  * l'appareil pour le dire — il le vérifie dans le contenu même de
  * l'enregistrement.
  *
- * Une exception, au sein du foyer : **créer** un repas non pris pour un autre
- * membre, en le signant (`plannedBy`). Le membre en devient propriétaire ; il
- * l'ajuste et le coche lui-même.
+ * Deux exceptions, au sein du foyer :
+ * - **créer** un repas non pris pour un autre membre, en le signant
+ *   (`plannedBy`). Le membre en devient propriétaire ; il l'ajuste et le coche
+ *   lui-même ;
+ * - la liste de courses du foyer (`shopping` avec `householdId`), que tous ses
+ *   membres écrivent. Reste à vérifier que c'est bien **son** foyer.
  *
  * La propriété des enregistrements **déjà stockés** (qu'on ne peut écraser ni
  * supprimer quand ils sont à autrui) relève du stockage : c'est le seul endroit
@@ -79,6 +83,11 @@ export function authorizeChange(
         )
       }
       return payload.ownerId === playerId ? own : notOwner()
+    case 'shopping':
+      if (typeof payload.householdId === 'string' && payload.householdId !== '') {
+        return ok({ kind: 'shared', change, householdId: payload.householdId })
+      }
+      return payload.householdId === null && payload.playerId === playerId ? own : notOwner()
   }
 }
 

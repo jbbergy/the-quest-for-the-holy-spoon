@@ -21,6 +21,7 @@ export const ROUTE = {
   dashboard: 'dashboard',
   weekPlan: 'week-plan',
   mealEditor: 'meal-editor',
+  shoppingList: 'shopping-list',
   foods: 'foods',
   foodDetail: 'food-detail',
   foodEdit: 'food-edit',
@@ -104,6 +105,13 @@ export function createAppRouter(): Router {
         name: ROUTE.mealEditor,
         meta: { title: 'Repas' },
         component: () => import('./views/MealEditorView.vue'),
+      },
+      {
+        // `?semaine=` : un jour de la semaine voulue (son lundi, en pratique).
+        path: '/semaine/courses',
+        name: ROUTE.shoppingList,
+        meta: { title: 'Liste de courses' },
+        component: () => import('./views/ShoppingListView.vue'),
       },
       // Anciennes adresses : une PWA installée peut en garder un raccourci.
       { path: '/repas', redirect: { name: ROUTE.weekPlan } },

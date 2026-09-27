@@ -70,6 +70,7 @@ async function mountAt(view: object, path: string): Promise<VueWrapper> {
       { path: '/aliments/:foodId', name: ROUTE.foodDetail, component: blank },
       { path: '/aliments/:foodId/modifier', name: ROUTE.foodEdit, component: blank },
       { path: '/semaine/repas/:mealId?', name: ROUTE.mealEditor, component: blank },
+      { path: '/semaine/courses', name: ROUTE.shoppingList, component: blank },
     ],
   })
   await router.push(path)
@@ -193,4 +194,24 @@ describe('CustomFoodView — modification', () => {
     expect(wrapper.text()).toContain('Vous ne pouvez pas modifier cet aliment')
   })
 
+})
+
+describe('CustomFoodView — création', () => {
+  it('revient à la liste de courses d’où l’on vient, l’aliment présélectionné', async () => {
+    const back = encodeURIComponent('/semaine/courses?semaine=2026-09-28')
+    const wrapper = await mountAt(CustomFoodView, `/aliments/nouveau?retour=${back}`)
+
+    const name = wrapper
+      .findAll('.field')
+      .find((candidate) => candidate.find('label').text().startsWith('Nom de l’aliment'))!
+      .find('input')
+    await name.setValue('Galettes de sarrasin')
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const route = router.currentRoute.value
+    expect(route.name).toBe(ROUTE.shoppingList)
+    expect(route.query.semaine).toBe('2026-09-28')
+    expect(typeof route.query.aliment).toBe('string')
+  })
 })

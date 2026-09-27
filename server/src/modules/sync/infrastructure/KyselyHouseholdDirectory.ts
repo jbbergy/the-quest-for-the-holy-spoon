@@ -34,4 +34,13 @@ export class KyselyHouseholdDirectory implements IHouseholdDirectory {
       .executeTakeFirst()
     return row === undefined ? null : idFrom<'AccountId'>(row.id)
   }
+
+  async householdOf(account: AccountId): Promise<string | null> {
+    const row = await this.db
+      .selectFrom('household_members')
+      .select('household_id')
+      .where('account_id', '=', account)
+      .executeTakeFirst()
+    return row?.household_id ?? null
+  }
 }

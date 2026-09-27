@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import type { DayKey } from '@/core/day'
 import { localChanges } from '@/core/infrastructure/changeJournal'
 import { idFrom } from '@/core/identity'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
@@ -7,6 +8,8 @@ import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodI
 import { OutboxMealOffers } from '@/modules/nutrition_inventory/infrastructure/OutboxMealOffers'
 
 import { playerToRecord } from '@/modules/player_profile/infrastructure/records'
+import { ShoppingItem, type ShoppingListRef } from '@/modules/shopping/domain/ShoppingItem'
+import { shoppingItemToRecord } from '@/modules/shopping/infrastructure/records'
 
 import { createDevice, customFoodOf, type Device, mealOf, playerOf, unwrap } from './fixtures'
 
@@ -421,5 +424,119 @@ describe('Repas prévu pour un autre membre', () => {
   it('est refusé sans compte connecté', async () => {
     const result = await new OutboxMealOffers(device.databases).offer(mealOf('player-alex'))
     expect(!result.ok && result.error.code).toBe('NOT_SYNCED')
+  })
+})
+
+describe('Liste de courses', () => {
+  const WEEK = '2026-09-28' as DayKey
+  const householdList = (householdId = 'foyer-1'): ShoppingListRef => ({
+    householdId: idFrom<'HouseholdId'>(householdId),
+    playerId: idFrom<'PlayerId'>('player-1'),
+    week: WEEK,
+  })
+  const personalList = (playerId = 'player-1'): ShoppingListRef => ({
+    householdId: null,
+    playerId: idFrom<'PlayerId'>(playerId),
+    week: WEEK,
+  })
+  const manual = (list: ShoppingListRef, name: string) => unwrap(ShoppingItem.manual(list, name))
+  const names = async (list: ShoppingListRef) =>
+    unwrap(await device.shopping.findByList(list)).map((item) => item.name).sort()
+  const remoteItem = (list: ShoppingListRef, name: string) => {
+    const item = manual(list, name)
+    return {
+      entity: 'shopping' as const,
+      id: item.id,
+      deleted: false as const,
+      revision: 4,
+      payload: { ...shoppingItemToRecord(item) } as Record<string, unknown>,
+    }
+  }
+
+  it('ne journalise rien sans compte connecté', async () => {
+    unwrap(await device.shopping.saveAll([manual(personalList(), 'Pain')]))
+
+    expect(unwrap(await device.replica.pendingCount())).toBe(0)
+  })
+
+  it('journalise la liste du foyer et sa liste personnelle, pas celle d’un autre profil local', async () => {
+    unwrap(await device.replica.start(STATE))
+    const shared = manual(householdList(), 'Lessive')
+    const own = manual(personalList(), 'Chocolat')
+    const other = manual(personalList('player-local'), 'Café')
+
+    unwrap(await device.shopping.saveAll([shared, own, other]))
+    unwrap(await device.shopping.deleteAll([shared.id, other.id, idFrom('absent')]))
+
+    expect((await pendingChanges()).map((change) => [change.op, change.id])).toEqual([
+      ['delete', shared.id],
+      ['upsert', own.id],
+    ])
+    expect(await names(householdList())).toEqual([])
+  })
+
+  it('inscrit sa liste personnelle au premier envoi', async () => {
+    const own = manual(personalList(), 'Chocolat')
+    unwrap(await device.shopping.saveAll([own, manual(personalList('player-local'), 'Café')]))
+    unwrap(await device.replica.start(STATE))
+
+    unwrap(await device.replica.enqueueAll('player-1'))
+
+    expect((await pendingChanges()).filter((change) => change.entity === 'shopping').map((change) => change.id)).toEqual([own.id])
+  })
+
+  it('reçoit les articles cochés par les autres membres', async () => {
+    unwrap(await device.replica.start(STATE))
+    const incoming = remoteItem(householdList(), 'Pain')
+
+    const changed = unwrap(await device.replica.applyRemote([incoming], 4))
+
+    expect([...changed]).toEqual(['shopping'])
+    expect(await names(householdList())).toEqual(['Pain'])
+  })
+
+  it('au changement de foyer, oublie l’ancienne liste et relit l’actuelle, sauf ce qui attend d’être envoyé', async () => {
+    unwrap(await device.replica.start({ ...STATE, household: 'foyer-1:a' }))
+    unwrap(
+      await device.replica.applyRemote(
+        [remoteItem(householdList(), 'Reçu'), remoteItem(householdList('foyer-0'), 'Ancien')],
+        4,
+      ),
+    )
+    const pending = manual(householdList(), 'En attente')
+    const stale = manual(householdList('foyer-0'), 'Ancien en attente')
+    const personal = manual(personalList(), 'Perso')
+    unwrap(await device.shopping.saveAll([pending, stale, personal]))
+
+    unwrap(await device.replica.rebase('foyer-1:a,b'))
+
+    // « Reçu » reviendra par la lecture suivante, repartie de zéro.
+    expect(await names(householdList())).toEqual(['En attente'])
+    expect(await names(householdList('foyer-0'))).toEqual([])
+    expect(await names(personalList())).toEqual(['Perso'])
+    const shopping = (await pendingChanges()).filter((change) => change.entity === 'shopping')
+    expect(shopping.map((change) => change.id).sort()).toEqual([pending.id, personal.id].sort())
+  })
+
+  it('à la déconnexion, efface la liste du foyer et sa liste personnelle, garde celle des autres profils', async () => {
+    unwrap(await device.shopping.saveAll([manual(personalList('player-local'), 'Café')]))
+    unwrap(await device.replica.start(STATE))
+    unwrap(await device.shopping.saveAll([manual(householdList(), 'Lessive'), manual(personalList(), 'Chocolat')]))
+
+    unwrap(await device.replica.stop({ wipe: true }))
+
+    expect(await names(householdList())).toEqual([])
+    expect(await names(personalList())).toEqual([])
+    expect(await names(personalList('player-local'))).toEqual(['Café'])
+  })
+
+  it('sans effacement, ne garde que les listes personnelles', async () => {
+    unwrap(await device.replica.start(STATE))
+    unwrap(await device.shopping.saveAll([manual(householdList(), 'Lessive'), manual(personalList(), 'Chocolat')]))
+
+    unwrap(await device.replica.stop({ wipe: false }))
+
+    expect(await names(householdList())).toEqual([])
+    expect(await names(personalList())).toEqual(['Chocolat'])
   })
 })

@@ -16,6 +16,7 @@ import { BiologicalSex, BodyMeasurements } from '@/modules/player_profile/domain
 import { DietaryPreferences } from '@/modules/player_profile/domain/DietaryPreferences'
 import { Player } from '@/modules/player_profile/domain/Player'
 import { IndexedDbPlayerRepository } from '@/modules/player_profile/infrastructure/IndexedDbPlayerRepository'
+import { IndexedDbShoppingRepository } from '@/modules/shopping/infrastructure/IndexedDbShoppingRepository'
 
 import { IndexedDbReplica } from '../IndexedDbReplica'
 
@@ -40,6 +41,7 @@ export function createDevice() {
     players: new IndexedDbPlayerRepository(databases),
     meals: new IndexedDbMealRepository(databases),
     foods: new IndexedDbFoodRepository(databases),
+    shopping: new IndexedDbShoppingRepository(databases),
     replica: new IndexedDbReplica(databases),
   }
 }

@@ -16,81 +16,40 @@
  * retour (`?retour=`) ramène là d'où l'on vient. La recherche respecte le
  * régime du profil ; ce qu'elle masque est compté, et peut être affiché.
  */
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import OnlineSearchNotice from '@/app/components/OnlineSearchNotice.vue'
+import FoodPicker, { type FoodChoice } from '@/app/components/FoodPicker.vue'
 import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
-import PortionPicker from '@/app/components/PortionPicker.vue'
 import { formatDay, MEAL_OPTIONS, mealLabel } from '@/app/mealLabels'
-import { GLOSSARY } from '@/app/glossary'
 import { usePageTitle } from '@/app/pageTitle'
-import { formatPortion, per100Label, pluralize } from '@/app/portionFormat'
-import { dietLabel, dietsOf } from '@/app/profileOptions'
+import { formatPortion, pluralize } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
 import { useBackLink } from '@/app/useBackLink'
-import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import { parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
 import type { FoodItemId, MealId } from '@/core/identity'
-import {
-  DietSuitability,
-  type MealEntrySummary,
-  MealType,
-} from '@/modules/nutrition_inventory/application'
-import type { FoodItem } from '@/modules/nutrition_inventory/domain/FoodItem'
-import type { Measure } from '@/modules/nutrition_inventory/domain/Measure'
-import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
+import { type MealEntrySummary, MealType } from '@/modules/nutrition_inventory/application'
 import { useMealEditorStore } from '@/modules/nutrition_inventory/presentation/useMealEditorStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
-import BaseField from '@/ui/BaseField.vue'
-import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
-import FoodSourceTag from '@/ui/FoodSourceTag.vue'
-import InfoTip from '@/ui/InfoTip.vue'
 import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
 
 const route = useRoute()
 const router = useRouter()
 const players = usePlayerStore()
 const editor = useMealEditorStore()
-const search = useFoodSearchStore()
-const household = useHousehold()
 
 const clock = useTodayStore()
 const today = computed(() => clock.today)
 
-const query = ref('')
-/** Quantité choisie dans le sélecteur de portion, `null` tant qu'elle est invalide. */
-const portion = ref<{ readonly grams: number; readonly measure: Measure } | null>(null)
-const selectedId = ref<FoodItemId | null>(null)
 const feedback = ref('')
-/** Montrer aussi les aliments masqués par le régime : un marqueur peut se tromper. */
-const showExcluded = ref(false)
+/** Aliment à présélectionner : celui qu'on vient de créer (`?aliment=`). */
+const preselect = ref<FoodItemId | null>(null)
 
 const back = useBackLink({ to: { name: ROUTE.weekPlan }, label: 'Semaine' })
-
-const diets = computed(() => dietsOf(players.needs?.restrictions ?? []))
-
-/** Les résultats affichés : ceux qui conviennent, puis, sur demande, les autres. */
-const shownResults = computed<readonly FoodItem[]>(() =>
-  showExcluded.value ? [...search.results, ...search.excluded] : search.results,
-)
-
-/** Pourquoi un aliment est masqué : « Ne convient pas : végétarien ». */
-function conflictNote(item: FoodItem): string | null {
-  const conflicts = DietSuitability.conflicts(item, diets.value)
-  return conflicts.length === 0
-    ? null
-    : `Ne convient pas : ${conflicts.map((diet) => dietLabel(diet).toLocaleLowerCase('fr-FR')).join(', ')}`
-}
-
-function runSearch(text: string): void {
-  showExcluded.value = false
-  void search.find(text, diets.value)
-}
 
 const meal = computed(() => editor.meal)
 const isNew = computed(() => meal.value === null)
@@ -103,21 +62,6 @@ const title = computed(() =>
     : `${mealLabel(editor.schedule.type)} du ${formatDay(editor.schedule.plannedFor)}`,
 )
 usePageTitle(title)
-
-const selected = computed(
-  () => shownResults.value.find((item) => item.id === selectedId.value) ?? null,
-)
-
-const recentForSelected = computed(() =>
-  selected.value === null ? null : (editor.recentPortions.get(selected.value.id) ?? null),
-)
-
-/** Aperçu des macros pour la portion saisie, calculé par l'entité elle-même. */
-const preview = computed(() => {
-  if (selected.value === null || portion.value === null) return null
-  const scaled = selected.value.macrosForGrams(portion.value.grams)
-  return scaled.ok ? scaled.value : null
-})
 
 function isMealType(value: unknown): value is MealType {
   return Object.values(MealType).includes(value as MealType)
@@ -151,21 +95,12 @@ onMounted(async () => {
 
   // Retour de la recherche ou de la création d'un aliment : il est présélectionné.
   const requested = route.query.aliment
-  if (typeof requested === 'string') selectedId.value = requested as FoodItemId
+  if (typeof requested === 'string') preselect.value = requested as FoodItemId
 
   if (players.playerId !== null) {
     await editor.loadRecentPortions(players.playerId, editor.schedule.plannedFor)
   }
 })
-
-watch(
-  shownResults,
-  (results) => {
-    if (selectedId.value !== null && !results.some((item) => item.id === selectedId.value)) {
-      selectedId.value = null
-    }
-  },
-)
 
 /**
  * Garde l'adresse d'un brouillon en phase avec ses choix : sans cela, un détour
@@ -191,23 +126,21 @@ async function changeType(type: MealType): Promise<void> {
   await syncDraftQuery()
 }
 
-async function add(): Promise<void> {
+async function add(choice: FoodChoice): Promise<boolean> {
   const playerId = players.playerId
-  const food = selected.value
-  const chosen = portion.value
-  if (playerId === null || food === null || chosen === null) return
+  if (playerId === null) return false
 
   const wasNew = isNew.value
-  const added = await editor.addFood(playerId, food.id, chosen.grams, chosen.measure.label)
-  if (!added) return
+  const added = await editor.addFood(playerId, choice.food.id, choice.grams, choice.measure.label)
+  if (!added) return false
 
-  feedback.value = `${food.name} ajouté (${formatPortion(chosen.grams / chosen.measure.grams, chosen.measure)}).`
-  selectedId.value = null
+  feedback.value = `${choice.food.name} ajouté (${formatPortion(choice.grams / choice.measure.grams, choice.measure)}).`
 
   // Le repas existe désormais : l'adresse le désigne, un rechargement le retrouve.
   if (wasNew && editor.mealId !== null) {
     await router.replace({ name: ROUTE.mealEditor, params: { mealId: editor.mealId } })
   }
+  return true
 }
 
 /**
@@ -242,9 +175,6 @@ async function remove(): Promise<void> {
   if (await editor.deleteMeal()) await router.push(back.value.to)
 }
 
-async function createFood(): Promise<void> {
-  await router.push({ name: ROUTE.customFood, query: { retour: route.fullPath } })
-}
 </script>
 
 <template>
@@ -261,7 +191,6 @@ async function createFood(): Promise<void> {
     </h1>
 
     <ErrorNotice :error="editor.error" />
-    <ErrorNotice :error="search.error" />
 
     <BaseCard title="Quand ?">
       <label class="editor__date">
@@ -378,167 +307,13 @@ async function createFood(): Promise<void> {
       v-if="!editor.isLocked"
       title="Ajouter un aliment"
     >
-      <p class="editor__note">
-        Tapez le nom d’un aliment, ou le numéro du code-barres<InfoTip
-          term="code-barres"
-          :text="GLOSSARY.barcode"
-        />.
-        L’application cherche dans le catalogue public des aliments<InfoTip
-          term="catalogue public"
-          :text="GLOSSARY.ciqual"
-        />
-        et dans les produits de marque<InfoTip
-          term="produits de marque"
-          :text="GLOSSARY.openFoodFacts"
-        />.
-      </p>
-      <form
-        class="editor__search"
-        role="search"
-        @submit.prevent="runSearch(query)"
-      >
-        <BaseField
-          v-model="query"
-          label="Nom ou code-barres"
-          hint="Par exemple : poulet, ou 3017620422003."
-        />
-        <BaseButton
-          type="submit"
-          variant="secondary"
-          :loading="search.status === 'loading'"
-        >
-          Chercher
-        </BaseButton>
-      </form>
-
-      <OnlineSearchNotice
-        v-if="search.onlineSearchUnavailable"
-        class="editor__offline"
-        :busy="search.status === 'loading'"
-        @retry="runSearch(search.query)"
+      <FoodPicker
+        :add="add"
+        :recent="editor.recentPortions"
+        :preselect="preselect"
+        :busy="editor.status === 'loading'"
+        preview
       />
-
-      <div
-        v-if="search.status === 'ready' && search.excluded.length > 0"
-        class="editor__excluded"
-      >
-        <p role="status">
-          <template v-if="!showExcluded">
-            {{ search.excluded.length }} aliment{{ search.excluded.length > 1 ? 's' : '' }}
-            masqué{{ search.excluded.length > 1 ? 's' : '' }} : ne
-            convien{{ search.excluded.length > 1 ? 'nent' : 't' }} pas à votre régime.
-          </template>
-          <template v-else>
-            Les aliments qui ne conviennent pas à votre régime sont à la fin de la liste.
-          </template>
-        </p>
-        <BaseButton
-          size="sm"
-          variant="secondary"
-          :aria-pressed="showExcluded ? 'true' : 'false'"
-          @click="showExcluded = !showExcluded"
-        >
-          {{ showExcluded ? 'Les masquer' : 'Les afficher' }}
-        </BaseButton>
-      </div>
-
-      <EmptyState
-        v-if="shownResults.length === 0 && search.status === 'ready'"
-        :title="search.excluded.length > 0
-          ? 'Aucun aliment trouvé qui convienne à votre régime.'
-          : 'Aucun aliment trouvé.'"
-        :description="search.unknownBarcode
-          ? 'Ce code-barres n’est dans aucun catalogue.'
-          : 'Vous pouvez créer cet aliment vous-même.'"
-      >
-        <BaseButton
-          size="sm"
-          variant="secondary"
-          @click="createFood"
-        >
-          Créer un aliment
-        </BaseButton>
-      </EmptyState>
-
-      <fieldset
-        v-else-if="shownResults.length > 0"
-        class="editor__fieldset"
-      >
-        <legend class="sr-only">
-          Résultats de la recherche
-        </legend>
-        <ul class="editor__results">
-          <li
-            v-for="item in shownResults"
-            :key="item.id"
-          >
-            <label class="choice choice--wide">
-              <input
-                v-model="selectedId"
-                type="radio"
-                name="food"
-                :value="item.id"
-              >
-              <span class="editor__result">
-                <strong>{{ item.name }}</strong>
-                <small class="editor__result-meta">
-                  <FoodSourceTag
-                    :source="item.source"
-                    :author="foodAuthor(household.household, players.playerId, item.ownerId)"
-                  />
-                  {{ Math.round(item.macrosPer100g.calories()) }} kcal pour {{ per100Label(item) }}
-                </small>
-                <small
-                  v-if="conflictNote(item)"
-                  class="editor__conflict"
-                >{{ conflictNote(item) }}</small>
-              </span>
-            </label>
-          </li>
-        </ul>
-      </fieldset>
-
-      <div
-        v-if="selected"
-        class="editor__portion"
-      >
-        <PortionPicker
-          :food="selected"
-          :recent="recentForSelected"
-          @change="(next) => (portion = next)"
-        />
-
-        <dl
-          v-if="preview"
-          class="editor__macros editor__macros--preview"
-        >
-          <div>
-            <dt>Calories</dt>
-            <dd>{{ Math.round(preview.calories()) }} kcal</dd>
-          </div>
-          <div>
-            <dt>Protéines</dt>
-            <dd>{{ preview.proteinG.toFixed(1) }} g</dd>
-          </div>
-          <div>
-            <dt>Glucides</dt>
-            <dd>{{ preview.carbsG.toFixed(1) }} g</dd>
-          </div>
-          <div>
-            <dt>Lipides</dt>
-            <dd>{{ preview.fatG.toFixed(1) }} g</dd>
-          </div>
-        </dl>
-
-        <BaseButton
-          block
-          :disabled="preview === null"
-          :loading="editor.status === 'loading'"
-          @click="add"
-        >
-          Ajouter {{ selected.name }}
-        </BaseButton>
-      </div>
     </BaseCard>
 
     <PlanForMembersCard
@@ -698,13 +473,6 @@ async function createFood(): Promise<void> {
   margin: 0 0 var(--space-4);
 }
 
-.editor__macros--preview {
-  margin: var(--space-4) 0;
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border-radius: var(--radius-md);
-}
-
 .editor__macros div {
   display: flex;
   flex-direction: column;
@@ -725,61 +493,6 @@ async function createFood(): Promise<void> {
   margin: 0 0 var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-}
-
-.editor__search {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-}
-
-.editor__excluded {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.editor__excluded p {
-  margin: 0;
-}
-
-.editor__conflict {
-  display: block;
-  color: var(--color-danger);
-  font-weight: 600;
-}
-
-/* L'indisponibilité du réseau s'affiche, elle ne se déguise pas en « aucun
-   résultat ». */
-.editor__offline {
-  margin: 0 0 var(--space-4);
-}
-
-.editor__results {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  max-height: 20rem;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-  list-style: none;
-}
-
-.editor__result-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
-}
-
-.editor__portion {
-  margin-top: var(--space-4);
 }
 
 .editor__feedback {
@@ -810,19 +523,9 @@ async function createFood(): Promise<void> {
   cursor: pointer;
 }
 
-.choice--wide {
-  width: 100%;
-  border-radius: var(--radius-md);
-}
-
 .choice span {
   display: flex;
   flex-direction: column;
-}
-
-.choice small {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
 }
 
 .choice input {

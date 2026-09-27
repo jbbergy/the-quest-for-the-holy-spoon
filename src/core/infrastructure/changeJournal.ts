@@ -16,7 +16,7 @@ import { requestToPromise } from './idb'
  * Tant qu'aucun compte n'est connecté (`sync_state` absent), rien n'est
  * journalisé : l'usage sans compte ne laisse aucune trace.
  */
-export type SyncEntity = 'player' | 'meal' | 'food'
+export type SyncEntity = 'player' | 'meal' | 'food' | 'shopping'
 export type SyncOp = 'upsert' | 'delete'
 
 export interface OutboxEntry {
@@ -81,6 +81,19 @@ export async function journal(
 ): Promise<boolean> {
   const state = await readSyncState(tx)
   if (state === null || ownerPlayerId !== state.playerId) return false
+
+  tx.objectStore(STORE.outbox).add({ entity: change.entity, id: change.id, op: change.op })
+  return true
+}
+
+/**
+ * Journalise une modification d'un enregistrement **commun au foyer** : tout
+ * membre connecté peut l'écrire, et c'est le serveur qui vérifie qu'il est
+ * bien du foyer. Sans compte connecté, rien n'est journalisé.
+ */
+export async function journalShared(tx: IDBTransaction, change: OutboxEntry): Promise<boolean> {
+  const state = await readSyncState(tx)
+  if (state === null) return false
 
   tx.objectStore(STORE.outbox).add({ entity: change.entity, id: change.id, op: change.op })
   return true

@@ -1,21 +1,13 @@
 import { watch } from 'vue'
 
 import { useContainer } from '@/app/container'
+import { householdKey } from '@/app/sync/householdKey'
 import type { PlayerId } from '@/core/identity'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import type { HouseholdView } from '@/modules/household/application'
 import { useHouseholdStore } from '@/modules/household/presentation/useHouseholdStore'
 
-/**
- * Empreinte du foyer : son identifiant et ses membres. Quand elle change, les
- * aliments partagés se relisent depuis le début — ceux d'un nouveau venu
- * datent d'avant le curseur de synchronisation.
- */
-export function householdKey(household: HouseholdView | null): string | null {
-  if (household === null) return null
-  const members = household.members.map((member) => member.accountId).sort()
-  return `${household.id}:${members.join(',')}`
-}
+export { householdKey }
 
 /**
  * Le foyer du compte connecté, chargé dès que la session est connue.

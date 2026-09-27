@@ -84,6 +84,13 @@ async function addMeal(day: PlannedDay): Promise<void> {
   })
 }
 
+async function openShoppingList(): Promise<void> {
+  await router.push({
+    name: ROUTE.shoppingList,
+    query: { semaine: week.weekStart, ...returnQuery.value },
+  })
+}
+
 async function setConsumed(mealId: MealId, consumed: boolean): Promise<void> {
   const playerId = players.playerId
   if (playerId !== null) await week.setConsumed(playerId, mealId, consumed)
@@ -139,14 +146,25 @@ function subtitle(day: PlannedDay): string {
       </BaseButton>
     </nav>
 
-    <BaseButton
-      v-if="!isCurrentWeek"
-      variant="secondary"
-      size="sm"
-      @click="load(today)"
-    >
-      Revenir à la semaine en cours
-    </BaseButton>
+    <div class="week__actions">
+      <BaseButton
+        variant="secondary"
+        size="sm"
+        @click="openShoppingList"
+      >
+        Liste de courses
+        <span class="sr-only">de cette semaine</span>
+      </BaseButton>
+
+      <BaseButton
+        v-if="!isCurrentWeek"
+        variant="secondary"
+        size="sm"
+        @click="load(today)"
+      >
+        Revenir à la semaine en cours
+      </BaseButton>
+    </div>
 
     <ErrorNotice :error="week.error" />
 
@@ -226,6 +244,12 @@ function subtitle(day: PlannedDay): string {
   padding: var(--space-1);
   background: var(--color-surface);
   border-radius: var(--radius-pill);
+}
+
+.week__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .week__range {

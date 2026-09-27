@@ -4,6 +4,7 @@ import type { SyncEntity } from '@/core/infrastructure/changeJournal'
 import type { INetworkStatus } from '@/core/infrastructure/NetworkStatusService'
 import { ok, type Result } from '@/core/result'
 
+import { householdIdOfKey } from './householdKey'
 import type { ILocalReplica, ISyncGateway } from './ports'
 
 /**
@@ -174,6 +175,16 @@ export class SyncEngine {
   async rebase(household: string | null): Promise<void> {
     const changed = await this.replica.rebase(household)
     if (changed.ok && changed.value) await this.sync()
+  }
+
+  /**
+   * Foyer connu lors de la dernière synchronisation, ou `null`. Il reste lisible
+   * hors ligne, quand le foyer lui-même ne peut pas être demandé au serveur :
+   * c'est ce qui garde la liste de courses du foyer ouverte au magasin.
+   */
+  async knownHouseholdId(): Promise<string | null> {
+    const state = await this.replica.state()
+    return state.ok ? householdIdOfKey(state.value?.household) : null
   }
 
   /** Débranche l'appareil du compte. */

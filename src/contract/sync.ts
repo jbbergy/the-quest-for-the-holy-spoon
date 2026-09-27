@@ -14,7 +14,7 @@ export const SYNC_ROUTE = {
   pull: '/sync/pull',
 } as const
 
-export const SYNC_ENTITIES = ['player', 'meal', 'food', 'needs'] as const
+export const SYNC_ENTITIES = ['player', 'meal', 'food', 'needs', 'shopping'] as const
 export type SyncEntityName = (typeof SYNC_ENTITIES)[number]
 
 /** Au-delà, le client découpe : un envoi reste court même après une semaine hors ligne. */

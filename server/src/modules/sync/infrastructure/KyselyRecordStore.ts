@@ -29,7 +29,11 @@ interface RecordRow {
 export class KyselyRecordStore implements IRecordStore {
   constructor(private readonly db: Db) {}
 
-  async apply(owner: AccountId, changes: readonly IncomingChange[]): Promise<readonly RecordKey[]> {
+  async apply(
+    owner: AccountId,
+    changes: readonly IncomingChange[],
+    household: string | null,
+  ): Promise<readonly RecordKey[]> {
     if (changes.length === 0) return []
 
     return this.db.transaction().execute(async (tx) => {
@@ -40,15 +44,20 @@ export class KyselyRecordStore implements IRecordStore {
         const key = { entity: change.entity, id: change.id }
         if (change.op === 'upsert') {
           // La clause `where` du `on conflict` refuse d'écraser l'enregistrement
-          // d'un autre compte : aucune ligne n'est alors renvoyée.
+          // d'un autre compte, sauf s'il est commun au même foyer : aucune ligne
+          // n'est alors renvoyée. L'auteur d'un enregistrement commun reste
+          // celui qui l'a créé.
+          const shared = sharedHousehold(change.entity, change.payload)
           const written = await sql<{ revision: string }>`
-            insert into records (entity, id, owner_account_id, payload, deleted, revision)
-            values (${change.entity}, ${change.id}, ${owner}, ${JSON.stringify(change.payload)}::jsonb,
-                    false, nextval('records_revision_seq'))
+            insert into records (entity, id, owner_account_id, household_id, payload, deleted, revision)
+            values (${change.entity}, ${change.id}, ${owner}, ${shared}::uuid,
+                    ${JSON.stringify(change.payload)}::jsonb, false, nextval('records_revision_seq'))
             on conflict (entity, id) do update
               set payload = excluded.payload, deleted = false,
                   revision = excluded.revision, updated_at = now()
-              where records.owner_account_id = excluded.owner_account_id
+              where (records.household_id is null and excluded.household_id is null
+                     and records.owner_account_id = excluded.owner_account_id)
+                 or records.household_id = excluded.household_id
             returning revision`.execute(tx)
           if (written.rows.length === 0) notOwned.push(key)
           continue
@@ -58,20 +67,27 @@ export class KyselyRecordStore implements IRecordStore {
           update records
             set payload = null, deleted = true,
                 revision = nextval('records_revision_seq'), updated_at = now()
-            where entity = ${change.entity} and id = ${change.id}
-              and owner_account_id = ${owner} and not deleted
+            where entity = ${change.entity} and id = ${change.id} and not deleted
+              and ((owner_account_id = ${owner} and household_id is null)
+                   or household_id = ${household}::uuid)
             returning revision`.execute(tx)
         if (deleted.rows.length > 0) continue
 
-        // Rien de supprimé : soit l'enregistrement n'a jamais quitté l'appareil
-        // (rien à faire), soit il appartient à un autre compte (refus).
+        // Rien de supprimé : soit l'enregistrement n'a jamais quitté l'appareil,
+        // ou il est déjà supprimé (rien à faire), soit il appartient à un autre
+        // compte ou à un autre foyer (refus).
         const other = await tx
           .selectFrom('records')
-          .select('owner_account_id')
+          .select(['owner_account_id', 'household_id'])
           .where('entity', '=', change.entity)
           .where('id', '=', change.id)
           .executeTakeFirst()
-        if (other !== undefined && other.owner_account_id !== owner) notOwned.push(key)
+        const reachable =
+          other === undefined ||
+          (other.household_id === null
+            ? other.owner_account_id === owner
+            : other.household_id === household)
+        if (!reachable) notOwned.push(key)
       }
 
       return notOwned
@@ -94,16 +110,20 @@ export class KyselyRecordStore implements IRecordStore {
   async changesSince(
     owner: AccountId,
     foodAuthors: readonly AccountId[],
+    household: string | null,
     since: number,
     limit: number,
   ): Promise<ChangePage> {
-    // `= any` accepte un tableau vide : sans foyer, la seconde branche ne lit rien.
+    // `= any` accepte un tableau vide : sans foyer, la deuxième branche ne lit
+    // rien, et la troisième non plus (`= null` n'est jamais vrai). Ce qu'on a
+    // écrit dans un ancien foyer n'est plus lu : il n'est plus à soi.
     const rows = await sql<RecordRow>`
       select entity, id, payload, deleted, revision::text as revision
         from records
         where revision > ${since}
-          and (owner_account_id = ${owner}
-               or (entity = 'food' and owner_account_id = any(${[...foodAuthors]}::uuid[])))
+          and ((owner_account_id = ${owner} and household_id is null)
+               or (entity = 'food' and owner_account_id = any(${[...foodAuthors]}::uuid[]))
+               or household_id = ${household}::uuid)
         -- La colonne, pas l'alias : \`revision::text\` se trierait comme du texte
         -- (« 1000 » avant « 999 »), et le curseur sauterait des écritures.
         order by records.revision
@@ -114,6 +134,11 @@ export class KyselyRecordStore implements IRecordStore {
       hasMore: rows.rows.length > limit,
     }
   }
+}
+
+/** Foyer d'un enregistrement commun, ou `null` : seule la liste de courses d'un foyer l'est. */
+function sharedHousehold(entity: string, payload: Readonly<Record<string, unknown>>): string | null {
+  return entity === 'shopping' && typeof payload.householdId === 'string' ? payload.householdId : null
 }
 
 function toStoredChange(row: RecordRow): StoredChange {

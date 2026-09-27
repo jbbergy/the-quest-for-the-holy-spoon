@@ -16,6 +16,7 @@ import {
 
 import type { PlayerRecord } from '@/modules/player_profile/infrastructure/records'
 
+import { householdIdOfKey } from './householdKey'
 import type { ILocalReplica, PendingBatch } from './ports'
 import { sharedNeedsOf } from './sharedNeeds'
 
@@ -24,15 +25,18 @@ const STORE_OF: Readonly<Record<SyncEntity, string>> = {
   player: STORE.players,
   meal: STORE.meals,
   food: STORE.foods,
+  shopping: STORE.shopping,
 }
 
-const DATA_STORES = [STORE.players, STORE.meals, STORE.foods] as const
+const DATA_STORES = [STORE.players, STORE.meals, STORE.foods, STORE.shopping] as const
 
 interface StoredRecord {
   readonly id: string
   readonly playerId?: string
   readonly source?: string
   readonly ownerId?: string | null
+  /** Article de courses : `null` pour une liste personnelle. */
+  readonly householdId?: string | null
 }
 
 /** Aliment créé à la main par un profil qui n'est pas sur l'appareil : celui d'un autre membre. */
@@ -69,7 +73,7 @@ export class IndexedDbReplica implements ILocalReplica {
   enqueueAll(playerId: string) {
     return guard('préparation du premier envoi', async () => {
       const tx = (await this.databases.get()).transaction(
-        [STORE.players, STORE.meals, STORE.foods, STORE.outbox],
+        [STORE.players, STORE.meals, STORE.foods, STORE.shopping, STORE.outbox],
         'readwrite',
       )
       const outbox = tx.objectStore(STORE.outbox)
@@ -95,6 +99,15 @@ export class IndexedDbReplica implements ILocalReplica {
       )
       for (const food of foods) {
         if (food.source === 'USER' && food.ownerId === playerId) upsert('food', food.id)
+      }
+
+      // Sa liste de courses personnelle. Celle d'un foyer n'existe pas encore
+      // sur un appareil qui se connecte : elle arrive par la lecture.
+      const items = await requestToPromise(
+        tx.objectStore(STORE.shopping).getAll() as IDBRequest<StoredRecord[]>,
+      )
+      for (const item of items) {
+        if (item.householdId === null && item.playerId === playerId) upsert('shopping', item.id)
       }
 
       await transactionToPromise(tx)
@@ -213,7 +226,7 @@ export class IndexedDbReplica implements ILocalReplica {
   rebase(household: string | null) {
     return guard('changement de foyer', async () => {
       const tx = (await this.databases.get()).transaction(
-        [STORE.players, STORE.foods, STORE.outbox, STORE.meta],
+        [STORE.players, STORE.foods, STORE.shopping, STORE.outbox, STORE.meta],
         'readwrite',
       )
       const state = await readSyncState(tx)
@@ -227,6 +240,7 @@ export class IndexedDbReplica implements ILocalReplica {
       // ceux d'un nouveau venu, créés avant le curseur.
       const locals = await requestToPromise(tx.objectStore(STORE.players).getAllKeys())
       await deleteFoods(tx, (food) => isForeignFood(food, new Set(locals.map(String))))
+      await rebaseShopping(tx, householdIdOfKey(household))
       writeSyncState(tx, { ...state, cursor: 0, household })
 
       // Le profil repart aussi, pour que ses besoins soient publiés : les
@@ -254,6 +268,8 @@ export class IndexedDbReplica implements ILocalReplica {
       const state = await readSyncState(tx)
       tx.objectStore(STORE.outbox).clear()
       writeSyncState(tx, null)
+      // La liste du foyer ne se lit qu'avec le compte : elle part avec lui.
+      await deleteShopping(tx, (item) => item.householdId != null)
 
       if (options.wipe && state !== null) {
         const meals = tx.objectStore(STORE.meals)
@@ -273,6 +289,7 @@ export class IndexedDbReplica implements ILocalReplica {
         // Les aliments du compte et ceux des autres membres du foyer partent
         // aussi ; ceux des profils restés sur l'appareil demeurent.
         await deleteFoods(tx, (food) => isForeignFood(food, remaining))
+        await deleteShopping(tx, (item) => item.playerId === state.playerId)
 
         const next = others.find((key) => key !== state.playerId)
         const meta = tx.objectStore(STORE.meta)
@@ -295,6 +312,41 @@ async function deleteFoods(
   const doomed = records.filter(matches)
   for (const record of doomed) foods.delete(record.id)
   return doomed.length
+}
+
+/** Supprime les articles de courses qui satisfont le critère, dans la transaction donnée. */
+async function deleteShopping(
+  tx: IDBTransaction,
+  matches: (record: StoredRecord) => boolean,
+): Promise<StoredRecord[]> {
+  const shopping = tx.objectStore(STORE.shopping)
+  const records = await requestToPromise(shopping.getAll() as IDBRequest<StoredRecord[]>)
+  const doomed = records.filter(matches)
+  for (const record of doomed) shopping.delete(record.id)
+  return doomed
+}
+
+/**
+ * La liste du foyer après un changement de foyer.
+ *
+ * Celle d'un ancien foyer disparaît, et ses envois en attente avec elle : le
+ * serveur les refuserait. Celle du foyer actuel est relue depuis le début,
+ * comme les aliments — sauf les articles modifiés ici et pas encore envoyés,
+ * qui partiront au prochain envoi.
+ */
+async function rebaseShopping(tx: IDBTransaction, householdId: string | null): Promise<void> {
+  const pending = tx.objectStore(STORE.outbox).index(INDEX.outboxByRecord)
+  const outbox = tx.objectStore(STORE.outbox)
+  const records = await requestToPromise(
+    tx.objectStore(STORE.shopping).getAll() as IDBRequest<StoredRecord[]>,
+  )
+  for (const record of records) {
+    if (record.householdId == null) continue
+    const keys = await requestToPromise(pending.getAllKeys(['shopping', record.id]))
+    if (record.householdId === householdId && keys.length > 0) continue
+    tx.objectStore(STORE.shopping).delete(record.id)
+    for (const key of keys) outbox.delete(key)
+  }
 }
 
 /** Égalité structurelle de deux enregistrements sérialisables. */

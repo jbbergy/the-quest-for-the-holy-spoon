@@ -7,6 +7,7 @@ import * as m001 from './migrations/001_accounts'
 import * as m002 from './migrations/002_records'
 import * as m003 from './migrations/003_households'
 import * as m004 from './migrations/004_shared_records'
+import * as m005 from './migrations/005_household_shopping'
 import { pgliteDialect } from './pglite'
 import type { Database } from './schema'
 
@@ -20,6 +21,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '002_records': m002,
   '003_households': m003,
   '004_shared_records': m004,
+  '005_household_shopping': m005,
 }
 
 const provider: MigrationProvider = { getMigrations: async () => MIGRATIONS }

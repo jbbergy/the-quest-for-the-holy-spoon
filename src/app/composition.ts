@@ -68,6 +68,16 @@ import { OpenFoodFactsProvider } from '@/modules/nutrition_inventory/infrastruct
 import { OutboxMealOffers } from '@/modules/nutrition_inventory/infrastructure/OutboxMealOffers'
 
 import {
+  AddFoodToShoppingListUseCase,
+  AddShoppingItemUseCase,
+  CheckShoppingItemUseCase,
+  FillShoppingListUseCase,
+  GetShoppingListUseCase,
+  RemoveShoppingItemsUseCase,
+} from '@/modules/shopping/application'
+import { IndexedDbShoppingRepository } from '@/modules/shopping/infrastructure/IndexedDbShoppingRepository'
+
+import {
   SuggestMealCompletionUseCase,
   SummarizeRecentIntakeUseCase,
 } from '@/modules/planning/application'
@@ -152,6 +162,15 @@ export interface AppContainer {
     readonly suggestCompletion: SuggestMealCompletionUseCase
     readonly recentIntake: SummarizeRecentIntakeUseCase
   }
+  /** Liste de courses, commune au foyer (ou personnelle sans foyer). */
+  readonly shopping: {
+    readonly get: GetShoppingListUseCase
+    readonly fill: FillShoppingListUseCase
+    readonly add: AddShoppingItemUseCase
+    readonly addFood: AddFoodToShoppingListUseCase
+    readonly check: CheckShoppingItemUseCase
+    readonly remove: RemoveShoppingItemsUseCase
+  }
 
   /** Amorce le catalogue local. À appeler une fois au démarrage. */
   seedCatalog(): Promise<Result<unknown, Error>>
@@ -167,6 +186,7 @@ export function createContainer(
   const playerRepository = new IndexedDbPlayerRepository(databases)
   const foodRepository = new IndexedDbFoodRepository(databases)
   const mealRepository = new IndexedDbMealRepository(databases)
+  const shoppingRepository = new IndexedDbShoppingRepository(databases)
 
   const accountGateway = new HttpAccountGateway()
   const householdGateway = new HttpHouseholdGateway()
@@ -234,6 +254,14 @@ export function createContainer(
     planning: {
       suggestCompletion: new SuggestMealCompletionUseCase(),
       recentIntake: new SummarizeRecentIntakeUseCase(),
+    },
+    shopping: {
+      get: new GetShoppingListUseCase(shoppingRepository),
+      fill: new FillShoppingListUseCase(shoppingRepository),
+      add: new AddShoppingItemUseCase(shoppingRepository),
+      addFood: new AddFoodToShoppingListUseCase(shoppingRepository),
+      check: new CheckShoppingItemUseCase(shoppingRepository),
+      remove: new RemoveShoppingItemsUseCase(shoppingRepository),
     },
 
     seedCatalog: () => seeder.seedIfNeeded(),

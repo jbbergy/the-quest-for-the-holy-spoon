@@ -22,12 +22,16 @@ type GroupOverrides<TGroup> = Partial<Record<keyof TGroup, Executable>>
 
 export interface FakeContainerOverrides {
   readonly sync?: AppContainer['sync']
-  readonly memberDays?: { read: (...args: never[]) => unknown }
+  readonly memberDays?: {
+    read?: (...args: never[]) => unknown
+    meals?: (...args: never[]) => unknown
+  }
   readonly account?: GroupOverrides<AppContainer['account']>
   readonly household?: GroupOverrides<AppContainer['household']>
   readonly profile?: GroupOverrides<AppContainer['profile']>
   readonly inventory?: GroupOverrides<AppContainer['inventory']>
   readonly planning?: GroupOverrides<AppContainer['planning']>
+  readonly shopping?: GroupOverrides<AppContainer['shopping']>
 }
 
 export function createFakeContainer(overrides: FakeContainerOverrides = {}): AppContainer {
@@ -35,7 +39,11 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
     network: new StaticNetworkStatus(true),
     databases: { get: async () => null, close: async () => undefined },
     sync: overrides.sync ?? fakeSyncEngine(),
-    memberDays: overrides.memberDays ?? { read: async () => ({ ok: false, error: UNREACHABLE }) },
+    memberDays: {
+      read: async () => ({ ok: false, error: UNREACHABLE }),
+      meals: async () => ({ ok: false, error: UNREACHABLE }),
+      ...overrides.memberDays,
+    },
 
     account: {
       getSession: stub(ok(null)),
@@ -70,7 +78,7 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       ...overrides.profile,
     },
     inventory: {
-      find: stub(ok({ kind: 'by_name', items: [], onlineSearched: true })),
+      find: stub(ok({ kind: 'by_name', items: [], excluded: [], onlineSearched: true })),
       createCustomFood: stub(ok(null)),
       updateCustomFood: stub(ok(null)),
       deleteFood: stub(ok(undefined)),
@@ -100,6 +108,15 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       recentIntake: { execute: () => ok(null) },
       ...overrides.planning,
     },
+    shopping: {
+      get: stub(ok({ householdId: null, items: [] })),
+      fill: stub(ok({ added: 0, updated: 0 })),
+      add: stub(ok(null)),
+      addFood: stub(ok(null)),
+      check: stub(ok(undefined)),
+      remove: stub(ok(undefined)),
+      ...overrides.shopping,
+    },
 
     seedCatalog: async (): Promise<Result<unknown, Error>> => ok(undefined),
     dispose: async (): Promise<void> => undefined,
@@ -123,6 +140,7 @@ export function fakeSyncEngine(): AppContainer['sync'] {
     onRemoteChanges: () => () => undefined,
     connect: async () => ok('resumed'),
     rebase: async () => undefined,
+    knownHouseholdId: async () => null,
     schedule: () => undefined,
     sync: async () => undefined,
     flush: async () => 0,

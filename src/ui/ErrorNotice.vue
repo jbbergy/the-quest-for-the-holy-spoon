@@ -64,6 +64,8 @@ const MESSAGES: Readonly<Record<string, string>> = {
   NOT_OWNER: 'Un autre membre du foyer a créé cet élément. Vous ne pouvez pas le modifier.',
   HOUSEHOLD_CONFLICT:
     'Le foyer a changé pendant ce temps. Voici ce qu’il est maintenant. Réessayez si besoin.',
+  INVALID_SHOPPING_ITEM: 'Écrivez le nom de l’article, en 80 lettres au plus.',
+  SHOPPING_ITEM_NOT_FOUND: 'Cet article n’est plus dans la liste. Quelqu’un l’a peut-être retiré.',
 }
 
 const text = computed(() =>

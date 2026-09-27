@@ -9,6 +9,8 @@ import {
   type DailyJournal,
   GetConsumptionHistoryUseCase,
   GetDailyJournalUseCase,
+  type MealSummary,
+  toMealSummary,
 } from '@/modules/nutrition_inventory/application'
 import type { Meal } from '@/modules/nutrition_inventory/domain/Meal'
 import { InMemoryMealRepository } from '@/modules/nutrition_inventory/infrastructure/InMemoryRepositories'
@@ -72,6 +74,20 @@ export class MemberDaysReader {
       journal: journal.value,
       recent: recent?.ok === true ? recent.value : null,
     })
+  }
+
+  /**
+   * Repas d'un membre sur une plage de jours, pour la liste de courses. Mêmes
+   * règles que ses journées : refusé s'il ne les partage pas.
+   */
+  async meals(
+    playerId: PlayerId,
+    from: DayKey,
+    to: DayKey,
+  ): Promise<Result<MealSummary[], BaseError>> {
+    const response = await this.fetch(playerId, from, to)
+    if (!response.ok) return response
+    return ok(mealsOf(response.value.meals).map(toMealSummary))
   }
 
   private fetch(

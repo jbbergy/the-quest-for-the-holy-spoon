@@ -19,6 +19,7 @@ const MODULES = [
   'player_profile',
   'nutrition_inventory',
   'planning',
+  'shopping',
 ] as const
 
 const FORBIDDEN_IN_DOMAIN = ['vue', 'pinia', 'zod', 'idb', 'gsap', 'dexie'] as const

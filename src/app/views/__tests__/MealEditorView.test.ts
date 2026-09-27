@@ -256,8 +256,8 @@ describe('MealEditorView — nouveau repas', () => {
   it('crée le repas au premier aliment et prend son adresse', async () => {
     const wrapper = await mountAt(`/semaine/repas?jour=${tomorrow}&type=DINNER`)
 
-    await wrapper.find('input[type="search"], .editor__search input').setValue('poulet')
-    await wrapper.find('form.editor__search').trigger('submit')
+    await wrapper.find('input[type="search"], .picker__search input').setValue('poulet')
+    await wrapper.find('form.picker__search').trigger('submit')
     await flushPromises()
     await wrapper.find(`input[name="food"][value="${chicken.id}"]`).setValue(true)
     const add = wrapper.findAll('button').find((button) => button.text().startsWith('Ajouter Blanc'))
@@ -277,8 +277,8 @@ describe('MealEditorView — nouveau repas', () => {
   })
 
   async function select(wrapper: VueWrapper, food: FoodItem): Promise<void> {
-    await wrapper.find('.editor__search input').setValue('pain')
-    await wrapper.find('form.editor__search').trigger('submit')
+    await wrapper.find('.picker__search input').setValue('pain')
+    await wrapper.find('form.picker__search').trigger('submit')
     await flushPromises()
     await wrapper.find(`input[name="food"][value="${food.id}"]`).setValue(true)
   }
