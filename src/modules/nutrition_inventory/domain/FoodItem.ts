@@ -4,6 +4,17 @@ import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
 import { err, ok, type Result } from '@/core/result'
 
+import {
+  BaseUnit,
+  GRAM,
+  isValidDensity,
+  type Measure,
+  millilitre,
+  type Serving,
+  servingMeasure,
+  validateServings,
+} from './Measure'
+
 /** Provenance d'une fiche : détermine sa fiabilité et son comportement hors-ligne. */
 export const FoodSource = {
   CIQUAL: 'CIQUAL',
@@ -46,6 +57,28 @@ export interface FoodItemProps {
    * les aliments des autres, mais seul l'auteur les modifie.
    */
   readonly ownerId?: PlayerId | null
+  /**
+   * Unité de mesure de la fiche : `ml` pour un liquide. Facultative, le gramme
+   * par défaut — c'était la seule unité avant l'introduction des portions.
+   */
+  readonly unit?: BaseUnit
+  /**
+   * Masse d'un millilitre, en grammes, pour une fiche mesurée en `ml`.
+   *
+   * Ciqual donne ses valeurs pour 100 g : un verre de lait de 200 ml en pèse
+   * 206. Open Food Facts donne celles d'une boisson pour 100 ml : la densité
+   * vaut alors 1, le référentiel étant déjà le millilitre.
+   */
+  readonly density?: number
+  /** Portions nommées de la fiche, dans l'ordre où l'écran les propose. */
+  readonly servings?: readonly Serving[]
+}
+
+/** Unité, densité et portions : ce qui dit comment une fiche se mesure. */
+export interface FoodPortions {
+  readonly unit: BaseUnit
+  readonly density: number
+  readonly servings: readonly Serving[]
 }
 
 const MAX_NAME_LENGTH = 200
@@ -82,6 +115,9 @@ export class FoodItem {
     readonly barcode: string | undefined,
     readonly tags: readonly FoodTag[],
     readonly ownerId: PlayerId | null = null,
+    readonly unit: BaseUnit = BaseUnit.GRAM,
+    readonly density: number = 1,
+    readonly servings: readonly Serving[] = [],
   ) {}
 
   static create(
@@ -102,6 +138,9 @@ export class FoodItem {
       return err(new InvalidFoodItemError(`Code-barres invalide : ${props.barcode}.`))
     }
 
+    const portions = checkPortions(props)
+    if (!portions.ok) return portions
+
     return ok(
       new FoodItem(
         props.id ?? newId<'FoodItemId'>(),
@@ -112,6 +151,9 @@ export class FoodItem {
         barcode,
         dedupeTags(props.tags ?? []),
         props.ownerId ?? null,
+        portions.value.unit,
+        portions.value.density,
+        portions.value.servings,
       ),
     )
   }
@@ -126,6 +168,54 @@ export class FoodItem {
       props.barcode,
       props.tags ?? [],
       props.ownerId ?? null,
+      props.unit ?? BaseUnit.GRAM,
+      props.density ?? 1,
+      props.servings ?? [],
+    )
+  }
+
+  /** Mesure de base de la fiche : le gramme, ou le millilitre d'un liquide. */
+  get baseMeasure(): Measure {
+    return this.unit === BaseUnit.MILLILITRE ? millilitre(this.density) : GRAM
+  }
+
+  /** Toutes les façons de saisir une quantité de cet aliment, la mesure de base en tête. */
+  get measures(): readonly Measure[] {
+    return [this.baseMeasure, ...this.servings.map(servingMeasure)]
+  }
+
+  /**
+   * La mesure qui porte ce nom, ou la mesure de base si aucune ne le porte :
+   * une portion retirée de la fiche entre-temps ne doit pas empêcher d'ajouter
+   * l'aliment, seulement le faire saisir autrement.
+   */
+  measureNamed(label: string | undefined): Measure {
+    if (label === undefined) return this.baseMeasure
+    return this.measures.find((measure) => measure.label === label) ?? this.baseMeasure
+  }
+
+  get portions(): FoodPortions {
+    return { unit: this.unit, density: this.density, servings: this.servings }
+  }
+
+  /** Même fiche, autrement mesurée. */
+  withPortions(portions: Partial<FoodPortions>): Result<FoodItem, InvalidFoodItemError> {
+    const checked = checkPortions({ ...this.portions, ...portions })
+    if (!checked.ok) return checked
+    return ok(
+      new FoodItem(
+        this.id,
+        this.name,
+        this.macrosPer100g,
+        this.detailPer100g,
+        this.source,
+        this.barcode,
+        this.tags,
+        this.ownerId,
+        checked.value.unit,
+        checked.value.density,
+        checked.value.servings,
+      ),
     )
   }
 
@@ -139,6 +229,16 @@ export class FoodItem {
   detailForGrams(grams: number): Result<NutrientDetail, InvalidFoodItemError> {
     const scaled = this.detailPer100g.scale(grams / 100)
     return scaled.ok ? scaled : err(new InvalidFoodItemError(scaled.error.message))
+  }
+
+  /**
+   * Seul un aliment créé à la main se modifie, et par son auteur. Une fiche
+   * sans auteur date d'avant le partage et n'appartient qu'à cet appareil :
+   * quiconque l'utilise peut la corriger. Ciqual et Open Food Facts sont des
+   * références — les corriger ici serait défait au prochain rechargement.
+   */
+  isEditableBy(playerId: PlayerId | null): boolean {
+    return this.source === FoodSource.USER && (this.ownerId === null || this.ownerId === playerId)
   }
 
   hasTag(tag: FoodTag): boolean {
@@ -156,6 +256,9 @@ export class FoodItem {
       this.barcode,
       this.tags,
       this.ownerId,
+      this.unit,
+      this.density,
+      this.servings,
     )
   }
 
@@ -169,12 +272,31 @@ export class FoodItem {
       ...(this.barcode === undefined ? {} : { barcode: this.barcode }),
       tags: this.tags,
       ownerId: this.ownerId,
+      ...this.portions,
     })
   }
 
   equals(other: FoodItem): boolean {
     return this.id === other.id
   }
+}
+
+/**
+ * Unité, densité et portions validées. Une densité n'a de sens que pour une
+ * fiche mesurée en millilitres : elle est ramenée à 1 pour une fiche en grammes,
+ * afin qu'une valeur égarée ne fausse aucune conversion.
+ */
+function checkPortions(
+  props: Pick<FoodItemProps, 'unit' | 'density' | 'servings'>,
+): Result<FoodPortions, InvalidFoodItemError> {
+  const unit = props.unit ?? BaseUnit.GRAM
+  const density = unit === BaseUnit.MILLILITRE ? (props.density ?? 1) : 1
+  if (!isValidDensity(density)) {
+    return err(new InvalidFoodItemError(`Densité invalide : ${props.density} g/ml.`))
+  }
+  const servings = validateServings(props.servings ?? [])
+  if (!servings.ok) return servings
+  return ok({ unit, density, servings: servings.value })
 }
 
 function dedupeTags(tags: readonly FoodTag[]): readonly FoodTag[] {

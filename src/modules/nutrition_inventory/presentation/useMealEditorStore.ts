@@ -3,10 +3,10 @@ import { computed, ref, shallowRef } from 'vue'
 
 import { useContainer } from '@/app/container'
 import { type BaseError, type ErrorView, toErrorView } from '@/core/errors'
-import { dayKeyOf } from '@/core/day'
+import { type DayKey, dayKeyOf } from '@/core/day'
 import type { FoodItemId, MealEntryId, MealId, PlayerId } from '@/core/identity'
 
-import { type MealSchedule, type MealSummary, MealType } from '../application'
+import { type MealSchedule, type MealSummary, MealType, type RecentPortion } from '../application'
 
 import type { StoreStatus } from './useJournalStore'
 
@@ -23,6 +23,8 @@ export const useMealEditorStore = defineStore('mealEditor', () => {
   const schedule = ref<MealSchedule>({ plannedFor: dayKeyOf(new Date()), type: MealType.LUNCH })
   const status = ref<StoreStatus>('idle')
   const error = ref<ErrorView | null>(null)
+  /** Dernière portion saisie pour chaque aliment, pour préremplir la quantité. */
+  const recentPortions = shallowRef<ReadonlyMap<FoodItemId, RecentPortion>>(new Map())
 
   const mealId = computed<MealId | null>(() => meal.value?.mealId ?? null)
   /** Un repas pris est verrouillé par le domaine : l'écran le dit avant qu'on bute dessus. */
@@ -56,6 +58,15 @@ export const useMealEditorStore = defineStore('mealEditor', () => {
     return result.ok ? succeed(result.value) : fail(result.error)
   }
 
+  /**
+   * Charge les dernières portions du joueur. Un échec n'est pas une erreur de
+   * l'écran : sans suggestion, la quantité se saisit comme avant.
+   */
+  async function loadRecentPortions(playerId: PlayerId, around: DayKey): Promise<void> {
+    const result = await useContainer().inventory.recentPortions.execute(playerId, around)
+    if (result.ok) recentPortions.value = result.value
+  }
+
   async function reload(id: MealId): Promise<boolean> {
     return open(id)
   }
@@ -71,17 +82,24 @@ export const useMealEditorStore = defineStore('mealEditor', () => {
     playerId: PlayerId,
     foodItemId: FoodItemId,
     grams: number,
+    measure?: string,
   ): Promise<boolean> {
     status.value = 'loading'
     const result = await useContainer().inventory.addFood.execute({
       playerId,
       foodItemId,
       grams,
+      ...(measure === undefined ? {} : { measure }),
       mealType: schedule.value.type,
       plannedFor: schedule.value.plannedFor,
       ...(mealId.value === null ? {} : { mealId: mealId.value }),
     })
     if (!result.ok) return fail(result.error)
+
+    // La portion qu'on vient de saisir devient la suggestion suivante.
+    const next = new Map(recentPortions.value)
+    next.set(foodItemId, { grams, measure: measure ?? 'g' })
+    recentPortions.value = next
 
     return reload(result.value.id)
   }
@@ -165,6 +183,8 @@ export const useMealEditorStore = defineStore('mealEditor', () => {
     error,
     mealId,
     isLocked,
+    recentPortions,
+    loadRecentPortions,
     startNew,
     open,
     addFood,

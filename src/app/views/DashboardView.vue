@@ -154,7 +154,7 @@ async function setConsumed(mealId: MealSummary['mealId'], consumed: boolean): Pr
       <BaseButton
         variant="secondary"
         size="sm"
-        @click="$router.push({ name: ROUTE.foodSearch })"
+        @click="$router.push({ name: ROUTE.mealEditor })"
       >
         Trouver un aliment
       </BaseButton>

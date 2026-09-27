@@ -14,6 +14,7 @@ import { Macros } from '@/core/nutrition/Macros'
 import { ok } from '@/core/result'
 import { MealType } from '@/modules/nutrition_inventory/application'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
+import { GRAM, type Measure } from '@/modules/nutrition_inventory/domain/Measure'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import { BiologicalSex, BodyMeasurements } from '@/modules/player_profile/domain/BodyMeasurements'
 import { DietaryPreferences } from '@/modules/player_profile/domain/DietaryPreferences'
@@ -44,6 +45,16 @@ const chicken = FoodItem.reconstitute({
   source: FoodSource.CIQUAL,
 })
 
+const bread = FoodItem.reconstitute({
+  id: idFrom('ciqual:7200'),
+  name: 'Pain de mie, courant',
+  macrosPer100g: Macros.reconstitute({ proteinG: 8, carbsG: 50, fatG: 4 }),
+  source: FoodSource.CIQUAL,
+  servings: [{ label: 'tranche', grams: 25, approximate: true }],
+})
+
+const slice: Measure = { label: 'tranche', grams: 25, countable: true, approximate: true }
+
 const mealOf = (overrides: Record<string, unknown> = {}) => ({
   mealId: idFrom('meal-1'),
   playerId,
@@ -61,6 +72,8 @@ const mealOf = (overrides: Record<string, unknown> = {}) => ({
       foodItemId: chicken.id,
       foodName: 'Blanc de poulet',
       grams: 100,
+      measure: GRAM,
+      amount: 100,
       calories: 170,
     },
   ],
@@ -72,7 +85,11 @@ let removeEntry: ReturnType<typeof vi.fn>
 let addFood: ReturnType<typeof vi.fn>
 let router: Router
 
-async function mountAt(path: string, meal = mealOf()): Promise<VueWrapper> {
+async function mountAt(
+  path: string,
+  meal = mealOf(),
+  recent: ReadonlyMap<string, { grams: number; measure: string }> = new Map(),
+): Promise<VueWrapper> {
   changeQuantity = vi.fn(async () => ok(null))
   removeEntry = vi.fn(async () => ok(null))
   addFood = vi.fn(async () => ok({ id: meal.mealId }))
@@ -85,7 +102,8 @@ async function mountAt(path: string, meal = mealOf()): Promise<VueWrapper> {
         changeQuantity: { execute: changeQuantity },
         removeEntry: { execute: removeEntry },
         addFood: { execute: addFood },
-        find: succeedsWith({ kind: 'by_name', items: [chicken], onlineSearched: true }),
+        find: succeedsWith({ kind: 'by_name', items: [chicken, bread], onlineSearched: true }),
+        recentPortions: succeedsWith(recent),
       } as never,
     }),
   )
@@ -151,6 +169,27 @@ describe('MealEditorView — repas existant', () => {
     // L'usager est en train de retaper son nombre : refuser bruyamment serait
     // pire que ne rien faire.
     expect(changeQuantity).not.toHaveBeenCalled()
+  })
+
+  it('saisit une ligne en portions dans sa mesure, et la convertit en grammes', async () => {
+    const toast = {
+      entryId: idFrom('entry-1'),
+      foodItemId: bread.id,
+      foodName: 'Pain de mie, courant',
+      grams: 50,
+      measure: slice,
+      amount: 2,
+      calories: 140,
+    }
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf({ entries: [toast] }))
+    const input = wrapper.find('.editor__grams input')
+
+    expect((input.element as HTMLInputElement).value).toBe('2')
+    expect(wrapper.find('.editor__unit').text()).toBe('tranches')
+
+    ;(input.element as HTMLInputElement).value = '3'
+    await input.trigger('change')
+    expect(changeQuantity).toHaveBeenCalledWith(idFrom('meal-1'), idFrom('entry-1'), 75)
   })
 
   it('permet de retirer une ligne, sous un nom accessible distinct', async () => {
@@ -226,10 +265,71 @@ describe('MealEditorView — nouveau repas', () => {
     await flushPromises()
 
     expect(addFood).toHaveBeenCalledWith(
-      expect.objectContaining({ plannedFor: tomorrow, mealType: MealType.DINNER, grams: 100 }),
+      expect.objectContaining({
+        plannedFor: tomorrow,
+        mealType: MealType.DINNER,
+        grams: 100,
+        measure: 'g',
+      }),
     )
     // Un rechargement doit retrouver le repas, pas un brouillon vide.
     expect(router.currentRoute.value.params.mealId).toBe('meal-1')
+  })
+
+  async function select(wrapper: VueWrapper, food: FoodItem): Promise<void> {
+    await wrapper.find('.editor__search input').setValue('pain')
+    await wrapper.find('form.editor__search').trigger('submit')
+    await flushPromises()
+    await wrapper.find(`input[name="food"][value="${food.id}"]`).setValue(true)
+  }
+
+  async function addSelected(wrapper: VueWrapper): Promise<void> {
+    const add = wrapper.findAll('button').find((button) => button.text().startsWith('Ajouter '))
+    await add!.trigger('click')
+    await flushPromises()
+  }
+
+  it('propose d’emblée la première portion de l’aliment', async () => {
+    const wrapper = await mountAt(`/semaine/repas?jour=${today}&type=LUNCH`)
+    await select(wrapper, bread)
+
+    expect((wrapper.find('.portion__field input').element as HTMLInputElement).value).toBe('1')
+    expect(wrapper.find('.portion__unit').text()).toBe('tranche')
+    expect(wrapper.find('.portion__weight').text()).toBe('Soit ≈ 25 g')
+
+    await wrapper.findAll('.portion__step')[1]!.trigger('click')
+    expect(wrapper.find('.portion__unit').text()).toBe('tranche')
+    await wrapper.findAll('.portion__step')[1]!.trigger('click')
+    expect(wrapper.find('.portion__unit').text()).toBe('tranches')
+
+    await addSelected(wrapper)
+    expect(addFood).toHaveBeenCalledWith(
+      expect.objectContaining({ foodItemId: bread.id, grams: 50, measure: 'tranche' }),
+    )
+    expect(wrapper.find('[role="status"]').text()).toContain('(2 tranches)')
+  })
+
+  it('reprend la dernière portion saisie pour l’aliment', async () => {
+    const wrapper = await mountAt(
+      `/semaine/repas?jour=${today}&type=LUNCH`,
+      mealOf(),
+      new Map([[bread.id, { grams: 75, measure: 'tranche' }]]),
+    )
+    await select(wrapper, bread)
+
+    expect((wrapper.find('.portion__field input').element as HTMLInputElement).value).toBe('3')
+    // La suggestion est déjà appliquée : inutile de la proposer.
+    expect(wrapper.find('.portion__recent').exists()).toBe(false)
+
+    await wrapper.find('input[name="portion-measure"][value="g"]').setValue(true)
+    expect((wrapper.find('.portion__field input').element as HTMLInputElement).value).toBe('75')
+    expect(wrapper.find('.portion__recent').text()).toContain('3 tranches')
+
+    await wrapper.find('.portion__recent').trigger('click')
+    await addSelected(wrapper)
+    expect(addFood).toHaveBeenCalledWith(
+      expect.objectContaining({ grams: 75, measure: 'tranche' }),
+    )
   })
 
   it('ignore un jour illisible dans l’adresse', async () => {

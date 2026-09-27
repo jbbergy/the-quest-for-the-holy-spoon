@@ -6,6 +6,7 @@ import { Quantity } from '@/core/nutrition/Quantity'
 import { err, ok, type Result } from '@/core/result'
 
 import type { FoodItem, FoodTag } from './FoodItem'
+import { amountIn, GRAM, type Measure } from './Measure'
 
 /**
  * Instantané figé de la fiche au moment de l'ajout.
@@ -25,6 +26,8 @@ export interface MealEntryProps {
   readonly foodItemId: FoodItemId
   readonly quantity: Quantity
   readonly snapshot: FoodSnapshot
+  /** Mesure dans laquelle la portion a été saisie ; le gramme si absente. */
+  readonly measure?: Measure
 }
 
 /**
@@ -40,6 +43,12 @@ export class MealEntry {
     readonly foodItemId: FoodItemId,
     readonly quantity: Quantity,
     readonly snapshot: FoodSnapshot,
+    /**
+     * Mesure de saisie, figée comme l'instantané : « 2 tranches » se relit
+     * « 2 tranches » même si la fiche a depuis changé le poids de sa tranche.
+     * La quantité fait foi, la mesure ne sert qu'à l'afficher.
+     */
+    readonly measure: Measure = GRAM,
   ) {}
 
   /**
@@ -50,6 +59,7 @@ export class MealEntry {
     foodItem: FoodItem,
     quantity: Quantity,
     id?: MealEntryId,
+    measure: Measure = foodItem.baseMeasure,
   ): Result<MealEntry, DomainError> {
     const scaled = foodItem.macrosPer100g.scale(quantity.ratioTo100g)
     if (!scaled.ok) return err(scaled.error)
@@ -63,12 +73,23 @@ export class MealEntry {
         macros: scaled.value,
         detail: detail.value,
         tags: [...foodItem.tags],
-      }),
+      }, measure),
     )
   }
 
   static reconstitute(props: MealEntryProps): MealEntry {
-    return new MealEntry(props.id, props.foodItemId, props.quantity, props.snapshot)
+    return new MealEntry(
+      props.id,
+      props.foodItemId,
+      props.quantity,
+      props.snapshot,
+      props.measure ?? GRAM,
+    )
+  }
+
+  /** Quantité exprimée dans la mesure de saisie : 2 pour « 2 tranches ». */
+  get amount(): number {
+    return amountIn(this.measure, this.quantity.grams)
   }
 
   /** Macros de la ligne : lues sur l'instantané, jamais recalculées depuis le catalogue. */
@@ -111,7 +132,7 @@ export class MealEntry {
         ...this.snapshot,
         macros: rescaled.value,
         detail: rescaledDetail.value,
-      }),
+      }, this.measure),
     )
   }
 
@@ -126,7 +147,7 @@ export class MealEntry {
         new InvalidMealError(`La fiche ${foodItem.id} ne correspond pas à la ligne ${this.id}.`),
       )
     }
-    return MealEntry.fromFoodItem(foodItem, this.quantity, this.id)
+    return MealEntry.fromFoodItem(foodItem, this.quantity, this.id, this.measure)
   }
 
   /**

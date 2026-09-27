@@ -72,12 +72,17 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
     inventory: {
       find: stub(ok({ kind: 'by_name', items: [], onlineSearched: true })),
       createCustomFood: stub(ok(null)),
+      updateCustomFood: stub(ok(null)),
+      deleteFood: stub(ok(undefined)),
+      getFood: stub(ok(null)),
+      browseCustomFoods: stub(ok([])),
       addFood: stub(ok(null)),
       removeEntry: stub(ok(null)),
       changeQuantity: stub(ok(null)),
       reschedule: stub(ok(null)),
       deleteMeal: stub(ok(undefined)),
       getMeal: stub(ok(null)),
+      recentPortions: stub(ok(new Map())),
       refreshPlanned: stub(ok(0)),
       journal: stub(
         ok({ day: '2026-04-10', meals: [], consumedMeals: [], totalCalories: 0 }),

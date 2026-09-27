@@ -41,13 +41,18 @@ import { SyncEngine } from './sync/SyncEngine'
 import {
   AddFoodToMealUseCase,
   ChangeMealEntryQuantityUseCase,
+  BrowseCustomFoodsUseCase,
   CreateCustomFoodUseCase,
+  DeleteFoodUseCase,
+  GetFoodUseCase,
+  UpdateCustomFoodUseCase,
   DeleteMealUseCase,
   ExportInventoryUseCase,
   FindFoodUseCase,
   GetConsumptionHistoryUseCase,
   GetDailyJournalUseCase,
   GetMealUseCase,
+  GetRecentPortionsUseCase,
   GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
   PlanMealForMembersUseCase,
@@ -122,6 +127,10 @@ export interface AppContainer {
   readonly inventory: {
     readonly find: FindFoodUseCase
     readonly createCustomFood: CreateCustomFoodUseCase
+    readonly updateCustomFood: UpdateCustomFoodUseCase
+    readonly deleteFood: DeleteFoodUseCase
+    readonly getFood: GetFoodUseCase
+    readonly browseCustomFoods: BrowseCustomFoodsUseCase
     readonly addFood: AddFoodToMealUseCase
     readonly removeEntry: RemoveMealEntryUseCase
     readonly changeQuantity: ChangeMealEntryQuantityUseCase
@@ -130,6 +139,7 @@ export interface AppContainer {
     readonly planForMembers: PlanMealForMembersUseCase
     readonly deleteMeal: DeleteMealUseCase
     readonly getMeal: GetMealUseCase
+    readonly recentPortions: GetRecentPortionsUseCase
     readonly refreshPlanned: RefreshPlannedMealsUseCase
     readonly journal: GetDailyJournalUseCase
     readonly week: GetWeekPlanUseCase
@@ -199,6 +209,10 @@ export function createContainer(
     inventory: {
       find: new FindFoodUseCase(foodRepository, remoteCatalog, network),
       createCustomFood: new CreateCustomFoodUseCase(foodRepository),
+      updateCustomFood: new UpdateCustomFoodUseCase(foodRepository),
+      deleteFood: new DeleteFoodUseCase(foodRepository),
+      getFood: new GetFoodUseCase(foodRepository),
+      browseCustomFoods: new BrowseCustomFoodsUseCase(foodRepository),
       addFood: new AddFoodToMealUseCase(foodRepository, mealRepository),
       removeEntry: new RemoveMealEntryUseCase(mealRepository),
       changeQuantity: new ChangeMealEntryQuantityUseCase(mealRepository),
@@ -207,6 +221,7 @@ export function createContainer(
       planForMembers: new PlanMealForMembersUseCase(mealRepository, new OutboxMealOffers(databases)),
       deleteMeal: new DeleteMealUseCase(mealRepository),
       getMeal: new GetMealUseCase(mealRepository),
+      recentPortions: new GetRecentPortionsUseCase(mealRepository),
       refreshPlanned: new RefreshPlannedMealsUseCase(mealRepository, foodRepository),
       journal: new GetDailyJournalUseCase(mealRepository),
       week: new GetWeekPlanUseCase(mealRepository),

@@ -29,6 +29,11 @@ export interface IFoodRepository {
   findBySource(source: FoodSource): Promise<Result<FoodItem[], RepositoryError>>
   save(item: FoodItem): Promise<Result<void, RepositoryError>>
   saveMany(items: readonly FoodItem[]): Promise<Result<void, RepositoryError>>
+  /**
+   * Retire une fiche du catalogue local. Les repas n'en dépendent pas : ils en
+   * gardent un instantané. Supprimer une fiche absente n'est pas une erreur.
+   */
+  delete(id: FoodItemId): Promise<Result<void, RepositoryError>>
   count(): Promise<Result<number, RepositoryError>>
 }
 

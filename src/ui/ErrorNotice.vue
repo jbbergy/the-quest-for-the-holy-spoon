@@ -17,9 +17,11 @@ const MESSAGES: Readonly<Record<string, string>> = {
   INVALID_MEASUREMENT: 'Ces mesures sortent des valeurs plausibles.',
   INVALID_PLAYER: 'Le nom du profil est obligatoire.',
   INCOMPATIBLE_DIETARY_RESTRICTION: 'Ces régimes ne peuvent pas être combinés.',
-  INVALID_FOOD_ITEM: 'Cette fiche d’aliment est incomplète.',
+  INVALID_FOOD_ITEM:
+    'Cette fiche d’aliment est incomplète ou incohérente : vérifiez le nom, le code-barres et les portions.',
   INVALID_MEAL: 'Cette modification du repas est impossible.',
   FOOD_NOT_FOUND: 'Cet aliment est introuvable dans le catalogue.',
+  FOOD_READ_ONLY: 'Les fiches Ciqual et Open Food Facts ne se modifient pas.',
   MEAL_NOT_FOUND: 'Ce repas n’existe plus.',
   NO_CURRENT_PROFILE: 'Aucun profil actif : commencez par en créer un.',
   STORAGE_QUOTA_EXCEEDED: 'L’espace de stockage est plein. Supprimez d’anciens repas.',

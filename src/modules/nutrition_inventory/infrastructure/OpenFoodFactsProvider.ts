@@ -13,6 +13,7 @@ import {
   type OpenFoodFactsProduct,
   REQUESTED_FIELDS,
 } from './openFoodFactsSchema'
+import { portionsFromOpenFoodFacts } from './openFoodFactsPortions'
 
 const DEFAULT_BASE_URL = 'https://world.openfoodfacts.org'
 const DEFAULT_TIMEOUT_MS = 8000
@@ -254,6 +255,7 @@ function toFoodItem(
     // reste utile, elle ne sera simplement pas retrouvable au code-barres.
     ...(barcode === undefined ? {} : { barcode }),
     tags: toTags(product),
+    ...portionsFromOpenFoodFacts(product),
   })
   if (!item.ok) return err(item.error)
 

@@ -1,5 +1,5 @@
 import { ApplicationError, type DomainError, type RepositoryError } from '@/core/errors'
-import { type DayKey, dayKeyOf, weekOf } from '@/core/day'
+import { addDays, type DayKey, dayKeyOf, weekOf } from '@/core/day'
 import type { FoodItemId, MealId, MealEntryId, PlayerId } from '@/core/identity'
 import type { INetworkStatus } from '@/core/infrastructure/NetworkStatusService'
 import { Macros, type MacrosProps } from '@/core/nutrition/Macros'
@@ -10,6 +10,7 @@ import { err, ok, type Result } from '@/core/result'
 import { FoodItem, FoodSource, type FoodTag, isBarcode } from '../domain/FoodItem'
 import { Meal, type MealType, portionScale } from '../domain/Meal'
 import { MealEntry } from '../domain/MealEntry'
+import { BaseUnit } from '../domain/Measure'
 import type { IRemoteFoodCatalog } from '../domain/providers'
 import type { IFoodRepository, IMealOffers, IMealRepository } from '../domain/repositories'
 
@@ -103,12 +104,14 @@ export class FindFoodUseCase {
     }
 
     // Le distant ne fait jamais échouer la recherche : il se tait, et on le dit.
-    const fresh = remote === null ? [] : this.onlyNew(remote, local.value)
-    if (fresh.length > 0) {
+    const { fresh, refreshed } =
+      remote === null ? { fresh: [], refreshed: [] } : this.reconcile(remote, local.value)
+    const toCache = [...fresh, ...refreshed]
+    if (toCache.length > 0) {
       // Les fiches distantes rejoignent le catalogue : elles deviennent
       // disponibles hors connexion, et surtout `AddFoodToMealUseCase` doit
       // pouvoir les relire par leur identifiant au moment de l'ajout.
-      const cached = await this.foods.saveMany(fresh)
+      const cached = await this.foods.saveMany(toCache)
       if (!cached.ok) {
         return err(
           new ApplicationError('FOOD_NOT_CACHED', 'Les fiches distantes n’ont pas pu être mises en cache.', {
@@ -118,9 +121,10 @@ export class FindFoodUseCase {
       }
     }
 
+    const current = new Map(refreshed.map((item) => [item.id, item]))
     return ok({
       kind,
-      items: byName([...local.value, ...fresh]),
+      items: byName([...local.value.map((item) => current.get(item.id) ?? item), ...fresh]),
       onlineSearched: remote !== null,
     })
   }
@@ -155,7 +159,8 @@ export class FindFoodUseCase {
   }
 
   /**
-   * Fiches distantes qui ne sont pas déjà en cache local.
+   * Fiches distantes qui ne sont pas déjà en cache local, et copies en cache
+   * que la version en ligne a fait évoluer.
    *
    * Le seul doublon à supprimer est la **copie déjà mise en cache d'une fiche
    * Open Food Facts**. L'identifiant ne peut pas la reconnaître : une fiche
@@ -171,27 +176,72 @@ export class FindFoodUseCase {
    *
    * Quand la copie locale gagne, c'est délibéré : son identifiant est déjà cité
    * par les repas enregistrés, et la remplacer dupliquerait la fiche au lieu de
-   * l'actualiser.
+   * l'actualiser. Elle reprend en revanche **tout le contenu** de la version
+   * fraîche — nom, valeurs, marqueurs, portions : Open Food Facts est
+   * contributif, un produit s'y corrige, et c'est ici seulement que la copie
+   * peut l'apprendre. Les repas prévus suivront à leur prochain affichage
+   * (`RefreshPlannedMealsUseCase`) ; les repas pris gardent leur instantané.
    */
-  private onlyNew(
+  private reconcile(
     remote: readonly FoodItem[],
     local: readonly FoodItem[],
-  ): FoodItem[] {
-    const cached = new Set(
+  ): { readonly fresh: FoodItem[]; readonly refreshed: FoodItem[] } {
+    const cached = new Map(
       local
         .filter((item) => item.source === FoodSource.OPEN_FOOD_FACTS)
-        .map((item) => item.barcode ?? item.id),
+        .map((item) => [item.barcode ?? item.id, item] as const),
     )
+    const seen = new Set(cached.keys())
     const fresh: FoodItem[] = []
+    const refreshed: FoodItem[] = []
 
     for (const item of remote) {
       const key = item.barcode ?? item.id
-      if (cached.has(key)) continue
-      cached.add(key)
+      const copy = cached.get(key)
+      if (copy !== undefined) {
+        cached.delete(key)
+        if (!sameContent(copy, item)) refreshed.push(refreshedCopy(copy, item))
+        continue
+      }
+      if (seen.has(key)) continue
+      seen.add(key)
       fresh.push(item)
     }
-    return fresh
+    return { fresh, refreshed }
   }
+}
+
+/** La copie en cache, au contenu de la version fraîche, sous son identifiant d'origine. */
+function refreshedCopy(copy: FoodItem, fresh: FoodItem): FoodItem {
+  const barcode = copy.barcode ?? fresh.barcode
+  return FoodItem.reconstitute({
+    id: copy.id,
+    name: fresh.name,
+    macrosPer100g: fresh.macrosPer100g,
+    detailPer100g: fresh.detailPer100g,
+    source: copy.source,
+    ...(barcode === undefined ? {} : { barcode }),
+    tags: fresh.tags,
+    ownerId: copy.ownerId,
+    ...fresh.portions,
+  })
+}
+
+function sameContent(a: FoodItem, b: FoodItem): boolean {
+  const same = (x: object, y: object) => JSON.stringify(x) === JSON.stringify(y)
+  return (
+    a.name === b.name &&
+    same(a.macrosPer100g.toJSON(), b.macrosPer100g.toJSON()) &&
+    same(a.detailPer100g.toJSON(), b.detailPer100g.toJSON()) &&
+    same([...a.tags].sort(), [...b.tags].sort()) &&
+    a.unit === b.unit &&
+    a.density === b.density &&
+    a.servings.length === b.servings.length &&
+    a.servings.every(
+      (serving, index) =>
+        serving.label === b.servings[index]?.label && serving.grams === b.servings[index]?.grams,
+    )
+  )
 }
 
 /** Tri alphabétique français : « élevé » se range entre « eau » et « farine ». */
@@ -224,49 +274,195 @@ export interface CustomFoodInput {
    * ne peut pas être partagé avec le foyer, faute d'auteur à qui le rattacher.
    */
   readonly ownerId?: PlayerId | null
+  /**
+   * `ml` pour un liquide, dont les valeurs sont alors saisies pour 100 ml —
+   * comme sur l'étiquette d'une boisson. Le gramme par défaut.
+   */
+  readonly unit?: BaseUnit
+  /** Portions propres à l'aliment : « part » = 120 g, « verre » = 200 ml. */
+  readonly servings?: readonly { readonly label: string; readonly grams: number }[]
 }
 
 export class CreateCustomFoodUseCase {
   constructor(private readonly foods: IFoodRepository) {}
 
   async execute(input: CustomFoodInput): Promise<Result<FoodItem, InventoryError>> {
-    const macros = Macros.create({
-      proteinG: input.proteinG,
-      carbsG: input.carbsG,
-      fatG: input.fatG,
-    })
-    if (!macros.ok) return macros
-
-    const detail = NutrientDetail.create({
-      fiberG: input.fiberG ?? 0,
-      sugarsG: input.sugarsG ?? 0,
-      saturatedFatG: input.saturatedFatG ?? 0,
-      saltG: input.saltG ?? 0,
-    })
-    if (!detail.ok) return detail
-
-    const item = FoodItem.create({
-      name: input.name,
-      macrosPer100g: macros.value,
-      detailPer100g: detail.value,
-      source: FoodSource.USER,
-      ...(input.barcode === undefined ? {} : { barcode: input.barcode }),
-      tags: input.tags ?? [],
-      ownerId: input.ownerId ?? null,
-    })
+    const item = customFoodFrom(input)
     if (!item.ok) return item
 
-    const saved = await this.foods.save(item.value)
-    if (!saved.ok) {
+    return saveFood(this.foods, item.value)
+  }
+}
+
+/**
+ * Corrige un aliment créé à la main.
+ *
+ * La fiche garde son identifiant — c'est lui que citent les repas — et son
+ * auteur. Les repas **prévus** qui l'utilisent suivront la correction à leur
+ * prochain affichage (`RefreshPlannedMealsUseCase`) ; les repas pris gardent
+ * l'instantané de ce qui a été mangé.
+ */
+export class UpdateCustomFoodUseCase {
+  constructor(private readonly foods: IFoodRepository) {}
+
+  async execute(
+    id: FoodItemId,
+    input: CustomFoodInput,
+    editor: PlayerId | null,
+  ): Promise<Result<FoodItem, InventoryError>> {
+    const current = await findFood(this.foods, id)
+    if (!current.ok) return current
+    if (!current.value.isEditableBy(editor)) return err(readOnly(current.value))
+
+    const item = customFoodFrom({ ...input, ownerId: current.value.ownerId }, id)
+    if (!item.ok) return item
+
+    return saveFood(this.foods, item.value)
+  }
+}
+
+/**
+ * Supprime un aliment créé à la main, par son auteur.
+ *
+ * Les repas n'en souffrent pas : chaque ligne garde l'instantané de l'aliment,
+ * et un repas prévu dont la fiche a disparu conserve simplement ses chiffres.
+ */
+export class DeleteFoodUseCase {
+  constructor(private readonly foods: IFoodRepository) {}
+
+  async execute(id: FoodItemId, editor: PlayerId | null): Promise<Result<void, InventoryError>> {
+    const current = await findFood(this.foods, id)
+    if (!current.ok) return current
+    if (!current.value.isEditableBy(editor)) return err(readOnly(current.value))
+
+    const deleted = await this.foods.delete(id)
+    if (!deleted.ok) {
       return err(
-        new ApplicationError('FOOD_NOT_SAVED', `L’aliment « ${input.name} » n’a pas pu être enregistré.`, {
-          cause: saved.error,
+        new ApplicationError('FOOD_NOT_DELETED', 'L’aliment n’a pas pu être supprimé.', {
+          cause: deleted.error,
         }),
       )
     }
-
-    return ok(item.value)
+    return ok(undefined)
   }
+}
+
+/** Une fiche du catalogue local, pour l'afficher ou la modifier. */
+export class GetFoodUseCase {
+  constructor(private readonly foods: IFoodRepository) {}
+
+  async execute(id: FoodItemId): Promise<Result<FoodItem, InventoryError>> {
+    return findFood(this.foods, id)
+  }
+}
+
+/** Au-delà, une liste n'aide plus à retrouver un aliment : on affine la recherche. */
+const BROWSE_LIMIT = 100
+
+/**
+ * Les aliments créés à la main que l'appareil détient : les siens, et ceux
+ * des autres membres du foyer reçus par synchronisation.
+ *
+ * Ciqual et Open Food Facts n'y figurent pas : ce sont des références, que
+ * l'on consulte en composant un repas mais qu'on ne gère pas.
+ */
+export class BrowseCustomFoodsUseCase {
+  constructor(private readonly foods: IFoodRepository) {}
+
+  async execute(query = ''): Promise<Result<readonly FoodItem[], InventoryError>> {
+    const trimmed = query.trim()
+    const found =
+      trimmed === ''
+        ? await this.foods.findBySource(FoodSource.USER)
+        : await this.foods.searchByName(trimmed, 1000)
+
+    if (!found.ok) {
+      return err(
+        new ApplicationError('CATALOG_UNREADABLE', 'Le catalogue local est illisible.', {
+          cause: found.error,
+        }),
+      )
+    }
+    return ok(
+      byName(found.value.filter((item) => item.source === FoodSource.USER)).slice(0, BROWSE_LIMIT),
+    )
+  }
+}
+
+function customFoodFrom(
+  input: CustomFoodInput,
+  id?: FoodItemId,
+): Result<FoodItem, InventoryError> {
+  const macros = Macros.create({
+    proteinG: input.proteinG,
+    carbsG: input.carbsG,
+    fatG: input.fatG,
+  })
+  if (!macros.ok) return macros
+
+  const detail = NutrientDetail.create({
+    fiberG: input.fiberG ?? 0,
+    sugarsG: input.sugarsG ?? 0,
+    saturatedFatG: input.saturatedFatG ?? 0,
+    saltG: input.saltG ?? 0,
+  })
+  if (!detail.ok) return detail
+
+  return FoodItem.create({
+    ...(id === undefined ? {} : { id }),
+    name: input.name,
+    macrosPer100g: macros.value,
+    detailPer100g: detail.value,
+    source: FoodSource.USER,
+    ...(input.barcode === undefined ? {} : { barcode: input.barcode }),
+    tags: input.tags ?? [],
+    ownerId: input.ownerId ?? null,
+    // Valeurs saisies pour 100 ml : le millilitre est le référentiel de la
+    // fiche, sa densité vaut donc 1, comme pour une boisson d'Open Food Facts.
+    unit: input.unit ?? BaseUnit.GRAM,
+    density: 1,
+    servings: (input.servings ?? []).map((serving) => ({ ...serving, approximate: false })),
+  })
+}
+
+async function findFood(
+  foods: IFoodRepository,
+  id: FoodItemId,
+): Promise<Result<FoodItem, InventoryError>> {
+  const found = await foods.findById(id)
+  if (!found.ok) {
+    return err(
+      new ApplicationError('CATALOG_UNREADABLE', 'Le catalogue local est illisible.', {
+        cause: found.error,
+      }),
+    )
+  }
+  if (found.value === null) {
+    return err(new ApplicationError('FOOD_NOT_FOUND', `Aucun aliment ne correspond à ${id}.`))
+  }
+  return ok(found.value)
+}
+
+async function saveFood(
+  foods: IFoodRepository,
+  item: FoodItem,
+): Promise<Result<FoodItem, InventoryError>> {
+  const saved = await foods.save(item)
+  if (!saved.ok) {
+    return err(
+      new ApplicationError('FOOD_NOT_SAVED', `L’aliment « ${item.name} » n’a pas pu être enregistré.`, {
+        cause: saved.error,
+      }),
+    )
+  }
+  return ok(item)
+}
+
+/** Refus d'une modification : fiche de référence, ou aliment d'un autre membre. */
+function readOnly(food: FoodItem): ApplicationError {
+  return food.source === FoodSource.USER
+    ? new ApplicationError('NOT_OWNER', `L’aliment ${food.id} appartient à un autre membre.`)
+    : new ApplicationError('FOOD_READ_ONLY', `La fiche ${food.id} (${food.source}) ne se modifie pas.`)
 }
 
 // --- Construction d'un repas -------------------------------------------------
@@ -275,6 +471,12 @@ export interface AddFoodInput {
   readonly playerId: PlayerId
   readonly foodItemId: FoodItemId
   readonly grams: number
+  /**
+   * Nom de la mesure de saisie — « tranche », « ml » —, pour réafficher la
+   * ligne comme elle a été saisie. Le gramme si absente ou inconnue de la
+   * fiche : `grams` fait foi dans tous les cas.
+   */
+  readonly measure?: string
   readonly mealType: MealType
   /** Repas existant à compléter ; un nouveau repas est créé si absent. */
   readonly mealId?: MealId
@@ -321,7 +523,12 @@ export class AddFoodToMealUseCase {
     const meal = await this.resolveMeal(input)
     if (!meal.ok) return meal
 
-    const entry = MealEntry.fromFoodItem(food.value, quantity.value)
+    const entry = MealEntry.fromFoodItem(
+      food.value,
+      quantity.value,
+      undefined,
+      food.value.measureNamed(input.measure),
+    )
     if (!entry.ok) return entry
 
     const updated = meal.value.addEntry(entry.value)
@@ -595,6 +802,64 @@ export class GetMealUseCase {
   async execute(mealId: MealId): Promise<Result<MealSummary, InventoryError>> {
     const meal = await loadMeal(this.meals, mealId)
     return meal.ok ? ok(toMealSummary(meal.value)) : meal
+  }
+}
+
+// --- Dernières portions -----------------------------------------------------
+
+/** Jours relus en arrière pour retrouver la dernière portion d'un aliment. */
+const RECENT_PORTION_DAYS = 90
+/** …et en avant : un repas prévu pour la semaine dit aussi « ma portion habituelle ». */
+const PLANNED_PORTION_DAYS = 14
+
+/** La dernière quantité saisie pour un aliment, et la mesure dans laquelle elle l'a été. */
+export interface RecentPortion {
+  readonly grams: number
+  readonly measure: string
+}
+
+/**
+ * Dernière portion saisie pour chaque aliment.
+ *
+ * C'est la suggestion la plus juste qui soit : ni une moyenne nationale ni
+ * l'emballage, mais ce que *cette* personne met dans *son* assiette. Le plus
+ * récemment composé l'emporte, qu'il ait été pris ou seulement prévu. Une seule
+ * lecture pour tous les aliments : l'éditeur la fait à l'ouverture, puis chaque
+ * sélection d'un aliment n'est plus qu'une consultation.
+ */
+export class GetRecentPortionsUseCase {
+  constructor(private readonly meals: IMealRepository) {}
+
+  async execute(
+    playerId: PlayerId,
+    around: DayKey,
+  ): Promise<Result<ReadonlyMap<FoodItemId, RecentPortion>, InventoryError>> {
+    const found = await this.meals.findByPlayerBetween(
+      playerId,
+      addDays(around, -RECENT_PORTION_DAYS),
+      addDays(around, PLANNED_PORTION_DAYS),
+    )
+    if (!found.ok) {
+      return err(
+        new ApplicationError('HISTORY_UNREADABLE', 'L’historique des repas n’a pas pu être lu.', {
+          cause: found.error,
+        }),
+      )
+    }
+
+    const portions = new Map<FoodItemId, RecentPortion>()
+    const byComposition = [...found.value].sort(
+      (a, b) => a.loggedAt.getTime() - b.loggedAt.getTime(),
+    )
+    for (const meal of byComposition) {
+      for (const entry of meal.entries) {
+        portions.set(entry.foodItemId, {
+          grams: entry.quantity.grams,
+          measure: entry.measure.label,
+        })
+      }
+    }
+    return ok(portions)
   }
 }
 

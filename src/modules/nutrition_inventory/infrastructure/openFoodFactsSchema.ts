@@ -56,6 +56,18 @@ const productSchema = z
     nutriments: nutrimentsSchema.optional(),
     labels_tags: z.array(z.string()).optional(),
     allergens_tags: z.array(z.string()).optional(),
+    /**
+     * Contenance et portion. Texte libre (`quantity` : « 6 x 125 g »,
+     * `serving_size` : « 25 g (1 tranche) ») doublé d'une valeur calculée par
+     * Open Food Facts (`product_quantity`, `serving_quantity`) et de son unité,
+     * `g` ou `ml`. Tout est facultatif, et souvent absent.
+     */
+    quantity: z.string().nullable().optional(),
+    product_quantity: loonyNumber,
+    product_quantity_unit: z.string().nullable().optional(),
+    serving_size: z.string().nullable().optional(),
+    serving_quantity: loonyNumber,
+    serving_quantity_unit: z.string().nullable().optional(),
   })
   .loose()
 
@@ -98,4 +110,10 @@ export const REQUESTED_FIELDS = [
   'nutriments',
   'labels_tags',
   'allergens_tags',
+  'quantity',
+  'product_quantity',
+  'product_quantity_unit',
+  'serving_size',
+  'serving_quantity',
+  'serving_quantity_unit',
 ].join(',')

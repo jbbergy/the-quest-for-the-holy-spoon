@@ -109,6 +109,19 @@ describe('Journal des modifications', () => {
     expect(await pendingChanges()).toEqual([{ op: 'delete', entity: 'meal', id: own.id }])
   })
 
+  it('journalise la suppression de ses aliments, pas celle d’une fiche de catalogue', async () => {
+    const own = customFoodOf('food-1', FoodSource.USER, 'player-1')
+    const cached = customFoodOf('off:1', FoodSource.OPEN_FOOD_FACTS)
+    const foreign = customFoodOf('food-alex', FoodSource.USER, 'player-alex')
+    unwrap(await device.foods.saveMany([own, cached, foreign]))
+    unwrap(await device.replica.start(STATE))
+
+    for (const food of [own, cached, foreign]) unwrap(await device.foods.delete(food.id))
+
+    expect(await pendingChanges()).toEqual([{ op: 'delete', entity: 'food', id: own.id }])
+    expect(unwrap(await device.foods.findById(cached.id))).toBeNull()
+  })
+
   it('n’envoie que la dernière version d’un enregistrement modifié plusieurs fois', async () => {
     unwrap(await device.replica.start(STATE))
     const meal = mealOf('player-1', 100)

@@ -12,6 +12,7 @@ import type { NutrientDetailProps } from '@/core/nutrition/NutrientDetail'
 
 import type { FoodItem, FoodTag } from '../domain/FoodItem'
 import type { Meal, MealType } from '../domain/Meal'
+import type { BaseUnit, Measure, Serving } from '../domain/Measure'
 
 /**
  * Une ligne de repas, telle que l'éditeur de repas l'affiche et la modifie.
@@ -26,6 +27,9 @@ export interface MealEntrySummary {
   readonly foodItemId: FoodItemId
   readonly foodName: string
   readonly grams: number
+  /** Mesure de saisie, et la quantité qu'elle exprime : 2 « tranche ». */
+  readonly measure: Measure
+  readonly amount: number
   readonly calories: number
 }
 
@@ -75,6 +79,8 @@ export function toMealSummary(meal: Meal): MealSummary {
       foodItemId: entry.foodItemId,
       foodName: entry.foodName,
       grams: entry.quantity.grams,
+      measure: entry.measure,
+      amount: entry.amount,
       calories: entry.calories(),
     })),
   }
@@ -92,6 +98,9 @@ export function toMealSummary(meal: Meal): MealSummary {
 export interface MealEntryExport {
   readonly foodName: string
   readonly grams: number
+  /** « 2 » et « tranche » : la portion telle qu'elle a été saisie. */
+  readonly amount: number
+  readonly unit: string
   readonly macros: MacrosProps
   readonly detail: NutrientDetailProps
 }
@@ -122,6 +131,8 @@ export function toMealExport(meal: Meal): MealExport {
     entries: meal.entries.map((entry) => ({
       foodName: entry.foodName,
       grams: entry.quantity.grams,
+      amount: entry.amount,
+      unit: entry.measure.label,
       macros: entry.macros.toJSON(),
       detail: entry.detail.toJSON(),
     })),
@@ -136,6 +147,8 @@ export interface FoodExport {
   /** `null` plutôt qu'absent : un JSON d'archive se relit mieux quand ses clés sont stables. */
   readonly barcode: string | null
   readonly tags: readonly FoodTag[]
+  readonly unit: BaseUnit
+  readonly servings: readonly Serving[]
 }
 
 export function toFoodExport(item: FoodItem): FoodExport {
@@ -146,5 +159,7 @@ export function toFoodExport(item: FoodItem): FoodExport {
     detailPer100g: item.detailPer100g.toJSON(),
     barcode: item.barcode ?? null,
     tags: [...item.tags],
+    unit: item.unit,
+    servings: item.servings.map((serving) => ({ ...serving })),
   }
 }

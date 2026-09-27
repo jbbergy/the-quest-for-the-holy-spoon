@@ -16,6 +16,7 @@ import {
   GetConsumptionHistoryUseCase,
   GetDailyJournalUseCase,
   GetMealUseCase,
+  GetRecentPortionsUseCase,
   GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
   PlanMealForMembersUseCase,
@@ -66,8 +67,50 @@ beforeEach(async () => {
   await foods.saveMany([chicken, rice])
 })
 
+const bread = FoodItem.reconstitute({
+  id: idFrom('ciqual:7200'),
+  name: 'Pain de mie, courant',
+  macrosPer100g: Macros.reconstitute({ proteinG: 8, carbsG: 50, fatG: 4 }),
+  source: FoodSource.CIQUAL,
+  servings: [{ label: 'tranche', grams: 25, approximate: true }],
+})
+
 describe('AddFoodToMealUseCase', () => {
   const useCase = (): AddFoodToMealUseCase => new AddFoodToMealUseCase(foods, meals)
+
+  it('garde la mesure de saisie, sans qu’elle change la quantité', async () => {
+    await foods.save(bread)
+    const meal = unwrap(
+      await useCase().execute({
+        playerId,
+        foodItemId: bread.id,
+        grams: 50,
+        measure: 'tranche',
+        mealType: MealType.BREAKFAST,
+      }),
+    )
+
+    const entry = meal.entries[0]
+    expect(entry?.quantity.grams).toBe(50)
+    expect(entry?.measure).toEqual({ label: 'tranche', grams: 25, countable: true, approximate: true })
+    expect(entry?.amount).toBe(2)
+  })
+
+  it('se rabat sur le gramme pour une mesure que la fiche ne connaît pas', async () => {
+    await foods.save(bread)
+    const meal = unwrap(
+      await useCase().execute({
+        playerId,
+        foodItemId: bread.id,
+        grams: 40,
+        measure: 'baguette',
+        mealType: MealType.BREAKFAST,
+      }),
+    )
+
+    expect(meal.entries[0]?.measure.label).toBe('g')
+    expect(meal.entries[0]?.quantity.grams).toBe(40)
+  })
 
   it('crée un repas et y ajoute l’aliment', async () => {
     const meal = unwrap(
@@ -1205,5 +1248,36 @@ describe('PlanMealForMembersUseCase', () => {
       guests: [{ playerId: alex, targetCalories: null }],
     })
     expect(isErr(result) && result.error.code).toBe('MEAL_NOT_FOUND')
+  })
+})
+
+describe('GetRecentPortionsUseCase', () => {
+  const today = dayKeyOf(new Date())
+
+  it('retient la portion la plus récemment composée de chaque aliment', async () => {
+    const adder = new AddFoodToMealUseCase(foods, meals)
+    await foods.save(bread)
+    const at = (hours: number) => new Date(Date.UTC(2026, 0, 1, hours))
+    const input = { playerId, mealType: MealType.LUNCH, plannedFor: today }
+    unwrap(await adder.execute({ ...input, foodItemId: bread.id, grams: 25, measure: 'tranche', loggedAt: at(8) }))
+    unwrap(await adder.execute({ ...input, foodItemId: bread.id, grams: 75, measure: 'tranche', loggedAt: at(12) }))
+    unwrap(await adder.execute({ ...input, foodItemId: rice.id, grams: 180, loggedAt: at(10) }))
+
+    const portions = unwrap(await new GetRecentPortionsUseCase(meals).execute(playerId, today))
+
+    expect(portions.get(bread.id)).toEqual({ grams: 75, measure: 'tranche' })
+    expect(portions.get(rice.id)).toEqual({ grams: 180, measure: 'g' })
+    expect(portions.has(chicken.id)).toBe(false)
+  })
+
+  it('ignore les repas d’un autre joueur et ceux trop anciens', async () => {
+    const adder = new AddFoodToMealUseCase(foods, meals)
+    const input = { mealType: MealType.LUNCH, foodItemId: rice.id, grams: 100 }
+    unwrap(await adder.execute({ ...input, playerId: idFrom('someone-else'), plannedFor: today }))
+    unwrap(await adder.execute({ ...input, playerId, plannedFor: addDays(today, -200) }))
+
+    const portions = unwrap(await new GetRecentPortionsUseCase(meals).execute(playerId, today))
+
+    expect(portions.size).toBe(0)
   })
 })

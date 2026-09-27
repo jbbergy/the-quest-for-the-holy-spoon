@@ -20,7 +20,9 @@ export const ROUTE = {
   dashboard: 'dashboard',
   weekPlan: 'week-plan',
   mealEditor: 'meal-editor',
-  foodSearch: 'food-search',
+  foods: 'foods',
+  foodDetail: 'food-detail',
+  foodEdit: 'food-edit',
   customFood: 'custom-food',
   settings: 'settings',
   household: 'household',
@@ -91,13 +93,25 @@ export function createAppRouter(): Router {
       { path: '/repas', redirect: { name: ROUTE.weekPlan } },
       { path: '/journal', redirect: { name: ROUTE.weekPlan } },
       {
+        // Mes aliments, ouverts depuis les réglages. `?q=` : la recherche en cours.
         path: '/aliments',
-        name: ROUTE.foodSearch,
-        component: () => import('./views/FoodSearchView.vue'),
+        name: ROUTE.foods,
+        component: () => import('./views/FoodCatalogView.vue'),
       },
       {
+        // `?retour=` : l'éditeur de repas d'où l'on vient.
         path: '/aliments/nouveau',
         name: ROUTE.customFood,
+        component: () => import('./views/CustomFoodView.vue'),
+      },
+      {
+        path: '/aliments/:foodId',
+        name: ROUTE.foodDetail,
+        component: () => import('./views/FoodDetailView.vue'),
+      },
+      {
+        path: '/aliments/:foodId/modifier',
+        name: ROUTE.foodEdit,
         component: () => import('./views/CustomFoodView.vue'),
       },
       {

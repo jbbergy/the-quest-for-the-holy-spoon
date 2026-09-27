@@ -10,6 +10,7 @@ import { err, ok, type Result } from '@/core/result'
 import { FoodItem, FoodSource, type FoodTag } from '../domain/FoodItem'
 import type { IFoodRepository } from '../domain/repositories'
 
+import { ciqualPortions } from './ciqualPortions'
 import { type CiqualFood, ciqualCatalogSchema } from './ciqualSchema'
 
 /**
@@ -20,8 +21,11 @@ import { type CiqualFood, ciqualCatalogSchema } from './ciqualSchema'
  * Passée à 2 avec l'ajout des fibres, sucres, AG saturés et sel : les fiches
  * déjà en base les ignorent, et seule une réécriture complète les leur donne.
  * C'est le bon usage du mécanisme — le catalogue est dérivé, donc jetable.
+ *
+ * Passée à 3 avec les portions usuelles et l'unité des liquides, pour la même
+ * raison.
  */
-export const CIQUAL_SEED_VERSION = 2
+export const CIQUAL_SEED_VERSION = 3
 
 const DEFAULT_CATALOG_URL = '/data/ciqual.json'
 
@@ -168,6 +172,7 @@ function toFoodItems(catalog: readonly CiqualFood[]): FoodItem[] {
         detailPer100g: detail.value,
         source: FoodSource.CIQUAL,
         tags: tagsForSubGroup(food.subGroupCode),
+        ...ciqualPortions(food.subGroupCode, food.name),
       }),
     )
   }

@@ -7,6 +7,7 @@ import { Quantity } from '@/core/nutrition/Quantity'
 import { err, ok, type Result } from '@/core/result'
 
 import type { FoodItem } from './FoodItem'
+import { scaleAmount } from './Measure'
 import { MealEntry } from './MealEntry'
 
 export const MealType = {
@@ -43,9 +44,6 @@ export interface MealProps {
 
 const MAX_ENTRIES = 100
 
-/** Pas d'arrondi des portions ajustées : personne ne pèse son riz au gramme près. */
-export const PORTION_STEP_G = 5
-
 /**
  * Facteur de portion entre deux personnes : le rapport de leurs besoins
  * caloriques. Faute de connaître l'un des deux, les portions sont reprises
@@ -54,16 +52,6 @@ export const PORTION_STEP_G = 5
 export function portionScale(fromCalories: number | null, toCalories: number | null): number {
   if (fromCalories === null || toCalories === null || fromCalories <= 0 || toCalories <= 0) return 1
   return toCalories / fromCalories
-}
-
-/**
- * Portion ajustée d'un facteur, arrondie au pas le plus proche, jamais nulle.
- * À l'échelle 1, la portion est reprise telle quelle : l'arrondir ferait
- * varier un repas que personne n'a demandé de changer.
- */
-export function scalePortion(grams: number, scale: number): number {
-  if (scale === 1) return grams
-  return Math.max(PORTION_STEP_G, Math.round((grams * scale) / PORTION_STEP_G) * PORTION_STEP_G)
 }
 
 /**
@@ -232,7 +220,9 @@ export class Meal {
    * Copie du repas pour un autre membre du foyer.
    *
    * Même jour, même type, mêmes aliments ; les portions sont ajustées de
-   * `scale` — le rapport entre les besoins des deux personnes — puis arrondies.
+   * `scale` — le rapport entre les besoins des deux personnes — puis arrondies
+   * dans leur mesure : à 5 g près, ou à la demi-portion près pour « 2 tranches »,
+   * car personne ne pèse son riz au gramme ni ne coupe un œuf en trois.
    * La copie est un **nouveau** repas, non pris, qui appartient au membre et
    * porte la signature de son auteur : c'est au membre de l'ajuster et de le
    * cocher. Le repas d'origine n'est pas touché.
@@ -255,7 +245,8 @@ export class Meal {
 
     const entries: MealEntry[] = []
     for (const entry of this.entries) {
-      const quantity = Quantity.create(scalePortion(entry.quantity.grams, input.scale))
+      const amount = scaleAmount(entry.amount, input.scale, entry.measure)
+      const quantity = Quantity.create(amount * entry.measure.grams)
       if (!quantity.ok) return quantity
       const scaled = entry.withQuantity(quantity.value)
       if (!scaled.ok) return scaled
@@ -265,6 +256,7 @@ export class Meal {
           foodItemId: scaled.value.foodItemId,
           quantity: scaled.value.quantity,
           snapshot: scaled.value.snapshot,
+          measure: scaled.value.measure,
         }),
       )
     }

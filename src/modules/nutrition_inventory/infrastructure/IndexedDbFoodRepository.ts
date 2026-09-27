@@ -155,6 +155,28 @@ export class IndexedDbFoodRepository implements IFoodRepository {
     })
   }
 
+  /**
+   * Comme l'écriture, la suppression ne part vers le serveur que pour un
+   * aliment créé à la main, et seulement depuis le profil de son auteur : une
+   * fiche Open Food Facts retirée du cache n'intéresse que cet appareil.
+   */
+  async delete(id: FoodItemId): Promise<Result<void, RepositoryError>> {
+    return guard('suppression d’un aliment', async () => {
+      const db = await this.databases.get()
+      const tx = db.transaction([STORE.foods, ...JOURNAL_STORES], 'readwrite')
+      const foods = tx.objectStore(STORE.foods)
+      const record = await requestToPromise<FoodRecord | undefined>(foods.get(id))
+      foods.delete(id)
+      const journaled =
+        record !== undefined &&
+        record.source === FoodSource.USER &&
+        record.ownerId != null &&
+        (await journal(tx, { entity: 'food', id, op: 'delete' }, record.ownerId))
+      await transactionToPromise(tx)
+      if (journaled) localChanges.notify()
+    })
+  }
+
   async count(): Promise<Result<number, RepositoryError>> {
     return guard('comptage du catalogue', async () => {
       const db = await this.databases.get()

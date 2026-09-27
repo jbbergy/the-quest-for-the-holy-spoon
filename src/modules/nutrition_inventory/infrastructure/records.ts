@@ -8,6 +8,7 @@ import { Quantity } from '@/core/nutrition/Quantity'
 import { FoodItem, type FoodSource, type FoodTag } from '../domain/FoodItem'
 import { Meal, type MealType } from '../domain/Meal'
 import { MealEntry } from '../domain/MealEntry'
+import { BaseUnit, GRAM, type Measure, type Serving } from '../domain/Measure'
 
 /**
  * Traduction Entité ↔ enregistrement stocké.
@@ -43,6 +44,21 @@ export interface FoodRecord {
    * au partage : la migration v3 l'attribue au profil courant de l'appareil.
    */
   readonly ownerId?: string | null
+  /**
+   * Unité, densité et portions. Absentes des enregistrements antérieurs aux
+   * portions — et de ceux qu'un appareil pas encore mis à jour renverrait par
+   * synchronisation : l'absence se lit « en grammes, sans portion », ce
+   * qu'étaient alors toutes les fiches.
+   */
+  readonly unit?: BaseUnit
+  readonly density?: number
+  readonly servings?: readonly ServingRecord[]
+}
+
+export interface ServingRecord {
+  readonly label: string
+  readonly grams: number
+  readonly approximate?: boolean
 }
 
 export function foodToRecord(item: FoodItem): FoodRecord {
@@ -63,6 +79,9 @@ export function foodToRecord(item: FoodItem): FoodRecord {
     tags: [...item.tags],
     searchTokens: tokenize(item.name),
     ownerId: item.ownerId,
+    unit: item.unit,
+    density: item.density,
+    servings: item.servings.map((serving) => ({ ...serving })),
   }
 }
 
@@ -80,7 +99,14 @@ export function recordToFood(record: FoodRecord): FoodItem {
     ...(record.barcode === undefined ? {} : { barcode: record.barcode }),
     tags: record.tags,
     ownerId: record.ownerId == null ? null : idFrom(record.ownerId),
+    unit: record.unit === BaseUnit.MILLILITRE ? BaseUnit.MILLILITRE : BaseUnit.GRAM,
+    density: record.density ?? 1,
+    servings: (record.servings ?? []).map(servingOf),
   })
+}
+
+function servingOf(record: ServingRecord): Serving {
+  return { label: record.label, grams: record.grams, approximate: record.approximate ?? false }
 }
 
 export interface MealEntryRecord {
@@ -97,6 +123,15 @@ export interface MealEntryRecord {
   readonly saturatedFatG?: number
   readonly saltG?: number
   readonly tags: readonly FoodTag[]
+  /** Mesure de saisie ; absente, la portion a été saisie en grammes. */
+  readonly measure?: MeasureRecord
+}
+
+export interface MeasureRecord {
+  readonly label: string
+  readonly grams: number
+  readonly countable: boolean
+  readonly approximate?: boolean
 }
 
 export interface MealRecord {
@@ -148,6 +183,9 @@ export function mealToRecord(meal: Meal): MealRecord {
       saturatedFatG: entry.snapshot.detail.saturatedFatG,
       saltG: entry.snapshot.detail.saltG,
       tags: [...entry.snapshot.tags],
+      // Le gramme reste implicite : un repas saisi en grammes s'écrit comme
+      // avant, et un appareil pas encore mis à jour le relit sans rien perdre.
+      ...(entry.measure.label === GRAM.label ? {} : { measure: { ...entry.measure } }),
     })),
   }
 }
@@ -168,6 +206,16 @@ function detailOf(record: Partial<NutrientDetailProps>): NutrientDetail {
     saturatedFatG: record.saturatedFatG ?? 0,
     saltG: record.saltG ?? 0,
   })
+}
+
+function measureOf(record: MeasureRecord | undefined): Measure {
+  if (record === undefined || !(record.grams > 0)) return GRAM
+  return {
+    label: record.label,
+    grams: record.grams,
+    countable: record.countable,
+    approximate: record.approximate ?? false,
+  }
 }
 
 /**
@@ -210,6 +258,7 @@ export function recordToMeal(record: MealRecord): Meal {
           detail: detailOf(entry),
           tags: entry.tags,
         },
+        measure: measureOf(entry.measure),
       }),
     ),
   })

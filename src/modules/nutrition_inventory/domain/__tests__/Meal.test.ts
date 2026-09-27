@@ -11,8 +11,8 @@ import {
   Meal,
   MealType,
   portionScale,
-  scalePortion,
 } from '@/modules/nutrition_inventory/domain/Meal'
+import { GRAM, scaleAmount } from '@/modules/nutrition_inventory/domain/Measure'
 import { MealEntry } from '@/modules/nutrition_inventory/domain/MealEntry'
 
 const playerId: PlayerId = idFrom('p-1')
@@ -552,6 +552,25 @@ describe('repas prévu pour un autre membre', () => {
     expect(isOk(odd) && odd.value.entries[0]?.quantity.grams).toBe(123)
   })
 
+  it('ajuste une portion comptée à la demi-portion près, sans changer de mesure', () => {
+    const eggs = FoodItem.reconstitute({
+      id: idFrom('f-egg'),
+      name: 'Oeuf, dur',
+      macrosPer100g: Macros.reconstitute({ proteinG: 13, carbsG: 0, fatG: 10 }),
+      source: FoodSource.CIQUAL,
+      servings: [{ label: 'œuf', grams: 50, approximate: true }],
+    })
+    const twoEggs = MealEntry.fromFoodItem(eggs, quantityOf(100), undefined, eggs.measures[1])
+    if (!isOk(twoEggs)) throw new Error('ligne de test invalide')
+
+    const copy = mealOf([twoEggs.value]).planFor({ playerId: alex, plannedBy: playerId, scale: 1.2, at })
+
+    // 2 × 1,2 = 2,4 œufs : on en prévoit 2½, pas 120 g.
+    expect(isOk(copy) && copy.value.entries[0]?.amount).toBe(2.5)
+    expect(isOk(copy) && copy.value.entries[0]?.quantity.grams).toBe(125)
+    expect(isOk(copy) && copy.value.entries[0]?.measure.label).toBe('œuf')
+  })
+
   it('ne réduit jamais une portion à rien', () => {
     const tiny = mealOf([entryOf(rice, 4)]).planFor({ playerId: alex, plannedBy: playerId, scale: 0.5, at })
     expect(isOk(tiny) && tiny.value.entries[0]?.quantity.grams).toBe(5)
@@ -587,8 +606,8 @@ describe('portionScale', () => {
   })
 
   it('arrondit au pas de 5 g', () => {
-    expect(scalePortion(100, 1.23)).toBe(125)
-    expect(scalePortion(100, 1)).toBe(100)
+    expect(scaleAmount(100, 1.23, GRAM)).toBe(125)
+    expect(scaleAmount(100, 1, GRAM)).toBe(100)
   })
 })
 

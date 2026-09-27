@@ -66,6 +66,11 @@ export class InMemoryFoodRepository implements IFoodRepository {
     return ok(undefined)
   }
 
+  async delete(id: FoodItemId): Promise<Result<void, RepositoryError>> {
+    this.items.delete(id)
+    return ok(undefined)
+  }
+
   async count(): Promise<Result<number, RepositoryError>> {
     return ok(this.items.size)
   }

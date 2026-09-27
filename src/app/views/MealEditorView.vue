@@ -17,13 +17,16 @@ import { useRoute, useRouter } from 'vue-router'
 
 import OnlineSearchNotice from '@/app/components/OnlineSearchNotice.vue'
 import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
+import PortionPicker from '@/app/components/PortionPicker.vue'
 import { formatDay, MEAL_OPTIONS, mealLabel } from '@/app/mealLabels'
+import { formatPortion, per100Label, pluralize } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import { parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
-import type { FoodItemId, MealEntryId, MealId } from '@/core/identity'
-import { MealType } from '@/modules/nutrition_inventory/application'
+import type { FoodItemId, MealId } from '@/core/identity'
+import { type MealEntrySummary, MealType } from '@/modules/nutrition_inventory/application'
+import type { Measure } from '@/modules/nutrition_inventory/domain/Measure'
 import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
 import { useMealEditorStore } from '@/modules/nutrition_inventory/presentation/useMealEditorStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
@@ -46,7 +49,8 @@ const clock = useTodayStore()
 const today = computed(() => clock.today)
 
 const query = ref('')
-const grams = ref(100)
+/** Quantité choisie dans le sélecteur de portion, `null` tant qu'elle est invalide. */
+const portion = ref<{ readonly grams: number; readonly measure: Measure } | null>(null)
 const selectedId = ref<FoodItemId | null>(null)
 const feedback = ref('')
 
@@ -65,10 +69,14 @@ const selected = computed(
   () => search.results.find((item) => item.id === selectedId.value) ?? null,
 )
 
+const recentForSelected = computed(() =>
+  selected.value === null ? null : (editor.recentPortions.get(selected.value.id) ?? null),
+)
+
 /** Aperçu des macros pour la portion saisie, calculé par l'entité elle-même. */
 const preview = computed(() => {
-  if (selected.value === null || !Number.isFinite(grams.value) || grams.value <= 0) return null
-  const scaled = selected.value.macrosForGrams(grams.value)
+  if (selected.value === null || portion.value === null) return null
+  const scaled = selected.value.macrosForGrams(portion.value.grams)
   return scaled.ok ? scaled.value : null
 })
 
@@ -105,6 +113,10 @@ onMounted(async () => {
   // Retour de la recherche ou de la création d'un aliment : il est présélectionné.
   const requested = route.query.aliment
   if (typeof requested === 'string') selectedId.value = requested as FoodItemId
+
+  if (players.playerId !== null) {
+    await editor.loadRecentPortions(players.playerId, editor.schedule.plannedFor)
+  }
 })
 
 watch(
@@ -143,13 +155,14 @@ async function changeType(type: MealType): Promise<void> {
 async function add(): Promise<void> {
   const playerId = players.playerId
   const food = selected.value
-  if (playerId === null || food === null) return
+  const chosen = portion.value
+  if (playerId === null || food === null || chosen === null) return
 
   const wasNew = isNew.value
-  const added = await editor.addFood(playerId, food.id, grams.value)
+  const added = await editor.addFood(playerId, food.id, chosen.grams, chosen.measure.label)
   if (!added) return
 
-  feedback.value = `${food.name} ajouté (${grams.value} g).`
+  feedback.value = `${food.name} ajouté (${formatPortion(chosen.grams / chosen.measure.grams, chosen.measure)}).`
   selectedId.value = null
 
   // Le repas existe désormais : l'adresse le désigne, un rechargement le retrouve.
@@ -159,17 +172,31 @@ async function add(): Promise<void> {
 }
 
 /**
- * Corrige une portion.
+ * Corrige une portion, saisie dans la mesure de la ligne : « 3 » tranches,
+ * converties en grammes.
  *
  * Déclenché sur `change` et non sur `input` : à chaque frappe, « 150 » passerait
  * par « 1 » puis « 15 », soit deux écritures inutiles en base. Une valeur vide
  * ou nulle est ignorée plutôt que refusée — l'usager est en train de retaper son
  * nombre, pas de saisir une erreur.
  */
-async function changeGrams(entryId: MealEntryId, raw: string): Promise<void> {
+async function changeAmount(entry: MealEntrySummary, raw: string): Promise<void> {
   const value = Number.parseFloat(raw)
   if (!Number.isFinite(value) || value <= 0) return
-  await editor.changeQuantity(entryId, value)
+  await editor.changeQuantity(entry.entryId, value * entry.measure.grams)
+}
+
+/** Quantité d'une ligne dans son champ : entière en grammes, au centième en portions. */
+function amountValue(entry: MealEntrySummary): number {
+  return entry.measure.countable
+    ? Math.round(entry.amount * 100) / 100
+    : Math.round(entry.amount)
+}
+
+function entryUnit(entry: MealEntrySummary): string {
+  return entry.measure.countable && entry.amount >= 2
+    ? pluralize(entry.measure.label)
+    : entry.measure.label
 }
 
 async function remove(): Promise<void> {
@@ -246,16 +273,19 @@ async function createFood(): Promise<void> {
 
           <template v-if="!editor.isLocked">
             <label class="editor__grams">
-              <span class="sr-only">Portion de {{ entry.foodName }}</span>
+              <span class="sr-only">Portion de {{ entry.foodName }}, en {{ entry.measure.label }}</span>
               <input
                 type="number"
                 inputmode="decimal"
-                min="1"
-                step="1"
-                :value="entry.grams"
-                @change="changeGrams(entry.entryId, ($event.target as HTMLInputElement).value)"
+                :min="entry.measure.countable ? 0.25 : 1"
+                :step="entry.measure.countable ? 0.25 : 1"
+                :value="amountValue(entry)"
+                @change="changeAmount(entry, ($event.target as HTMLInputElement).value)"
               >
-              <span aria-hidden="true">g</span>
+              <span
+                class="editor__unit"
+                aria-hidden="true"
+              >{{ entryUnit(entry) }}</span>
             </label>
 
             <BaseButton
@@ -271,7 +301,7 @@ async function createFood(): Promise<void> {
           <span
             v-else
             class="editor__entry-grams"
-          >{{ Math.round(entry.grams) }} g</span>
+          >{{ formatPortion(entry.amount, entry.measure) }}</span>
         </li>
       </ul>
 
@@ -379,7 +409,7 @@ async function createFood(): Promise<void> {
                     :source="item.source"
                     :author="foodAuthor(household.household, players.playerId, item.ownerId)"
                   />
-                  {{ Math.round(item.macrosPer100g.calories()) }} kcal / 100 g
+                  {{ Math.round(item.macrosPer100g.calories()) }} kcal / {{ per100Label(item) }}
                 </small>
               </span>
             </label>
@@ -391,13 +421,10 @@ async function createFood(): Promise<void> {
         v-if="selected"
         class="editor__portion"
       >
-        <BaseField
-          v-model="grams"
-          label="Quantité"
-          type="number"
-          suffix="g"
-          :min="1"
-          :step="10"
+        <PortionPicker
+          :food="selected"
+          :recent="recentForSelected"
+          @change="(next) => (portion = next)"
         />
 
         <dl
@@ -561,6 +588,13 @@ async function createFood(): Promise<void> {
   align-items: center;
   gap: var(--space-1);
   color: var(--color-text-muted);
+}
+
+.editor__unit {
+  /* « c. à soupe » ou « petits-suisses » : le nom de la mesure passe à la ligne
+     plutôt que d'élargir la ligne du repas. */
+  max-width: 6rem;
+  overflow-wrap: anywhere;
 }
 
 .editor__grams input {

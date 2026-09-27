@@ -406,6 +406,18 @@ async function save(): Promise<void> {
     </BaseCard>
 
     <BaseCard
+      title="Mes aliments"
+      subtitle="Les aliments et recettes que vous avez saisis vous-même."
+    >
+      <BaseButton
+        variant="secondary"
+        @click="router.push({ name: ROUTE.foods })"
+      >
+        Gérer mes aliments
+      </BaseButton>
+    </BaseCard>
+
+    <BaseCard
       title="Vos données"
       :subtitle="
         account.session
