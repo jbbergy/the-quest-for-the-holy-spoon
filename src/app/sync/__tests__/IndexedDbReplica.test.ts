@@ -6,6 +6,8 @@ import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodI
 
 import { OutboxMealOffers } from '@/modules/nutrition_inventory/infrastructure/OutboxMealOffers'
 
+import { playerToRecord } from '@/modules/player_profile/infrastructure/records'
+
 import { createDevice, customFoodOf, type Device, mealOf, playerOf, unwrap } from './fixtures'
 
 const STATE = { accountId: 'account-1', playerId: 'player-1', cursor: 0 }
@@ -347,6 +349,23 @@ describe('Partage au sein du foyer', () => {
     expect((await pendingChanges()).map((change) => change.entity)).toEqual(['player', 'needs'])
 
     expect(unwrap(await device.replica.rebase('foyer-1:a,b'))).toBe(false)
+  })
+
+  it('ne bloque pas le profil encore en cours de téléchargement', async () => {
+    // Connexion d'un compte depuis un appareil qui n'a pas son profil : le
+    // foyer se charge pendant que le profil se télécharge.
+    unwrap(await device.replica.start(STATE))
+
+    expect(unwrap(await device.replica.rebase('foyer-1:a,b'))).toBe(true)
+    expect(await pendingChanges()).toEqual([])
+
+    unwrap(
+      await device.replica.applyRemote(
+        [{ entity: 'player', id: 'player-1', deleted: false, revision: 7, payload: { ...playerToRecord(playerOf('player-1')) } }],
+        7,
+      ),
+    )
+    expect(unwrap(await device.players.findById(idFrom('player-1')))).not.toBeNull()
   })
 
   it('n’a rien à relire sans compte connecté', async () => {

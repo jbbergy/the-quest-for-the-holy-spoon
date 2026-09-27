@@ -231,7 +231,15 @@ export class IndexedDbReplica implements ILocalReplica {
 
       // Le profil repart aussi, pour que ses besoins soient publiés : les
       // nouveaux membres en ont besoin pour ajuster un repas prévu.
-      tx.objectStore(STORE.outbox).add({ entity: 'player', id: state.playerId, op: 'upsert' } satisfies OutboxEntry)
+      //
+      // Seulement s'il est déjà sur l'appareil. Juste après la connexion d'un
+      // compte, le foyer peut arriver avant le profil en cours de
+      // téléchargement : une entrée en attente ferait alors ignorer le profil
+      // reçu (on ne réécrit pas ce qui attend d'être envoyé), puis partirait
+      // comme une suppression — et le profil ne reviendrait jamais.
+      if (locals.some((key) => String(key) === state.playerId)) {
+        tx.objectStore(STORE.outbox).add({ entity: 'player', id: state.playerId, op: 'upsert' } satisfies OutboxEntry)
+      }
       await transactionToPromise(tx)
       return true
     })
