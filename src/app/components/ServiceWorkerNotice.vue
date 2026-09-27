@@ -37,7 +37,7 @@ const mode = computed<'update' | 'offline' | null>(() => {
       class="sw-notice__panel"
     >
       <p class="sw-notice__text">
-        Une nouvelle version est prête.
+        Une nouvelle version de l’application est prête.
       </p>
       <div class="sw-notice__actions">
         <BaseButton
@@ -63,7 +63,7 @@ const mode = computed<'update' | 'offline' | null>(() => {
     >
       <p class="sw-notice__text">
         <span aria-hidden="true">✓</span>
-        Prête à fonctionner sans connexion.
+        L’application marche maintenant sans Internet.
       </p>
       <div class="sw-notice__actions">
         <BaseButton

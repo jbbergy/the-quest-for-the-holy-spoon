@@ -276,6 +276,40 @@ export class Meal {
   }
 
   /**
+   * Ajuste les portions d'un repas **prévu** quand les besoins de son
+   * titulaire changent : `scale` est le rapport du nouveau besoin à l'ancien.
+   *
+   * Arrondies comme pour un autre membre du foyer — à 5 g, à la demi-tranche.
+   * Un repas pris est un fait : il est refusé. Renvoie le repas lui-même quand
+   * aucune portion ne bouge, ce qui épargne une écriture.
+   */
+  rescale(scale: number): Result<Meal, DomainError> {
+    const locked = this.editingRefusal()
+    if (locked !== null) return err(locked)
+    if (!Number.isFinite(scale) || scale <= 0) {
+      return err(new InvalidMealError(`Facteur de portion invalide : ${scale}.`))
+    }
+
+    let changed = false
+    const entries: MealEntry[] = []
+    for (const entry of this.entries) {
+      const amount = scaleAmount(entry.amount, scale, entry.measure)
+      if (amount === entry.amount) {
+        entries.push(entry)
+        continue
+      }
+      const quantity = Quantity.create(amount * entry.measure.grams)
+      if (!quantity.ok) return quantity
+      const scaled = entry.withQuantity(quantity.value)
+      if (!scaled.ok) return scaled
+      entries.push(scaled.value)
+      changed = true
+    }
+
+    return ok(changed ? this.withEntries(entries) : this)
+  }
+
+  /**
    * Remet les lignes d'un repas **prévu** à jour des fiches actuelles.
    *
    * Tant qu'un repas n'est pas pris, il dit ce qu'on s'apprête à manger : si la

@@ -1,13 +1,13 @@
 // @vitest-environment happy-dom
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick } from 'vue'
 
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
-import MacroGauge from '@/ui/MacroGauge.vue'
+import InfoTip from '@/ui/InfoTip.vue'
 import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
+import RingGauge from '@/ui/RingGauge.vue'
 
 /**
  * `matchMedia` n'existe pas dans happy-dom : sans lui, `useReducedMotion` et le
@@ -133,208 +133,92 @@ describe('BaseField', () => {
   })
 })
 
-describe('MacroGauge', () => {
-  it('expose une barre de progression complète pour les lecteurs d’écran', () => {
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Protéines', value: 93, target: 150 },
-    })
+describe('RingGauge', () => {
+  const ring = (props: Record<string, unknown>) =>
+    mount(RingGauge, { props: { label: 'Protéines', value: 93, target: 150, ...props } })
 
-    const bar = wrapper.find('[role="progressbar"]')
+  it('expose une barre de progression complète pour les lecteurs d’écran', () => {
+    const bar = ring({}).find('[role="progressbar"]')
+
     expect(bar.attributes('aria-valuenow')).toBe('93')
     expect(bar.attributes('aria-valuemin')).toBe('0')
     expect(bar.attributes('aria-valuemax')).toBe('150')
+    expect(bar.attributes('aria-label')).toBe('Protéines')
   })
 
-  it('annonce une valeur en toutes lettres, pas un pourcentage', () => {
-    // « 62 pour cent » est exact mais inexploitable ; « 93 sur 150 grammes » l'est.
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Protéines', value: 93, target: 150 },
-    })
-
-    expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
-      'Protéines : 93 sur 150 g',
+  it('annonce la valeur et l’état en toutes lettres, pas un pourcentage', () => {
+    expect(ring({}).find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
+      'Protéines : 93 g, sur 150 g. Encore 57 g.',
     )
   })
 
-  it('plafonne le remplissage et signale le dépassement par la couleur', () => {
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Calories', value: 3000, target: 2000, unit: 'kcal' },
-    })
+  it('dit l’état en mots, sous l’anneau', () => {
+    expect(ring({ value: 150 }).text()).toContain('Besoin atteint')
+    expect(ring({ value: 170 }).text()).toContain('20 g de plus que le besoin')
+  })
 
-    expect(wrapper.classes()).toContain('gauge--exceeded')
-    expect(wrapper.find('.gauge__fill').attributes('style')).toContain('100.0%')
+  it('distingue une limite d’un besoin', () => {
+    const salt = ring({ label: 'Sel', value: 4, target: 5, mode: 'limit' })
+
+    // Sans « limite », un lecteur d'écran présenterait 4 sur 5 g comme une
+    // progression à poursuivre (critère 1.4.1).
+    expect(salt.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
+      'Sel : 4 g, limite 5 g. Sous la limite.',
+    )
+    expect(salt.classes()).not.toContain('ring--exceeded')
+  })
+
+  it('signale une limite franchie par la couleur, un signe et des mots', () => {
+    const salt = ring({ label: 'Sel', value: 6.2, target: 5, mode: 'limit' })
+
+    expect(salt.classes()).toContain('ring--exceeded')
+    expect(salt.find('.ring__alert').exists()).toBe(true)
+    expect(salt.text()).toContain('Limite dépassée de 1,2 g')
+  })
+
+  it('ne parle jamais d’excès pour un minimum', () => {
+    const fiber = ring({ label: 'Fibres', value: 40, target: 30, mode: 'floor' })
+
+    expect(fiber.text()).toContain('Minimum atteint')
+    expect(fiber.text()).toContain('au moins 30 g')
+    expect(ring({ label: 'Fibres', value: 7, target: 30, mode: 'floor' }).text()).toContain(
+      'Encore 23 g',
+    )
+  })
+
+  it('montre le dépassement par un second tour', () => {
+    expect(ring({ value: 100 }).find('.ring__overflow').exists()).toBe(false)
+    expect(ring({ value: 225 }).find('.ring__overflow').exists()).toBe(true)
+  })
+
+  it('marque la moyenne d’un trait, et la dit en toutes lettres', () => {
+    const wrapper = ring({ average: 120 })
+
+    expect(wrapper.find('.ring__average').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Moyenne : 120 g')
+    expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toContain(
+      'Moyenne des 7 derniers jours : 120 g',
+    )
+    expect(ring({}).find('.ring__average').exists()).toBe(false)
   })
 
   it('ne divise pas par zéro sur une cible nulle', () => {
-    const wrapper = mount(MacroGauge, { props: { label: 'X', value: 10, target: 0 } })
+    const empty = ring({ value: 10, target: 0 })
 
-    expect(wrapper.find('.gauge__fill').attributes('style')).toContain('0.0%')
+    expect(empty.find('.ring__fill').attributes('stroke-dasharray')).toMatch(/^0\.00 /)
   })
 
   it('interpole vers la nouvelle valeur au lieu d’y sauter', async () => {
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Protéines', value: 0, target: 150 },
-    })
+    const wrapper = ring({ value: 0 })
+    const dash = () => Number.parseFloat(wrapper.find('.ring__fill').attributes('stroke-dasharray') ?? '0')
 
     await wrapper.setProps({ value: 150 })
     await new Promise((resolve) => setTimeout(resolve, 100))
-    const midway = wrapper.find('.gauge__fill').attributes('style')
-
+    const midway = dash()
     await new Promise((resolve) => setTimeout(resolve, 900))
-    const settled = wrapper.find('.gauge__fill').attributes('style')
 
-    // C'est la réassignation de la valeur — rendue possible par l'immutabilité
-    // du domaine — qui déclenche l'interpolation.
-    expect(midway).not.toContain('100.0%')
-    expect(settled).toContain('100.0%')
-  })
-
-  it('distingue un plafond d’une cible pour les lecteurs d’écran', () => {
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Sel', value: 4, target: 5, mode: 'limit' as const },
-    })
-
-    // Sans « au maximum », un lecteur d'écran annoncerait « 4 sur 5 grammes »
-    // comme une progression : quelqu'un qui ne voit pas la couleur croirait
-    // devoir atteindre sa limite de sel (critère 1.4.1).
-    expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
-      'Sel : 4 sur 5 g au maximum',
-    )
-    expect(wrapper.text()).toContain('max')
-  })
-
-  it('reste sourde tant qu’un plafond n’est pas franchi', () => {
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Sucres', value: 40, target: 100, mode: 'limit' as const },
-    })
-
-    expect(wrapper.classes()).toContain('gauge--limit')
-    expect(wrapper.classes()).not.toContain('gauge--exceeded')
-  })
-
-  it('signale le dépassement d’un plafond comme celui d’une cible', () => {
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Sel', value: 7, target: 5, mode: 'limit' as const },
-    })
-
-    expect(wrapper.classes()).toContain('gauge--exceeded')
-  })
-
-  it('reste en mode cible par défaut', () => {
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Fibres', value: 12, target: 30, tone: 'fiber' as const },
-    })
-
-    expect(wrapper.classes()).toContain('gauge--target')
-    expect(wrapper.classes()).toContain('gauge--fiber')
-    expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
-      'Fibres : 12 sur 30 g',
-    )
-  })
-
-  it('affiche la valeur finale sans animation en mouvement réduit', async () => {
-    stubMatchMedia(true)
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Protéines', value: 0, target: 150 },
-    })
-
-    await wrapper.setProps({ value: 120 })
-    await nextTick()
-
-    // GSAP anime en JavaScript et ignore les règles CSS : sans cette bascule,
-    // la jauge continuerait de bouger chez qui a demandé à l'éviter.
-    expect(wrapper.find('.gauge__fill').attributes('style')).toContain('80.0%')
-  })
-
-  it('dit « au minimum » pour un minimum à atteindre', () => {
-    const wrapper = mount(MacroGauge, {
-      props: { label: 'Fibres', value: 12, target: 30, mode: 'floor' as const },
-    })
-
-    expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
-      'Fibres : 12 sur 30 g au minimum',
-    )
-    expect(wrapper.find('.gauge__target').text()).toContain('min')
-  })
-
-  describe('moyenne des jours précédents', () => {
-    const calories = (average: number | null, extra: Record<string, unknown> = {}) =>
-      mount(MacroGauge, {
-        props: { label: 'Calories', unit: 'kcal', value: 1000, target: 2000, average, ...extra },
-      })
-
-    it('ne montre rien sans moyenne', () => {
-      const wrapper = calories(null)
-
-      expect(wrapper.find('.gauge__average').exists()).toBe(false)
-      expect(wrapper.find('.gauge__marker').exists()).toBe(false)
-      expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
-        'Calories : 1000 sur 2000 kcal',
-      )
-    })
-
-    it('chiffre la moyenne, nomme le déficit et place le trait', () => {
-      const wrapper = calories(1700)
-
-      expect(wrapper.find('.gauge__average').text()).toMatch(
-        /Moyenne sur 7 jours : 1700 kcal\s+· déficit moyen de 300 kcal/,
-      )
-      expect(wrapper.find('.gauge__marker').attributes('style')).toContain('left: 85.0%')
-    })
-
-    it('ne change pas l’objectif du jour', () => {
-      const bar = calories(1700).find('[role="progressbar"]')
-
-      expect(bar.attributes('aria-valuemax')).toBe('2000')
-    })
-
-    it('annonce la moyenne aux lecteurs d’écran, en mots', () => {
-      expect(
-        calories(2300, { averageDays: 3 }).find('[role="progressbar"]').attributes('aria-valuetext'),
-      ).toBe(
-        'Calories : 1000 sur 2000 kcal. Moyenne sur 3 jours renseignés : 2300 kcal ' +
-          'par jour, excès moyen de 300 kcal',
-      )
-    })
-
-    it('précise quand un seul jour est renseigné', () => {
-      expect(calories(1900, { averageDays: 1 }).find('.gauge__average').text()).toContain(
-        'Moyenne sur un seul jour renseigné',
-      )
-    })
-
-    it('garde le trait au bout de la barre quand la moyenne dépasse le repère', () => {
-      expect(calories(2600).find('.gauge__marker').attributes('style')).toContain('left: 100.0%')
-    })
-
-    it('tait un écart sous le centième du repère', () => {
-      expect(calories(1990).find('.gauge__average').text()).toContain('au niveau du besoin')
-    })
-
-    it('le trait est décoratif : l’information est dans le texte', () => {
-      expect(calories(1700).find('.gauge__swatch').attributes('aria-hidden')).toBe('true')
-    })
-
-    it('lit un plafond dans le bon sens, au dixième de gramme', () => {
-      const salt = (average: number) =>
-        mount(MacroGauge, {
-          props: { label: 'Sel', value: 2, target: 5, mode: 'limit' as const, average },
-        }).find('.gauge__average')
-
-      expect(salt(6.24).text()).toContain('6,2 g')
-      expect(salt(6.24).text()).toContain('excès moyen de 1,2 g')
-      expect(salt(3).text()).toContain('sous le plafond')
-    })
-
-    it('ne parle jamais d’excès de fibres', () => {
-      const fiber = (average: number) =>
-        mount(MacroGauge, {
-          props: { label: 'Fibres', value: 10, target: 30, mode: 'floor' as const, average },
-        }).find('.gauge__average')
-
-      expect(fiber(40).text()).toContain('minimum atteint')
-      expect(fiber(22).text()).toContain('déficit moyen de 8 g')
-    })
+    expect(midway).toBeLessThan(dash())
+    expect(dash()).toBeCloseTo(2 * Math.PI * 42, 1)
   })
 })
 
@@ -350,12 +234,12 @@ describe('MealConsumedToggle', () => {
     expect(eaten.get('button').attributes('aria-pressed')).toBe('true')
     // Le nom accessible reste stable d'un état à l'autre : c'est `aria-pressed`
     // qui porte l'information, pas un libellé qui changerait sous le lecteur.
-    expect(planned.get('button').text()).toContain('Pris')
-    expect(eaten.get('button').text()).toContain('Pris')
+    expect(planned.get('button').text()).toContain('Mangé')
+    expect(eaten.get('button').text()).toContain('Mangé')
   })
 
   it('distingue les boutons d’une liste par le nom du repas', () => {
-    // Quatre repas dans une journée produiraient sinon quatre boutons « Pris »
+    // Quatre repas dans une journée produiraient sinon quatre boutons « Mangé »
     // rigoureusement identiques au lecteur d'écran.
     expect(mountToggle(null).get('button').text()).toContain('Déjeuner')
   })
@@ -372,7 +256,7 @@ describe('MealConsumedToggle', () => {
   })
 
   it('affiche l’heure une fois le repas pris, et sinon le dit', () => {
-    expect(mountToggle(null).text()).toContain('Pas encore compté')
+    expect(mountToggle(null).text()).toContain('Pas encore mangé')
     expect(mountToggle('2026-04-10T12:45:00.000Z').text()).toMatch(/à \d{2}:\d{2}/)
   })
 
@@ -381,7 +265,7 @@ describe('MealConsumedToggle', () => {
     const wrapper = mountToggle('pas une date')
 
     expect(wrapper.get('button').attributes('aria-pressed')).toBe('true')
-    expect(wrapper.text()).toContain('Pas encore compté')
+    expect(wrapper.text()).toContain('Pas encore mangé')
   })
 })
 
@@ -426,3 +310,63 @@ describe('BaseCard', () => {
   })
 })
 
+
+describe('InfoTip', () => {
+  const mountTip = () =>
+    mount(InfoTip, {
+      props: { term: 'glucides', text: 'Les sucres et les féculents.' },
+      attachTo: document.body,
+    })
+
+  it('nomme son bouton par le mot expliqué et reste muet tant qu’il est fermé', () => {
+    const wrapper = mountTip()
+    const button = wrapper.find('button')
+
+    expect(button.attributes('aria-label')).toBe('Explication : glucides')
+    expect(button.attributes('aria-expanded')).toBe('false')
+    expect(button.attributes('aria-controls')).toBe(wrapper.find('[role="status"]').attributes('id'))
+    expect(wrapper.find('[role="status"]').text()).toBe('')
+    wrapper.unmount()
+  })
+
+  it('écrit l’explication dans la région annoncée à l’ouverture, l’efface au second appui', async () => {
+    const wrapper = mountTip()
+
+    await wrapper.find('button').trigger('click')
+    expect(wrapper.find('button').attributes('aria-expanded')).toBe('true')
+    expect(wrapper.find('[role="status"]').text()).toBe('Les sucres et les féculents.')
+
+    await wrapper.find('button').trigger('click')
+    expect(wrapper.find('button').attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('[role="status"]').text()).toBe('')
+    wrapper.unmount()
+  })
+
+  it('se referme avec Échap et rend le focus au bouton', async () => {
+    const wrapper = mountTip()
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await flushPromises()
+
+    expect(wrapper.find('button').attributes('aria-expanded')).toBe('false')
+    expect(document.activeElement).toBe(wrapper.find('button').element)
+    wrapper.unmount()
+  })
+
+  it('se referme quand on appuie ailleurs, pas dans la bulle', async () => {
+    const wrapper = mountTip()
+    await wrapper.find('button').trigger('click')
+    await flushPromises()
+
+    wrapper.find('[role="status"]').element.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(wrapper.find('button').attributes('aria-expanded')).toBe('true')
+
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
+    await flushPromises()
+    expect(wrapper.find('button').attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+})

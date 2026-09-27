@@ -22,6 +22,7 @@ import {
   PlanMealForMembersUseCase,
   RefreshPlannedMealsUseCase,
   RemoveMealEntryUseCase,
+  RescalePlannedMealsUseCase,
   RescheduleMealUseCase,
 } from '@/modules/nutrition_inventory/application/useCases'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
@@ -1279,5 +1280,55 @@ describe('GetRecentPortionsUseCase', () => {
     const portions = unwrap(await new GetRecentPortionsUseCase(meals).execute(playerId, today))
 
     expect(portions.size).toBe(0)
+  })
+})
+
+describe('RescalePlannedMealsUseCase', () => {
+  const rescale = (): RescalePlannedMealsUseCase => new RescalePlannedMealsUseCase(meals)
+  const gramsOf = async (meal: Meal): Promise<number | undefined> =>
+    unwrap(await meals.findById(meal.id))?.entries[0]?.quantity.grams
+
+  it('ajuste les repas prévus à partir du jour donné', async () => {
+    const today = await planMeal(dayOf('2026-09-27'))
+    const later = await planMeal(dayOf('2026-10-15'))
+
+    const rewritten = unwrap(await rescale().execute(playerId, dayOf('2026-09-27'), 0.9))
+
+    expect(rewritten).toBe(2)
+    expect(await gramsOf(today)).toBe(90)
+    expect(await gramsOf(later)).toBe(90)
+  })
+
+  it('laisse intacts les repas pris et les jours passés', async () => {
+    const yesterday = await planMeal(dayOf('2026-09-26'))
+    const eaten = await planMeal(dayOf('2026-09-27'), MealType.LUNCH)
+    unwrap(await new MarkMealConsumedUseCase(meals).execute(eaten.id, true))
+
+    const rewritten = unwrap(await rescale().execute(playerId, dayOf('2026-09-27'), 1.2))
+
+    expect(rewritten).toBe(0)
+    expect(await gramsOf(yesterday)).toBe(100)
+    expect(await gramsOf(eaten)).toBe(100)
+  })
+
+  it('ne lit rien quand le facteur vaut 1', async () => {
+    const read = vi.spyOn(meals, 'findByPlayerBetween')
+
+    expect(unwrap(await rescale().execute(playerId, dayOf('2026-09-27'), 1))).toBe(0)
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('signale un dépôt illisible', async () => {
+    const broken = {
+      findByPlayerBetween: async () => err(new RepositoryError('STORAGE_FAILURE', 'lecture impossible')),
+    } as unknown as InMemoryMealRepository
+
+    const result = await new RescalePlannedMealsUseCase(broken).execute(
+      playerId,
+      dayOf('2026-09-27'),
+      1.1,
+    )
+
+    expect(isErr(result) && result.error.code).toBe('MEALS_UNREADABLE')
   })
 })

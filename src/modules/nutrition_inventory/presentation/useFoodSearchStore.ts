@@ -4,7 +4,7 @@ import { computed, ref, shallowRef } from 'vue'
 import { useContainer } from '@/app/container'
 import { type BaseError, type ErrorView, toErrorView } from '@/core/errors'
 
-import type { CustomFoodInput } from '../application'
+import type { CustomFoodInput, Diet } from '../application'
 import type { FoodItem } from '../domain/FoodItem'
 
 export type StoreStatus = 'idle' | 'loading' | 'ready' | 'error'
@@ -25,6 +25,10 @@ export type StoreStatus = 'idle' | 'loading' | 'ready' | 'error'
 export const useFoodSearchStore = defineStore('foodSearch', () => {
   const query = ref('')
   const results = shallowRef<readonly FoodItem[]>([])
+  /** Résultats masqués parce qu'ils ne conviennent pas au régime du profil. */
+  const excluded = shallowRef<readonly FoodItem[]>([])
+  /** Régimes appliqués à la dernière recherche, pour la relancer à l'identique. */
+  const diets = shallowRef<readonly Diet[]>([])
   const searchKind = ref<'by_name' | 'by_barcode' | null>(null)
   const onlineSearched = ref(false)
   const status = ref<StoreStatus>('idle')
@@ -54,21 +58,25 @@ export const useFoodSearchStore = defineStore('foodSearch', () => {
 
   /**
    * Recherche par nom **ou** par code-barres, catalogue local et distant réunis.
+   * `withDiets` : les régimes à respecter ; ceux de la recherche précédente
+   * par défaut, pour qu'un « Réessayer » ne les oublie pas.
    *
    * Les drapeaux sont remis à zéro avant l'appel : sans cela, le bandeau
    * « recherche en ligne indisponible » d'une requête précédente survivrait à la
    * suivante et décrirait un état qui n'a plus cours.
    */
-  async function find(text: string): Promise<boolean> {
+  async function find(text: string, withDiets: readonly Diet[] = diets.value): Promise<boolean> {
     query.value = text
+    diets.value = withDiets
     status.value = 'loading'
     searchKind.value = null
     onlineSearched.value = false
 
-    const result = await useContainer().inventory.find.execute(text)
+    const result = await useContainer().inventory.find.execute(text, { diets: withDiets })
     if (!result.ok) return fail(result.error)
 
     results.value = result.value.items
+    excluded.value = result.value.excluded
     searchKind.value = result.value.kind
     onlineSearched.value = result.value.onlineSearched
     error.value = null
@@ -86,6 +94,7 @@ export const useFoodSearchStore = defineStore('foodSearch', () => {
     }
 
     results.value = [result.value]
+    excluded.value = []
     error.value = null
     status.value = 'ready'
     return result.value
@@ -94,6 +103,7 @@ export const useFoodSearchStore = defineStore('foodSearch', () => {
   function reset(): void {
     query.value = ''
     results.value = []
+    excluded.value = []
     searchKind.value = null
     onlineSearched.value = false
     error.value = null
@@ -103,6 +113,7 @@ export const useFoodSearchStore = defineStore('foodSearch', () => {
   return {
     query,
     results,
+    excluded,
     searchKind,
     status,
     error,

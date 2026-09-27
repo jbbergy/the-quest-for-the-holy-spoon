@@ -6,7 +6,8 @@
  * **read models** — jamais les entités `Meal`,
  * `MealEntry` ou `FoodItem` construites à la main.
  */
-export { MealType } from '../domain/Meal'
+export { MealType, portionScale } from '../domain/Meal'
+export { Diet, DietSuitability } from '../domain/DietSuitability'
 
 export {
   toFoodExport,
@@ -38,12 +39,14 @@ export {
   PlanMealForMembersUseCase,
   RefreshPlannedMealsUseCase,
   RemoveMealEntryUseCase,
+  RescalePlannedMealsUseCase,
   RescheduleMealUseCase,
   UpdateCustomFoodUseCase,
   type AddFoodInput,
   type CustomFoodInput,
   type DailyConsumption,
   type DailyJournal,
+  type FoodSearchOptions,
   type FoodSearchResults,
   type InventoryError,
   type InventoryExport,

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref, shallowRef } from 'vue'
 
+import type { DayKey } from '@/core/day'
 import { type BaseError, type ErrorView, toErrorView } from '@/core/errors'
 import { useContainer } from '@/app/container'
 
@@ -70,9 +71,9 @@ export const usePlayerStore = defineStore('player', () => {
     return result.ok ? succeed(result.value) : fail(result.error)
   }
 
-  async function update(changes: ProfileUpdate): Promise<boolean> {
+  async function update(changes: ProfileUpdate, today: DayKey): Promise<boolean> {
     status.value = 'loading'
-    const result = await useContainer().profile.update.execute(changes)
+    const result = await useContainer().profile.update.execute(changes, today)
     return result.ok ? succeed(result.value) : fail(result.error)
   }
 

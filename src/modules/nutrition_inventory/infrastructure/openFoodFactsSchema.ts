@@ -44,6 +44,8 @@ const nutrimentsSchema = z
      */
     salt_100g: loonyNumber,
     sodium_100g: loonyNumber,
+    /** Degré d'alcool, en % du volume : sa seule présence suffit à marquer le produit. */
+    alcohol_100g: loonyNumber,
   })
   .loose()
 
@@ -56,6 +58,8 @@ const productSchema = z
     nutriments: nutrimentsSchema.optional(),
     labels_tags: z.array(z.string()).optional(),
     allergens_tags: z.array(z.string()).optional(),
+    /** Analyse des ingrédients : `en:non-vegetarian`, `en:vegan`… déduits par Open Food Facts. */
+    ingredients_analysis_tags: z.array(z.string()).optional(),
     /**
      * Contenance et portion. Texte libre (`quantity` : « 6 x 125 g »,
      * `serving_size` : « 25 g (1 tranche) ») doublé d'une valeur calculée par
@@ -110,6 +114,7 @@ export const REQUESTED_FIELDS = [
   'nutriments',
   'labels_tags',
   'allergens_tags',
+  'ingredients_analysis_tags',
   'quantity',
   'product_quantity',
   'product_quantity_unit',

@@ -52,7 +52,7 @@ function editAddress(): void {
 <template>
   <AccountLayout
     title="Créer un compte"
-    intro="Un compte vous permet de retrouver vos repas sur vos autres appareils et de rejoindre un foyer."
+    intro="Avec un compte, vous retrouvez vos repas sur vos autres appareils. Vous pouvez aussi rejoindre un foyer."
   >
     <BaseCard v-if="sentTo === null">
       <form
@@ -98,14 +98,15 @@ function editAddress(): void {
         role="status"
       >
         <h2 class="account-sent__title">
-          Vérifiez votre boîte de réception
+          Regardez vos e-mails
         </h2>
         <p>
-          Un lien de confirmation vient d’être envoyé à <strong>{{ sentTo }}</strong>. Il est valable
-          24 heures. Pensez à regarder dans les courriers indésirables.
+          Nous venons d’envoyer un lien à <strong>{{ sentTo }}</strong>. Ouvrez-le pour confirmer
+          votre adresse. Il marche pendant 24 heures. Regardez aussi dans les courriers
+          indésirables.
         </p>
         <p class="account-sent__note">
-          Si cette adresse a déjà un compte, vous recevrez à la place un e-mail pour vous connecter.
+          Cette adresse a déjà un compte ? Vous recevrez alors un e-mail pour vous connecter.
         </p>
         <p
           v-if="isDev"
@@ -118,7 +119,7 @@ function editAddress(): void {
         variant="secondary"
         @click="editAddress"
       >
-        Modifier l’adresse
+        Changer d’adresse
       </BaseButton>
     </BaseCard>
 

@@ -27,19 +27,18 @@ const online = computed(() => useContainer().network.isOnline())
     <p class="online-notice__text">
       <span aria-hidden="true">⌁</span>
       <template v-if="online">
-        Open Food Facts n’a pas répondu — son moteur de recherche est souvent saturé. Seul le
-        catalogue local a été consulté : la liste peut être incomplète.
+        La recherche des produits de marque ne répond pas. Elle est souvent surchargée. La
+        liste montre seulement les aliments du catalogue public : il peut en manquer.
       </template>
       <template v-else>
-        Hors connexion : seul le catalogue local a été consulté. Les produits de marque
-        reviendront avec le réseau.
+        Vous n’êtes pas connecté à Internet. La liste montre seulement les aliments du catalogue
+        public. Les produits de marque reviendront avec la connexion.
       </template>
     </p>
-
     <template v-if="online">
       <p class="online-notice__hint">
-        Un code-barres saisi dans le champ passe par un autre service, qui reste généralement
-        disponible.
+        Vous cherchez un produit de marque ? Essayez avec le numéro du code-barres : il passe par
+        un autre service, qui répond presque toujours.
       </p>
       <BaseButton
         variant="secondary"
@@ -47,7 +46,7 @@ const online = computed(() => useContainer().network.isOnline())
         :loading="busy"
         @click="emit('retry')"
       >
-        Relancer la recherche en ligne
+        Chercher de nouveau
       </BaseButton>
     </template>
   </div>

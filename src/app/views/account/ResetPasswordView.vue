@@ -51,8 +51,8 @@ async function submit(): Promise<void> {
   <AccountLayout title="Nouveau mot de passe">
     <BaseCard v-if="ready && token === null">
       <p role="status">
-        Ce lien est incomplet. Ouvrez-le directement depuis l’e-mail reçu, ou demandez-en un
-        nouveau.
+        Ce lien ne marche pas : il est incomplet. Ouvrez-le directement depuis l’e-mail, ou
+        demandez un nouveau lien.
       </p>
     </BaseCard>
 

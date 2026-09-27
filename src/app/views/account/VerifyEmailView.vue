@@ -59,11 +59,13 @@ onMounted(async () => {
           Confirmation en cours…
         </p>
         <p v-else-if="state === 'missing'">
-          Ce lien est incomplet. Ouvrez-le directement depuis l’e-mail reçu, sans le recopier.
+          Ce lien ne marche pas : il est incomplet. Ouvrez-le directement depuis l’e-mail, sans le
+          recopier.
         </p>
         <template v-else-if="state === 'done'">
           <p>
-            Adresse confirmée. Vous êtes connecté avec <strong>{{ account.session?.email }}</strong>.
+            Votre adresse est confirmée. Vous êtes connecté avec
+            <strong>{{ account.session?.email }}</strong>.
           </p>
         </template>
       </div>

@@ -116,6 +116,10 @@ function needsOf(
       targetCalories: shared.targetCalories,
       targetMacros: shared.targetMacros,
       referenceNutrients: shared.referenceNutrients,
+      history: (shared.history ?? []).map((snapshot) => ({
+        ...snapshot,
+        until: snapshot.until as DayKey,
+      })),
       // Les préférences alimentaires ne sont pas publiées : elles ne servent
       // qu'à filtrer les suggestions de leur titulaire.
       restrictions: [],

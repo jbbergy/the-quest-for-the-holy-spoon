@@ -3,7 +3,7 @@
  * La journée d'un membre du foyer, en lecture seule.
  *
  * Mêmes jauges et même bilan que son propre accueil (`DayOverview`), calculés
- * par les mêmes use cases — mais ni case « Pris », ni bouton d'édition : les
+ * par les mêmes use cases — mais ni case « Mangé », ni bouton d'édition : les
  * repas d'un autre ne se modifient pas d'ici. Rien n'est stocké sur l'appareil ;
  * l'écran se consulte en ligne.
  */
@@ -14,6 +14,7 @@ import DayOverview from '@/app/components/DayOverview.vue'
 import { useContainer } from '@/app/container'
 import type { MemberDay } from '@/app/household/memberDays'
 import { formatDay, mealLabel, mealOrder } from '@/app/mealLabels'
+import { usePageTitle } from '@/app/pageTitle'
 import { ROUTE } from '@/app/router'
 import { memberName, useHousehold } from '@/app/useHousehold'
 import { addDays, type DayKey, parseDayKey } from '@/core/day'
@@ -24,6 +25,8 @@ import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+
+import { ofName } from './householdFormat'
 
 const route = useRoute()
 const router = useRouter()
@@ -60,6 +63,8 @@ watch([playerId, day], load, { immediate: true })
 const name = computed(
   () => member.value?.name ?? memberName(household.household, playerId.value) ?? 'Membre du foyer',
 )
+
+usePageTitle(() => `Journée ${ofName(name.value)}`)
 
 const meals = computed(() =>
   [...(member.value?.journal.meals ?? [])].sort((a, b) => mealOrder(a.type) - mealOrder(b.type)),
@@ -113,7 +118,7 @@ const goTo = (next: DayKey) =>
       class="member__notice"
       role="status"
     >
-      {{ name }} ne partage pas ses journées pour l’instant.
+      {{ name }} ne montre pas ses journées pour le moment.
     </p>
     <ErrorNotice
       v-else
@@ -137,22 +142,20 @@ const goTo = (next: DayKey) =>
         :recent="member.recent"
         :planned-count="plannedCount"
         :consumed-count="member.journal.consumedMeals.length"
-        title="Ses apports"
-        whose="member"
       />
       <p
         v-else
         class="member__text"
       >
-        {{ name }} n’a pas encore publié ses besoins : ses jauges apparaîtront après sa prochaine
-        synchronisation.
+        Les jauges {{ ofName(name) }} ne sont pas encore prêtes. Elles apparaîtront quand son
+        application aura envoyé son besoin.
       </p>
 
-      <BaseCard title="Ses repas">
+      <BaseCard :title="`Repas ${ofName(name)}`">
         <EmptyState
           v-if="meals.length === 0"
-          title="Aucun repas ce jour-là"
-          description="Rien de prévu ni de pris."
+          title="Aucun repas ce jour-là."
+          description="Rien de prévu, rien de mangé."
         />
         <ul
           v-else
@@ -167,7 +170,7 @@ const goTo = (next: DayKey) =>
             <span class="member__meal-type">{{ mealLabel(meal.type) }}</span>
             <span class="member__meal-kcal">{{ Math.round(meal.calories) }} kcal</span>
             <span class="member__meal-foods">{{ meal.entries.map((entry) => entry.foodName).join(', ') }}</span>
-            <span class="member__meal-state">{{ meal.consumedAt === null ? 'Prévu' : 'Pris' }}</span>
+            <span class="member__meal-state">{{ meal.consumedAt === null ? 'Prévu' : 'Mangé' }}</span>
           </li>
         </ul>
       </BaseCard>

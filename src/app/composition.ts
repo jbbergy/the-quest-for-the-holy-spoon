@@ -57,6 +57,7 @@ import {
   MarkMealConsumedUseCase,
   PlanMealForMembersUseCase,
   RefreshPlannedMealsUseCase,
+  RescalePlannedMealsUseCase,
   RemoveMealEntryUseCase,
   RescheduleMealUseCase,
 } from '@/modules/nutrition_inventory/application'
@@ -141,6 +142,7 @@ export interface AppContainer {
     readonly getMeal: GetMealUseCase
     readonly recentPortions: GetRecentPortionsUseCase
     readonly refreshPlanned: RefreshPlannedMealsUseCase
+    readonly rescalePlanned: RescalePlannedMealsUseCase
     readonly journal: GetDailyJournalUseCase
     readonly week: GetWeekPlanUseCase
     readonly history: GetConsumptionHistoryUseCase
@@ -223,6 +225,7 @@ export function createContainer(
       getMeal: new GetMealUseCase(mealRepository),
       recentPortions: new GetRecentPortionsUseCase(mealRepository),
       refreshPlanned: new RefreshPlannedMealsUseCase(mealRepository, foodRepository),
+      rescalePlanned: new RescalePlannedMealsUseCase(mealRepository),
       journal: new GetDailyJournalUseCase(mealRepository),
       week: new GetWeekPlanUseCase(mealRepository),
       history: new GetConsumptionHistoryUseCase(mealRepository),

@@ -23,10 +23,15 @@ import { FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
  */
 const props = defineProps<{ source: string; author?: string | null }>()
 
+/**
+ * Des mots plutôt que des noms propres : « Ciqual » ne dit rien à qui ne le
+ * connaît pas, « Catalogue public » dit d'où vient le chiffre. Les noms des
+ * sources restent expliqués par une info-bulle, là où l'on cherche un aliment.
+ */
 const LABEL: Readonly<Record<string, string>> = {
-  [FoodSource.CIQUAL]: 'Ciqual',
-  [FoodSource.OPEN_FOOD_FACTS]: 'Open Food Facts',
-  [FoodSource.USER]: 'Ma fiche',
+  [FoodSource.CIQUAL]: 'Catalogue public',
+  [FoodSource.OPEN_FOOD_FACTS]: 'Produit de marque',
+  [FoodSource.USER]: 'Mon aliment',
 }
 
 const TONE: Readonly<Record<string, string>> = {

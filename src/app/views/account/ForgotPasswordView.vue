@@ -38,7 +38,7 @@ async function submit(): Promise<void> {
 <template>
   <AccountLayout
     title="Mot de passe oublié"
-    intro="Indiquez votre adresse : vous recevrez un lien pour choisir un nouveau mot de passe."
+    intro="Écrivez votre adresse e-mail. Vous recevrez un lien pour choisir un nouveau mot de passe."
   >
     <BaseCard v-if="sentTo === null">
       <form
@@ -63,7 +63,7 @@ async function submit(): Promise<void> {
           block
           :loading="account.status === 'loading'"
         >
-          Recevoir un lien
+          Recevoir le lien
         </BaseButton>
       </form>
     </BaseCard>
@@ -74,8 +74,8 @@ async function submit(): Promise<void> {
         tabindex="-1"
         role="status"
       >
-        Si un compte existe pour <strong>{{ sentTo }}</strong>, un lien valable une heure vient d’y
-        être envoyé.
+        Si un compte existe avec l’adresse <strong>{{ sentTo }}</strong>, nous venons d’y envoyer
+        un lien. Il marche pendant 1 heure. Regardez aussi dans les courriers indésirables.
       </p>
     </BaseCard>
 

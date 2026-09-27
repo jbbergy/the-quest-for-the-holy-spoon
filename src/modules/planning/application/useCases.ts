@@ -9,7 +9,7 @@ import {
 } from '../domain/MealCompletionService'
 import { RECENT_DAYS, type RecentIntake, RecentIntakeService } from '../domain/RecentIntakeService'
 
-import { toConsumedTotals, toDailyIntakes, toDailyTarget, toNutrientBase } from './adapters'
+import { toBaseOn, toConsumedTotals, toDailyIntakes, toDailyTarget } from './adapters'
 
 import type { DailyConsumption, MealSummary } from '@/modules/nutrition_inventory/application'
 import type { PlayerNutritionalNeeds } from '@/modules/player_profile/application'
@@ -73,7 +73,7 @@ export class SummarizeRecentIntakeUseCase {
   ): Result<RecentIntake, PlanningError> {
     const recent = RecentIntakeService.summarize(
       day,
-      toNutrientBase(needs),
+      toBaseOn(needs),
       toDailyIntakes(history),
     )
 

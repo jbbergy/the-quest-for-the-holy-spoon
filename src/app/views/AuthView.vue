@@ -35,9 +35,10 @@ onMounted(async () => {
       >
         🥄
       </p>
-      <h1>Bienvenue</h1>
+      <h1>Bienvenue dans <span lang="en">Holy Spoon</span></h1>
       <p class="auth__intro">
-        Planifiez vos repas de la semaine, suivez vos apports, et complétez vos journées sans y penser.
+        Préparez vos repas de la semaine. Voyez ce que vous mangez chaque jour. Apprenez à manger
+        équilibré.
       </p>
     </header>
 
@@ -46,7 +47,7 @@ onMounted(async () => {
     <BaseCard
       v-if="players.player"
       title="Reprendre"
-      :subtitle="`Profil « ${players.player.name} » trouvé sur cet appareil.`"
+      :subtitle="`Le profil de ${players.player.name} est sur cet appareil.`"
     >
       <BaseButton
         block
@@ -59,7 +60,7 @@ onMounted(async () => {
     <BaseCard
       v-else
       title="Commencer sans compte"
-      subtitle="Tout reste sur cet appareil."
+      subtitle="Vos données restent sur cet appareil."
     >
       <BaseButton
         block
@@ -72,12 +73,12 @@ onMounted(async () => {
     <BaseCard
       v-if="account.session"
       title="Compte"
-      :subtitle="`Connecté avec ${account.session.email}.`"
+      :subtitle="`Vous êtes connecté avec ${account.session.email}.`"
     />
     <BaseCard
       v-else
       title="Avec un compte"
-      subtitle="Retrouvez vos repas sur vos autres appareils et partagez-les avec votre foyer."
+      subtitle="Vous retrouvez vos repas sur vos autres appareils. Vous pouvez les partager avec votre foyer."
     >
       <div class="auth__actions">
         <BaseButton

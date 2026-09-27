@@ -78,7 +78,7 @@ onMounted(async () => {
         size="sm"
         @click="router.push({ name: ROUTE.customFood })"
       >
-        <span aria-hidden="true">+</span> Nouvel aliment
+        <span aria-hidden="true">+</span> Créer un aliment
       </BaseButton>
     </div>
 
@@ -91,8 +91,8 @@ onMounted(async () => {
     >
       <BaseField
         v-model="query"
-        label="Rechercher"
-        placeholder="riz, yaourt, tarte de mamie…"
+        label="Chercher dans mes aliments"
+        hint="Par exemple : tarte de mamie."
       />
     </form>
 
@@ -101,7 +101,7 @@ onMounted(async () => {
       role="status"
       aria-live="polite"
     >
-      {{ catalog.status === 'ready' ? `${catalog.items.length} aliment(s).` : '' }}
+      {{ catalog.status === 'ready' ? `${catalog.items.length} aliment${catalog.items.length > 1 ? 's' : ''} trouvé${catalog.items.length > 1 ? 's' : ''}.` : '' }}
     </p>
 
     <ul
@@ -122,7 +122,7 @@ onMounted(async () => {
               :source="item.source"
               :author="foodAuthor(household.household, players.playerId, item.ownerId)"
             />
-            {{ Math.round(item.macrosPer100g.calories()) }} kcal / {{ per100Label(item) }}
+            {{ Math.round(item.macrosPer100g.calories()) }} kcal pour {{ per100Label(item) }}
             <template v-if="item.servings.length > 0">
               · {{ item.servings.length }} portion{{ item.servings.length > 1 ? 's' : '' }}
             </template>
@@ -133,8 +133,8 @@ onMounted(async () => {
 
     <EmptyState
       v-else-if="catalog.status === 'ready'"
-      :title="query.trim() === '' ? 'Aucun aliment saisi' : 'Aucun aliment ne correspond'"
-      description="Créez une recette maison ou un produit introuvable dans les catalogues."
+      :title="query.trim() === '' ? 'Vous n’avez pas encore créé d’aliment.' : 'Aucun aliment ne porte ce nom.'"
+      description="Créez ici vos recettes, ou un produit que vous ne trouvez pas dans la recherche."
     >
       <BaseButton
         size="sm"

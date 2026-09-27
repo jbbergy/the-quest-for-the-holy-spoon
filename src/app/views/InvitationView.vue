@@ -52,38 +52,35 @@ async function decline(): Promise<void> {
     <template v-if="invitation">
       <h1>Rejoindre « {{ invitation.householdName }} » ?</h1>
       <p class="invitation__from">
-        Invitation de <strong>{{ invitation.invitedBy }}</strong>, valable jusqu’au
-        {{ formatDay(invitation.expiresAt) }}.
+        <strong>{{ invitation.invitedBy }}</strong> vous invite. L’invitation est valable
+        jusqu’au {{ formatDay(invitation.expiresAt) }}.
       </p>
 
       <ErrorNotice :error="store.error" />
 
-      <BaseCard title="Ce que les membres verront">
+      <BaseCard title="Ce que les autres membres verront">
         <ul class="invitation__points">
-          <li>Vos repas, prévus et pris.</li>
-          <li>Vos jauges de la journée et vos moyennes des sept derniers jours.</li>
-          <li>Les aliments que vous créez, qu’ils pourront ajouter à leurs repas.</li>
-          <li>
-            Vos besoins estimés, sans lesquels vos jauges n’auraient pas de repère.
-          </li>
-          <li>Votre adresse e-mail, qui vous désigne dans la liste des membres.</li>
+          <li>Vos repas, prévus et mangés.</li>
+          <li>Vos jauges de la journée, et vos moyennes des 7 derniers jours.</li>
+          <li>Les aliments que vous créez. Ils pourront les ajouter à leurs repas.</li>
+          <li>Votre besoin par jour. Sans lui, vos jauges ne voudraient rien dire.</li>
+          <li>Votre adresse e-mail, dans la liste des membres.</li>
         </ul>
         <p class="invitation__note">
-          Un membre pourra aussi prévoir un repas pour vous : il apparaîtra dans votre semaine,
-          et vous restez seul à le cocher comme pris.
+          Un membre pourra aussi prévoir un repas pour vous. Ce repas apparaîtra dans votre
+          semaine. Vous seul pourrez cocher « Mangé ».
         </p>
       </BaseCard>
 
       <BaseCard title="Ce qui reste privé">
         <ul class="invitation__points">
           <li>
-            Vos mensurations — poids, taille, âge — dont on ne partage que les besoins qui en
-            découlent.
+            Votre taille, votre poids et votre âge. Personne d’autre ne les voit.
           </li>
         </ul>
         <p class="invitation__note">
-          Vous pourrez cesser de partager vos journées à tout moment dans les réglages, et quitter
-          le foyer quand vous le voudrez.
+          Vous pourrez cacher vos journées à tout moment, dans les réglages. Vous pourrez aussi
+          quitter le foyer quand vous voulez.
         </p>
       </BaseCard>
 
@@ -92,8 +89,8 @@ async function decline(): Promise<void> {
         class="invitation__blocked"
         role="note"
       >
-        Vous faites déjà partie de « {{ store.household.name }} ». Un compte n’appartient qu’à un
-        foyer : quittez-le d’abord pour rejoindre celui-ci.
+        Vous faites déjà partie du foyer « {{ store.household.name }} ». On ne peut faire partie
+        que d’un seul foyer. Quittez d’abord le vôtre pour rejoindre celui-ci.
       </p>
 
       <div class="invitation__actions">
@@ -118,14 +115,14 @@ async function decline(): Promise<void> {
       <h1>Invitation</h1>
       <ErrorNotice :error="store.error" />
       <p v-if="!account.session">
-        Connectez-vous avec l’adresse qui a reçu l’invitation pour y répondre.
+        Pour répondre, connectez-vous avec l’adresse e-mail qui a reçu l’invitation.
       </p>
       <p v-else-if="!store.loaded && store.status !== 'error' && store.status !== 'unreachable'">
         Chargement de l’invitation…
       </p>
       <p v-else>
-        Cette invitation n’existe plus : elle a expiré, a été annulée, ou vous y avez déjà
-        répondu.
+        Cette invitation n’existe plus. Elle est peut-être trop ancienne, ou elle a été annulée.
+        Ou bien vous y avez déjà répondu.
       </p>
     </template>
   </div>

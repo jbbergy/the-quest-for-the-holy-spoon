@@ -66,12 +66,12 @@ describe('SyncIndicator', () => {
   })
 
   it.each([
-    [{ phase: 'idle', pending: 0 }, 'À jour'],
-    [{ phase: 'idle', pending: 1 }, '1 modification en attente'],
-    [{ phase: 'syncing', pending: 0 }, 'Synchronisation…'],
-    [{ phase: 'offline', pending: 3 }, 'Hors ligne — 3 modifications en attente'],
-    [{ phase: 'offline', pending: 0 }, 'Hors ligne'],
-    [{ phase: 'error', pending: 0 }, 'Synchronisation impossible'],
+    [{ phase: 'idle', pending: 0 }, 'Tout est enregistré'],
+    [{ phase: 'idle', pending: 1 }, '1 changement à envoyer'],
+    [{ phase: 'syncing', pending: 0 }, 'Envoi en cours…'],
+    [{ phase: 'offline', pending: 3 }, 'Pas d’Internet : 3 changements à envoyer'],
+    [{ phase: 'offline', pending: 0 }, 'Pas d’Internet'],
+    [{ phase: 'error', pending: 0 }, 'Envoi impossible'],
   ] as const)('dit l’état %o : « %s »', async (state, label) => {
     const wrapper = mount(SyncIndicator)
     control.set(state)
@@ -89,11 +89,11 @@ describe('SyncIndicator', () => {
 
     control.set({ phase: 'offline' })
     await flushPromises()
-    expect(region()).toContain('Hors ligne')
+    expect(region()).toContain('Pas d’Internet')
 
     control.set({ phase: 'idle' })
     await flushPromises()
-    expect(region()).toBe('Synchronisation rétablie.')
+    expect(region()).toBe('Vos changements sont de nouveau envoyés.')
   })
 
   it('relance à la demande', async () => {

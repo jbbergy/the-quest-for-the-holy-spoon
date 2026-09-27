@@ -18,5 +18,6 @@ export function sharedNeedsOf(record: PlayerRecord): SharedNeeds {
     targetCalories: needs.targetCalories,
     targetMacros: needs.targetMacros,
     referenceNutrients: needs.referenceNutrients,
+    history: needs.history.map((snapshot) => ({ ...snapshot })),
   }
 }

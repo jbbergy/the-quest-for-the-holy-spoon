@@ -148,11 +148,11 @@ describe('Journée d’un membre', () => {
 
     expect(read).toHaveBeenCalledWith('player-alex', today)
     expect(wrapper.find('h1').text()).toBe('Alex')
-    expect(wrapper.text()).toContain('Ses apports')
-    expect(wrapper.text()).toContain('370 sur 2500 kcal')
+    expect(wrapper.text()).toContain('Repas d’Alex')
+    expect(wrapper.text()).toContain('sur 2500 kcal')
     expect(wrapper.text()).toContain('Riz au poulet')
-    expect(wrapper.findAll('.member__meal-state').map((state) => state.text())).toEqual(['Pris', 'Prévu'])
-    // Ni case « Pris », ni lien d'édition.
+    expect(wrapper.findAll('.member__meal-state').map((state) => state.text())).toEqual(['Mangé', 'Prévu'])
+    // Ni case « Mangé », ni lien d'édition.
     expect(wrapper.find('input').exists()).toBe(false)
     expect(wrapper.findAll('a').map((link) => link.text())).toEqual(['← Foyer'])
   })
@@ -180,7 +180,7 @@ describe('Journée d’un membre', () => {
     const wrapper = await mountAt(MemberDayView, '/foyer/membres/player-alex', { memberDays: { read } })
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Alex ne partage pas ses journées pour l’instant.')
+    expect(wrapper.text()).toContain('Alex ne montre pas ses journées pour le moment.')
     expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
@@ -188,7 +188,7 @@ describe('Journée d’un membre', () => {
     const read = vi.fn(async () => ok({ ...alexDay, needs: null, name: null }))
     const wrapper = await mountAt(MemberDayView, '/foyer/membres/player-alex', { memberDays: { read } })
 
-    expect(wrapper.text()).toContain('n’a pas encore publié ses besoins')
+    expect(wrapper.text()).toContain('Les jauges d’Alex ne sont pas encore prêtes')
     expect(wrapper.text()).toContain('Riz au poulet')
   })
 })
@@ -239,8 +239,8 @@ describe('Prévoir aussi pour…', () => {
         { playerId: 'player-sacha', name: 'sacha@example.fr', targetCalories: null },
       ],
     })
-    expect(wrapper.text()).toContain('Repas prévu pour Alex et sacha@example.fr.')
-    expect(wrapper.text()).toContain('reprises telles quelles pour sacha@example.fr')
+    expect(wrapper.text()).toContain('Le repas est prévu pour Alex et sacha@example.fr.')
+    expect(wrapper.text()).toContain('Nous ne connaissons pas encore le besoin de sacha@example.fr')
   })
 
   it('n’apparaît pas sans autre membre', async () => {
@@ -260,13 +260,13 @@ describe('Libellés du partage', () => {
     const week = { days: [{ day: today, meals: [summary(false, 'player-alex')], plannedCalories: 370 }] }
     const wrapper = await mountAt(WeekPlanView, '/semaine', { inventory: { week: succeedsWith(week) } })
 
-    expect(wrapper.text()).toContain('Prévu par Alex')
+    expect(wrapper.text()).toContain('Prévu pour vous par Alex')
   })
 
   it('nomme l’auteur d’un aliment perso d’un autre membre', () => {
     expect(mount(FoodSourceTag, { props: { source: 'USER', author: 'Alex' } }).text()).toBe('Ajouté par Alex')
-    expect(mount(FoodSourceTag, { props: { source: 'USER', author: null } }).text()).toBe('Ma fiche')
-    expect(mount(FoodSourceTag, { props: { source: 'CIQUAL', author: 'Alex' } }).text()).toBe('Ciqual')
+    expect(mount(FoodSourceTag, { props: { source: 'USER', author: null } }).text()).toBe('Mon aliment')
+    expect(mount(FoodSourceTag, { props: { source: 'CIQUAL', author: 'Alex' } }).text()).toBe('Catalogue public')
   })
 })
 

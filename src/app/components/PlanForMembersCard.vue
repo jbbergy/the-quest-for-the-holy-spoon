@@ -64,8 +64,8 @@ async function plan(): Promise<void> {
   const unknown = selected.filter((guest) => guest.targetCalories === null)
   message.value =
     unknown.length === 0
-      ? `Repas prévu pour ${names}, portions ajustées à leurs besoins.`
-      : `Repas prévu pour ${names}. Portions reprises telles quelles pour ${listFormat.format(unknown.map((guest) => guest.name))}, dont les besoins ne sont pas encore connus.`
+      ? `Le repas est prévu pour ${names}. Les portions sont adaptées au besoin de chacun.`
+      : `Le repas est prévu pour ${names}. Nous ne connaissons pas encore le besoin de ${listFormat.format(unknown.map((guest) => guest.name))} : ses portions sont les mêmes que les vôtres.`
 }
 </script>
 
@@ -73,7 +73,7 @@ async function plan(): Promise<void> {
   <BaseCard
     v-if="guests.length > 0"
     title="Prévoir aussi pour…"
-    subtitle="Chacun reçoit une copie dans sa semaine, portions ajustées à ses besoins et arrondies à 5 g. Il pourra la modifier."
+    subtitle="Chaque personne reçoit ce repas dans sa semaine. Les portions sont adaptées à son besoin. Elle pourra les changer."
   >
     <ErrorNotice :error="error" />
 
@@ -101,7 +101,7 @@ async function plan(): Promise<void> {
       :loading="busy"
       @click="plan"
     >
-      Prévoir pour {{ chosen.length > 1 ? 'eux' : 'ce membre' }}
+      Prévoir pour {{ chosen.length > 1 ? 'ces personnes' : 'cette personne' }}
     </BaseButton>
 
     <p

@@ -7,6 +7,7 @@ import { err, ok, type Result } from '@/core/result'
 import { FoodItem, FoodSource, FoodTag } from '../domain/FoodItem'
 import type { IRemoteFoodCatalog, ProviderError } from '../domain/providers'
 
+import { nameTags } from './ciqualTags'
 import {
   openFoodFactsResponseSchema,
   openFoodFactsSearchSchema,
@@ -318,7 +319,20 @@ const ALLERGEN_TO_TAG: Readonly<Record<string, FoodTag>> = {
   'en:nuts': FoodTag.CONTAINS_NUTS,
   'en:peanuts': FoodTag.CONTAINS_NUTS,
   'en:fish': FoodTag.CONTAINS_FISH,
+  'en:crustaceans': FoodTag.CONTAINS_SHELLFISH,
+  'en:molluscs': FoodTag.CONTAINS_SHELLFISH,
+  'en:gluten': FoodTag.CONTAINS_GLUTEN,
+  'en:milk': FoodTag.CONTAINS_MILK,
+  'en:eggs': FoodTag.CONTAINS_EGG,
 }
+
+/** Ce que seul le nom d'un produit dit ; le reste vient de ses étiquettes. */
+const NAMED_ONLY = [
+  FoodTag.CONTAINS_PORK,
+  FoodTag.CONTAINS_BEEF,
+  FoodTag.CONTAINS_SHELLFISH,
+  FoodTag.CONTAINS_ALCOHOL,
+] as const
 
 function toTags(product: OpenFoodFactsProduct): FoodTag[] {
   const tags = new Set<FoodTag>()
@@ -331,6 +345,19 @@ function toTags(product: OpenFoodFactsProduct): FoodTag[] {
     const tag = ALLERGEN_TO_TAG[allergen]
     if (tag !== undefined) tags.add(tag)
   }
+
+  // Aucun allergène ne signale la viande. L'analyse des ingrédients, elle, dit
+  // « non végétarien » : c'est de la viande, sauf si le poisson l'explique déjà.
+  const analysis = product.ingredients_analysis_tags ?? []
+  const seafood = tags.has(FoodTag.CONTAINS_FISH) || tags.has(FoodTag.CONTAINS_SHELLFISH)
+  if (analysis.includes('en:non-vegetarian') && !seafood) {
+    tags.add(FoodTag.CONTAINS_MEAT)
+  }
+
+  // Ni le porc, ni le bœuf ne sont des allergènes : seul le nom les trahit
+  // (« Jambon supérieur », « Steak haché pur bœuf »). L'alcool, lui, a un taux.
+  for (const tag of nameTags(firstNonEmpty([product.product_name_fr, product.product_name]) ?? '', NAMED_ONLY)) tags.add(tag)
+  if ((product.nutriments?.alcohol_100g ?? 0) > 0) tags.add(FoodTag.CONTAINS_ALCOHOL)
 
   // Végan implique végétarien : l'omettre ferait échouer un filtre « végétarien »
   // sur un produit pourtant compatible.

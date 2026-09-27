@@ -39,11 +39,11 @@ function memberNote(member: HouseholdMemberView): string {
   const notes = [
     // Le nom du profil s'affiche en titre ; l'adresse reste là pour lever un doute.
     member.name === null ? null : member.email,
-    member.isOwner ? 'propriétaire' : null,
+    member.isOwner ? 'responsable du foyer' : null,
     member.accountId === myAccountId.value ? 'vous' : null,
-    member.sharesDays ? null : 'ne partage pas ses journées',
+    member.sharesDays ? null : 'ne montre pas ses journées',
   ].filter((note): note is string => note !== null)
-  return notes.join(' · ')
+  return notes.join(', ')
 }
 
 async function run(action: () => Promise<boolean>, success: string): Promise<void> {
@@ -53,13 +53,13 @@ async function run(action: () => Promise<boolean>, success: string): Promise<voi
 }
 
 async function create(): Promise<void> {
-  await run(() => store.create(name.value), 'Foyer créé. Invitez-y qui vous voulez.')
+  await run(() => store.create(name.value), 'Le foyer est créé. Vous pouvez inviter des personnes.')
   if (store.household !== null) name.value = ''
 }
 
 async function invite(): Promise<void> {
   const email = inviteEmail.value.trim()
-  await run(() => store.invite(email), `Invitation envoyée à ${email}.`)
+  await run(() => store.invite(email), `L’invitation est envoyée à ${email}.`)
   if (store.error === null) inviteEmail.value = ''
 }
 
@@ -74,7 +74,7 @@ async function leave(): Promise<void> {
 }
 
 async function dissolve(): Promise<void> {
-  await run(() => store.dissolve(), 'Foyer dissous.')
+  await run(() => store.dissolve(), 'Le foyer est supprimé.')
 }
 
 const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
@@ -90,7 +90,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
         title="Serveur injoignable"
       >
         <p class="household__text">
-          Le foyer se consulte en ligne, et le serveur ne répond pas pour l’instant.
+          Le foyer ne marche qu’avec Internet. Le serveur ne répond pas pour le moment.
         </p>
         <BaseButton
           variant="secondary"
@@ -102,8 +102,8 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
 
       <BaseCard
         v-else
-        title="Un foyer demande un compte"
-        subtitle="Vous avez reçu une invitation ? Connectez-vous avec l’adresse qui l’a reçue."
+        title="Il faut un compte pour avoir un foyer"
+        subtitle="Vous avez reçu une invitation ? Connectez-vous avec l’adresse e-mail qui l’a reçue."
       >
         <div class="household__actions">
           <BaseButton @click="router.push(signInLink)">
@@ -134,7 +134,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
         title="Serveur injoignable"
       >
         <p class="household__text">
-          Le foyer se consulte en ligne, et le serveur ne répond pas pour l’instant.
+          Le foyer ne marche qu’avec Internet. Le serveur ne répond pas pour le moment.
         </p>
         <BaseButton
           variant="secondary"
@@ -163,7 +163,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
       <template v-else-if="household">
         <BaseCard
           :title="household.name"
-          :subtitle="household.role === 'owner' ? 'Vous en êtes le propriétaire.' : 'Vous en êtes membre.'"
+          :subtitle="household.role === 'owner' ? 'Vous êtes responsable de ce foyer.' : 'Vous faites partie de ce foyer.'"
         >
           <h3 class="household__heading">
             Membres ({{ household.members.length }})
@@ -198,10 +198,10 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
           </ul>
 
           <p class="household__note">
-            Vos journées sont
-            <strong>{{ household.sharesDays ? 'partagées' : 'privées' }}</strong>.
+            Le foyer
+            <strong>{{ household.sharesDays ? 'voit' : 'ne voit pas' }}</strong> vos journées.
             <RouterLink :to="{ name: ROUTE.settings }">
-              Modifier dans les réglages
+              Changer dans les réglages
             </RouterLink>
           </p>
         </BaseCard>
@@ -209,7 +209,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
         <BaseCard
           v-if="store.isOwner"
           title="Inviter"
-          subtitle="La personne reçoit un e-mail, et rejoint le foyer si elle accepte."
+          subtitle="La personne reçoit un e-mail. Elle rejoint le foyer si elle accepte."
         >
           <form
             class="household__form"
@@ -244,16 +244,16 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
               >
                 <span class="household__who">
                   <strong>{{ invitation.email }}</strong>
-                  <small>jusqu’au {{ formatDay(invitation.expiresAt) }}</small>
+                  <small>valable jusqu’au {{ formatDay(invitation.expiresAt) }}</small>
                 </span>
                 <ConfirmButton
                   size="sm"
                   :question="`Annuler l’invitation de ${invitation.email} ?`"
                   confirm-label="Annuler l’invitation"
                   cancel-label="La garder"
-                  @confirm="run(() => store.revoke(invitation.id), 'Invitation annulée.')"
+                  @confirm="run(() => store.revoke(invitation.id), 'L’invitation est annulée.')"
                 >
-                  Révoquer
+                  Annuler l’invitation
                 </ConfirmButton>
               </li>
             </ul>
@@ -263,7 +263,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
         <BaseCard
           v-if="store.invitations.length > 0"
           title="Autres invitations"
-          subtitle="Un compte n’appartient qu’à un foyer : pour en rejoindre un autre, quittez d’abord celui-ci."
+          subtitle="On ne peut faire partie que d’un seul foyer. Pour en rejoindre un autre, quittez d’abord celui-ci."
         >
           <ul class="household__list">
             <li
@@ -280,19 +280,19 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
 
         <BaseCard
           v-if="store.isOwner"
-          title="Dissoudre le foyer"
+          title="Supprimer le foyer"
         >
           <p class="household__text">
-            Chaque membre redevient seul, et les invitations en attente sont annulées. Les repas
-            et les profils de chacun ne sont pas touchés.
+            Le foyer disparaît pour tous ses membres. Les invitations sont annulées. Les repas et
+            les profils de chacun ne changent pas.
           </p>
           <ConfirmButton
-            :question="`Dissoudre « ${household.name} » pour tous ses membres ?`"
-            confirm-label="Dissoudre"
+            :question="`Supprimer « ${household.name} » pour tous ses membres ?`"
+            confirm-label="Supprimer le foyer"
             :loading="busy"
             @confirm="dissolve"
           >
-            Dissoudre le foyer
+            Supprimer le foyer
           </ConfirmButton>
         </BaseCard>
 
@@ -328,7 +328,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
             >
               <span class="household__who">
                 <strong>{{ invitation.householdName }}</strong>
-                <small>de {{ invitation.invitedBy }}, jusqu’au {{ formatDay(invitation.expiresAt) }}</small>
+                <small>de {{ invitation.invitedBy }}, valable jusqu’au {{ formatDay(invitation.expiresAt) }}</small>
               </span>
               <BaseButton
                 size="sm"
@@ -342,11 +342,11 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
 
         <BaseCard
           title="Créer un foyer"
-          subtitle="Vous en serez le propriétaire : vous seul y inviterez et en retirerez des membres."
+          subtitle="Vous serez responsable du foyer. Vous seul pourrez inviter ou retirer des personnes."
         >
           <p class="household__text">
-            Dans un foyer, chacun voit les repas et les jauges des autres, et peut prévoir un repas
-            pour plusieurs. Les mensurations restent privées.
+            Dans un foyer, chacun voit les repas et les jauges des autres. Chacun peut prévoir un
+            repas pour plusieurs personnes. La taille, le poids et l’âge restent privés.
           </p>
           <form
             class="household__form"
@@ -356,7 +356,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
             <BaseField
               v-model="name"
               label="Nom du foyer"
-              :hint="`Par exemple « Les Martin ». ${HOUSEHOLD_NAME_MAX_LENGTH} caractères au plus.`"
+              :hint="`Par exemple : Les Martin. ${HOUSEHOLD_NAME_MAX_LENGTH} lettres au plus.`"
               autocomplete="off"
               required
             />

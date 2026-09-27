@@ -12,7 +12,7 @@ describe('useAccountFormErrors', () => {
       errorOf('INVALID_EMAIL'),
     )
 
-    expect(emailError.value).toContain('Adresse e-mail invalide')
+    expect(emailError.value).toContain('Cette adresse e-mail n’est pas correcte')
     expect(passwordError.value).toBeUndefined()
     expect(formError.value).toBeNull()
   })
@@ -20,7 +20,7 @@ describe('useAccountFormErrors', () => {
   it('place un mot de passe trop court sous son champ', () => {
     const { passwordError, formError } = useAccountFormErrors(() => errorOf('WEAK_PASSWORD'))
 
-    expect(passwordError.value).toContain('12 caractères minimum')
+    expect(passwordError.value).toContain('au moins 12 caractères')
     expect(formError.value).toBeNull()
   })
 

@@ -121,11 +121,11 @@ watch(
       Comme la dernière fois : {{ formatPortion(recentPortion.amount, recentPortion.measure) }}
     </button>
 
+    <!-- Des boutons radio natifs, sous la légende « Quantité » du fieldset :
+         aucun rôle ARIA à ajouter, le groupe est déjà nommé. -->
     <div
       v-if="food.measures.length > 1"
       class="portion__measures"
-      role="radiogroup"
-      aria-label="Unité"
     >
       <label
         v-for="option in food.measures"
@@ -151,7 +151,7 @@ watch(
         @click="stepBy(-1)"
       >
         <span aria-hidden="true">−</span>
-        <span class="sr-only">Diminuer</span>
+        <span class="sr-only">Diminuer la quantité</span>
       </button>
       <label class="portion__field">
         <span class="sr-only">Quantité en {{ measure.label }}</span>
@@ -170,7 +170,7 @@ watch(
         @click="stepBy(1)"
       >
         <span aria-hidden="true">+</span>
-        <span class="sr-only">Augmenter</span>
+        <span class="sr-only">Augmenter la quantité</span>
       </button>
     </div>
 

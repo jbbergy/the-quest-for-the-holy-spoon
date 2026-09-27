@@ -7,6 +7,10 @@ export const DietaryRestriction = {
   VEGETARIAN: 'VEGETARIAN',
   VEGAN: 'VEGAN',
   PESCATARIAN: 'PESCATARIAN',
+  PORK_FREE: 'PORK_FREE',
+  BEEF_FREE: 'BEEF_FREE',
+  SHELLFISH_FREE: 'SHELLFISH_FREE',
+  ALCOHOL_FREE: 'ALCOHOL_FREE',
 } as const
 export type DietaryRestriction = (typeof DietaryRestriction)[keyof typeof DietaryRestriction]
 

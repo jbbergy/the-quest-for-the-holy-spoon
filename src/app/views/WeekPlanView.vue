@@ -2,11 +2,11 @@
 /**
  * La semaine : ce qui est prévu, ce qui a été mangé, jour par jour.
  *
- * Cet écran remplace le journal. Les jours passés y montrent ce qui a été pris,
+ * Cet écran remplace le journal. Les jours passés y montrent ce qui a été mangé,
  * les jours à venir ce qui est prévu — une seule liste, un seul endroit où les
  * repas se composent, se corrigent et se suppriment.
  *
- * « Pris » n'est proposé qu'aujourd'hui et avant : le domaine refuse de compter
+ * « Mangé » n'est proposé qu'aujourd'hui et avant : le domaine refuse de compter
  * un repas dans une journée qui n'a pas encore eu lieu, et un bouton qui
  * échouerait à coup sûr n'a pas sa place à l'écran.
  */
@@ -19,6 +19,7 @@ import { useTodayStore } from '@/app/day/useTodayStore'
 import { memberName, useHousehold } from '@/app/useHousehold'
 import { useOpenDaysStore } from '@/app/useOpenDays'
 import { useSyncStatus } from '@/app/sync/useSyncStatus'
+import { useReturnQuery } from '@/app/useBackLink'
 import { addDays, type DayKey, startOfWeek } from '@/core/day'
 import type { MealId } from '@/core/identity'
 import { type MealSummary, MealType, type PlannedDay } from '@/modules/nutrition_inventory/application'
@@ -34,6 +35,7 @@ const players = usePlayerStore()
 const week = useWeekPlanStore()
 const household = useHousehold()
 const openDays = useOpenDaysStore()
+const returnQuery = useReturnQuery()
 
 const clock = useTodayStore()
 /** Journée en cours, selon l'heure de début choisie ; bascule sans rechargement. */
@@ -78,7 +80,7 @@ function nextMealType(day: PlannedDay): MealType {
 async function addMeal(day: PlannedDay): Promise<void> {
   await router.push({
     name: ROUTE.mealEditor,
-    query: { jour: day.day, type: nextMealType(day) },
+    query: { jour: day.day, type: nextMealType(day), ...returnQuery.value },
   })
 }
 
@@ -97,7 +99,8 @@ function dayTitle(day: DayKey): string {
 }
 
 function subtitle(day: PlannedDay): string {
-  const total = day.meals.length === 0 ? 'Rien de prévu' : `${Math.round(day.plannedCalories)} kcal`
+  const total =
+    day.meals.length === 0 ? 'Aucun repas prévu' : `${Math.round(day.plannedCalories)} kcal au total`
   return day.day === today.value ? `Aujourd’hui · ${total}` : total
 }
 </script>
@@ -142,7 +145,7 @@ function subtitle(day: PlannedDay): string {
       size="sm"
       @click="load(today)"
     >
-      Revenir à cette semaine
+      Revenir à la semaine en cours
     </BaseButton>
 
     <ErrorNotice :error="week.error" />
@@ -171,7 +174,7 @@ function subtitle(day: PlannedDay): string {
             >
               <RouterLink
                 class="week__meal-link"
-                :to="{ name: ROUTE.mealEditor, params: { mealId: meal.mealId } }"
+                :to="{ name: ROUTE.mealEditor, params: { mealId: meal.mealId }, query: returnQuery }"
               >
                 <span class="week__meal-type">{{ mealLabel(meal.type) }}</span>
                 <span class="week__meal-foods">
@@ -181,7 +184,7 @@ function subtitle(day: PlannedDay): string {
                 <span
                   v-if="meal.plannedBy"
                   class="week__meal-by"
-                >Prévu par {{ memberName(household.household, meal.plannedBy) ?? 'un membre du foyer' }}</span>
+                >Prévu pour vous par {{ memberName(household.household, meal.plannedBy) ?? 'un membre du foyer' }}</span>
                 <span class="sr-only"> — modifier</span>
               </RouterLink>
 

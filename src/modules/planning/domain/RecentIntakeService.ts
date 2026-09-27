@@ -60,13 +60,20 @@ export interface DailyIntake {
 export interface NutrientAverage {
   readonly nutrient: Nutrient
   readonly kind: NutrientKind
-  /** Besoin (ou limite) habituel. */
+  /** Besoin (ou limite) du jour observé. */
   readonly base: number
   /** Apport moyen par jour renseigné ; `null` quand aucun jour ne l'est. */
   readonly average: number | null
-  /** `average − base` : négatif en deçà du repère, positif au-delà. */
+  /**
+   * Écart moyen au repère, chaque jour comparé à **son** repère : négatif en
+   * deçà, positif au-delà. Égal à `average − base` tant que les besoins n'ont
+   * pas changé pendant la période.
+   */
   readonly gap: number | null
 }
+
+/** Repères d'un jour : ceux qui valaient ce jour-là, le profil ayant pu changer depuis. */
+export type BaseOn = (day: DayKey) => NutrientValues
 
 /** Bilan d'un des jours de la période, pour montrer d'où vient la moyenne. */
 export interface DayBalance {
@@ -90,49 +97,54 @@ export const RecentIntakeService = {
   /**
    * Moyennes des sept jours qui précèdent `day`.
    *
+   * `baseOn` donne les repères de chaque jour : un jour passé se compare aux
+   * besoins qu'on avait alors, pas à ceux d'aujourd'hui.
+   *
    * `history` peut contenir n'importe quels jours : ceux hors de la période, et
    * le jour lui-même, sont ignorés — la journée en cours n'est pas finie, et
    * la jauge du jour la montre déjà.
    */
   summarize(
     day: DayKey,
-    base: NutrientValues,
+    baseOn: BaseOn,
     history: readonly DailyIntake[],
   ): Result<RecentIntake, InvalidNutritionalNeedsError> {
-    const invalid = validateBase(base)
-    if (invalid !== null) return err(invalid)
+    const days = recentDaysBefore(day)
+    const base = baseOn(day)
+    for (const checked of [day, ...days]) {
+      const invalid = validateBase(baseOn(checked))
+      if (invalid !== null) return err(invalid)
+    }
 
     const intakeByDay = new Map(history.map((intake) => [intake.day, intake.values]))
-    const days = recentDaysBefore(day)
     const tracked = days.flatMap((recent) => {
       const intake = intakeByDay.get(recent)
-      return intake === undefined ? [] : [intake]
+      return intake === undefined ? [] : [{ intake, gap: gapOf(intake, baseOn(recent)) }]
     })
 
+    const mean = (pick: (entry: (typeof tracked)[number]) => number): number | null =>
+      tracked.length === 0
+        ? null
+        : tracked.reduce((sum, entry) => sum + pick(entry), 0) / tracked.length
+
     const nutrients = Object.fromEntries(
-      NUTRIENTS.map((nutrient) => {
-        const average =
-          tracked.length === 0
-            ? null
-            : tracked.reduce((sum, intake) => sum + intake[nutrient], 0) / tracked.length
-        return [
+      NUTRIENTS.map((nutrient) => [
+        nutrient,
+        {
           nutrient,
-          {
-            nutrient,
-            kind: NUTRIENT_KIND[nutrient],
-            base: base[nutrient],
-            average,
-            gap: average === null ? null : average - base[nutrient],
-          },
-        ]
-      }),
+          kind: NUTRIENT_KIND[nutrient],
+          base: base[nutrient],
+          average: mean((entry) => entry.intake[nutrient]),
+          gap: mean((entry) => entry.gap[nutrient]),
+        },
+      ]),
     ) as Record<Nutrient, NutrientAverage>
 
     const recentDays = days.map((recent) => {
       const intake = intakeByDay.get(recent)
       return intake === undefined
         ? { day: recent, tracked: false, gap: null }
-        : { day: recent, tracked: true, gap: gapOf(intake, base) }
+        : { day: recent, tracked: true, gap: gapOf(intake, baseOn(recent)) }
     })
 
     return ok({ day, trackedDays: tracked.length, nutrients, recentDays })

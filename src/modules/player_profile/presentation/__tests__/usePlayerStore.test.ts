@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { DayKey } from '@/core/day'
+
 import {
   createFakeContainer,
   failsWith,
@@ -187,7 +189,7 @@ describe('usePlayerStore', () => {
       await store.load()
       const before = store.player
 
-      await store.update({ activityLevel: ActivityLevel.SEDENTARY })
+      await store.update({ activityLevel: ActivityLevel.SEDENTARY }, '2026-09-27' as DayKey)
 
       // C'est cette réassignation que les watchers GSAP observeront en phase 5 :
       // une mutation interne ne déclencherait rien.
@@ -207,7 +209,7 @@ describe('usePlayerStore', () => {
       await store.load()
       const before = store.needs!.targetCalories
 
-      await store.update({ activityLevel: ActivityLevel.SEDENTARY })
+      await store.update({ activityLevel: ActivityLevel.SEDENTARY }, '2026-09-27' as DayKey)
 
       expect(store.needs!.targetCalories).toBeLessThan(before)
     })

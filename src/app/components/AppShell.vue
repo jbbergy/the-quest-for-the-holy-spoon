@@ -14,6 +14,7 @@ import { useRoute } from 'vue-router'
 import ServiceWorkerNotice from '@/app/components/ServiceWorkerNotice.vue'
 import SyncIndicator from '@/app/components/SyncIndicator.vue'
 import { ACCOUNT_ROUTES, ROUTE } from '@/app/router'
+import { pageTitle } from '@/app/pageTitle'
 import { useHousehold } from '@/app/useHousehold'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 
@@ -40,6 +41,7 @@ interface NavLink {
   readonly name: string
   readonly label: string
   readonly icon: string
+  /** Écrans qui dépendent de cet onglet : il reste allumé quand on y est. */
   readonly also: readonly string[]
 }
 
@@ -50,7 +52,7 @@ const SETTINGS: NavLink = {
   name: ROUTE.settings,
   label: 'Réglages',
   icon: '⚙',
-  also: [ROUTE.foods, ROUTE.foodDetail, ROUTE.foodEdit],
+  also: [ROUTE.foods, ROUTE.foodDetail, ROUTE.foodEdit, ROUTE.customFood, ROUTE.profileEdit],
 }
 
 /** Le foyer n'existe qu'avec un compte : sans session, l'onglet n'aurait rien à montrer. */
@@ -84,11 +86,18 @@ const BARE_ROUTES: readonly string[] = [
 ]
 const isBare = computed(() => BARE_ROUTES.includes(String(route.name)))
 
+/**
+ * Annonce l'écran atteint, **quel qu'il soit** : un repas, une fiche
+ * d'aliment ou une invitation ne sont pas moins des pages que les onglets.
+ * Le titre est lu après le rendu, une fois que l'écran a pu le préciser
+ * (`usePageTitle`) ; vidé d'abord, pour qu'un même titre soit redit.
+ */
 watch(
   () => route.name,
-  async (name, previous) => {
-    const link = links.value.find((entry) => entry.name === name)
-    announcement.value = link === undefined ? '' : `${link.label} — page chargée`
+  async (_name, previous) => {
+    announcement.value = ''
+    await nextTick()
+    announcement.value = pageTitle.value === '' ? '' : `${pageTitle.value}, page affichée`
 
     /**
      * Replace le focus au début du contenu après une navigation **de
@@ -107,7 +116,6 @@ watch(
      */
     if (previous === undefined || previous === ROUTE.splash) return
 
-    await nextTick()
     main.value?.focus({ preventScroll: true })
   },
 )
@@ -242,7 +250,7 @@ watch(
   border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
-  font-size: 0.7rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   line-height: 1.1rem;
   text-align: center;

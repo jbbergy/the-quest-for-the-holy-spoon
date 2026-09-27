@@ -31,7 +31,7 @@ const intake = (ago: number, values: Partial<NutrientValues> = {}): DailyIntake 
 })
 
 const summarize = (history: readonly DailyIntake[]): RecentIntake => {
-  const result = RecentIntakeService.summarize(today, base, history)
+  const result = RecentIntakeService.summarize(today, () => base, history)
   if (!result.ok) throw new Error(result.error.message)
   return result.value
 }
@@ -108,17 +108,58 @@ describe('RecentIntakeService', () => {
     })
   })
 
+  describe('besoins qui changent', () => {
+    // Le profil a changé il y a trois jours : avant, le besoin était de 2 400 kcal.
+    const baseOn = (day: DayKey): NutrientValues =>
+      day <= daysAgo(3) ? { ...base, calories: 2400 } : base
+    const summarizeWith = (history: readonly DailyIntake[]) => {
+      const result = RecentIntakeService.summarize(today, baseOn, history)
+      if (!result.ok) throw new Error(result.error.message)
+      return result.value
+    }
+
+    it('juge chaque jour avec les besoins qu’il avait', () => {
+      const { recentDays } = summarizeWith([
+        intake(4, { calories: 2400 }),
+        intake(1, { calories: 2000 }),
+      ])
+
+      expect(recentDays.find((day) => day.day === daysAgo(4))?.gap?.calories).toBe(0)
+      expect(recentDays.find((day) => day.day === daysAgo(1))?.gap?.calories).toBe(0)
+    })
+
+    it('fait la moyenne des écarts de chaque jour, pas l’écart de la moyenne', () => {
+      const { nutrients } = summarizeWith([
+        intake(4, { calories: 2400 }),
+        intake(1, { calories: 2000 }),
+      ])
+
+      // Deux journées à l'équilibre : la moyenne, 2 200 kcal, dépasse le besoin
+      // d'aujourd'hui, mais aucun jour n'a été en excès.
+      expect(nutrients.calories.average).toBe(2200)
+      expect(nutrients.calories.base).toBe(2000)
+      expect(nutrients.calories.gap).toBe(0)
+    })
+
+    it('refuse un repère invalide dans la période', () => {
+      const broken = (day: DayKey): NutrientValues =>
+        day === daysAgo(5) ? { ...base, calories: -1 } : base
+
+      expect(isErr(RecentIntakeService.summarize(today, broken, []))).toBe(true)
+    })
+  })
+
   describe('validation', () => {
     it('refuse une cible calorique nulle', () => {
-      const result = RecentIntakeService.summarize(today, { ...base, calories: 0 }, [])
+      const result = RecentIntakeService.summarize(today, () => ({ ...base, calories: 0 }), [])
 
       expect(isErr(result)).toBe(true)
       if (!result.ok) expect(result.error.code).toBe('INVALID_NUTRITIONAL_NEEDS')
     })
 
     it('refuse un repère négatif ou non fini', () => {
-      expect(isErr(RecentIntakeService.summarize(today, { ...base, saltG: -1 }, []))).toBe(true)
-      expect(isErr(RecentIntakeService.summarize(today, { ...base, fiberG: NaN }, []))).toBe(true)
+      expect(isErr(RecentIntakeService.summarize(today, () => ({ ...base, saltG: -1 }), []))).toBe(true)
+      expect(isErr(RecentIntakeService.summarize(today, () => ({ ...base, fiberG: NaN }), []))).toBe(true)
     })
   })
 })

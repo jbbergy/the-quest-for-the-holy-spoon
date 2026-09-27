@@ -62,17 +62,18 @@ export function formatPortion(amount: number, measure: Measure): string {
 
 /**
  * Poids ou volume d'une quantité, dans l'unité de base de la fiche : « 50 g »,
- * « 200 ml », précédé de « ≈ » quand la mesure n'est qu'une moyenne.
+ * « 200 ml », précédé de « environ » quand la mesure n'est qu'une moyenne — en
+ * toutes lettres : « ≈ » ne se lit pas pour tout le monde.
  */
 export function formatWeight(grams: number, measure: Measure, base: Measure = GRAM): string {
   const value = number.format(Math.round(grams / base.grams))
-  return `${measure.approximate ? '≈ ' : ''}${value} ${base.label}`
+  return `${measure.approximate ? 'environ ' : ''}${value} ${base.label}`
 }
 
-/** Nom d'une mesure dans un choix : « g », « tranche · 25 g », « verre · ≈ 200 ml ». */
+/** Nom d'une mesure dans un choix : « g », « tranche (25 g) », « verre (environ 200 ml) ». */
 export function measureOptionLabel(measure: Measure, base: Measure = GRAM): string {
   if (!measure.countable) return measure.label
-  return `${measure.label} · ${formatWeight(measure.grams, measure, base)}`
+  return `${measure.label} (${formatWeight(measure.grams, measure, base)})`
 }
 
 /** Base des valeurs nutritionnelles d'une fiche : « 100 ml » seulement si elle y est exprimée. */

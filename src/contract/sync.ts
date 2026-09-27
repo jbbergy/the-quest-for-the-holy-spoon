@@ -67,10 +67,7 @@ export type PullResponse = z.infer<typeof pullResponseSchema>
  * mensurations, qui restent dans l'entité `player`, lisible par son seul compte.
  */
 const grams = z.number().min(0)
-export const sharedNeedsSchema = z.object({
-  id: z.string().min(1),
-  playerId: z.string().min(1),
-  name: z.string(),
+const needsValues = {
   targetCalories: z.number().positive(),
   targetMacros: z.object({ proteinG: grams, carbsG: grams, fatG: grams }),
   referenceNutrients: z.object({
@@ -79,5 +76,19 @@ export const sharedNeedsSchema = z.object({
     saturatedFatG: grams,
     saltG: grams,
   }),
+}
+export const sharedNeedsSchema = z.object({
+  id: z.string().min(1),
+  playerId: z.string().min(1),
+  name: z.string(),
+  ...needsValues,
+  /**
+   * Besoins des jours passés, pour juger ces jours avec les besoins d'alors.
+   * Facultatif : les besoins publiés avant l'historique n'en ont pas.
+   */
+  history: z
+    .array(z.object({ until: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), ...needsValues }))
+    .max(64)
+    .optional(),
 })
 export type SharedNeeds = z.infer<typeof sharedNeedsSchema>

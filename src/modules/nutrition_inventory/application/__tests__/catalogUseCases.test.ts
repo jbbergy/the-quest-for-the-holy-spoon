@@ -96,6 +96,48 @@ describe('FindFoodUseCase', () => {
     })
   })
 
+  describe('régimes', () => {
+    const tagged = (name: string, ...tags: FoodTag[]): FoodItem =>
+      FoodItem.reconstitute({
+        id: idFrom(`f:${name}`),
+        name,
+        macrosPer100g: Macros.reconstitute({ proteinG: 5, carbsG: 10, fatG: 2 }),
+        source: FoodSource.CIQUAL,
+        tags,
+      })
+
+    it('met à part ce qui ne convient pas, sans rien perdre', async () => {
+      unwrap(
+        await foods.saveMany([
+          tagged('Salade de poulet', FoodTag.CONTAINS_MEAT),
+          tagged('Salade de pois chiches'),
+          tagged('Salade de saumon', FoodTag.CONTAINS_FISH),
+        ]),
+      )
+
+      const found = unwrap(
+        await finder(remoteReturning(ok(null)), false).execute('salade', {
+          diets: ['PESCATARIAN'],
+        }),
+      )
+
+      expect(found.items.map((item) => item.name)).toEqual([
+        'Salade de pois chiches',
+        'Salade de saumon',
+      ])
+      expect(found.excluded.map((item) => item.name)).toEqual(['Salade de poulet'])
+    })
+
+    it('ne met rien à part sans régime', async () => {
+      unwrap(await foods.save(tagged('Poulet rôti', FoodTag.CONTAINS_MEAT)))
+
+      const found = unwrap(await finder(remoteReturning(ok(null)), false).execute('poulet'))
+
+      expect(found.items).toHaveLength(1)
+      expect(found.excluded).toEqual([])
+    })
+  })
+
   describe('fusion des deux catalogues', () => {
     it('réunit le local et le distant sur une recherche par nom', async () => {
       await foods.saveMany([foodOf('Blanc de poulet'), foodOf('Riz cuit')])

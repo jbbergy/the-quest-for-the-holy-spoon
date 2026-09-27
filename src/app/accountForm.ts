@@ -5,7 +5,7 @@ import type { ErrorView } from '@/core/errors'
 import { PASSWORD_MIN_LENGTH } from '@/modules/account/domain/PasswordPolicy'
 
 /** Aide affichée sous tout champ de nouveau mot de passe. */
-export const NEW_PASSWORD_HINT = `${PASSWORD_MIN_LENGTH} caractères minimum, sans autre contrainte. Une phrase de quelques mots est idéale.`
+export const NEW_PASSWORD_HINT = `Au moins ${PASSWORD_MIN_LENGTH} caractères. Le plus simple : une petite phrase de quelques mots.`
 
 /**
  * Répartit une erreur de compte entre les champs et le bandeau.
@@ -25,12 +25,12 @@ export function useAccountFormErrors(error: () => ErrorView | null): {
   return {
     emailError: computed(() =>
       code.value === 'INVALID_EMAIL'
-        ? 'Adresse e-mail invalide. Exemple : camille@exemple.fr'
+        ? 'Cette adresse e-mail n’est pas correcte. Par exemple : camille@exemple.fr'
         : undefined,
     ),
     passwordError: computed(() =>
       code.value === 'WEAK_PASSWORD'
-        ? `Mot de passe trop court : ${PASSWORD_MIN_LENGTH} caractères minimum.`
+        ? `Ce mot de passe est trop court. Il faut au moins ${PASSWORD_MIN_LENGTH} caractères.`
         : undefined,
     ),
     formError: computed(() =>

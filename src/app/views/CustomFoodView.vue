@@ -15,8 +15,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { type RouteLocationRaw, useRoute, useRouter } from 'vue-router'
 
-import { TAG_OPTIONS } from '@/app/foodTags'
+import { CONTAINS_OPTIONS, SUITS_OPTIONS } from '@/app/foodTags'
 import { ROUTE } from '@/app/router'
+import { useBackLink } from '@/app/useBackLink'
 import type { FoodItemId } from '@/core/identity'
 import { KCAL_PER_GRAM } from '@/core/nutrition/Macros'
 import type { CustomFoodInput } from '@/modules/nutrition_inventory/application'
@@ -41,6 +42,19 @@ const players = usePlayerStore()
 const editedId = computed(() =>
   route.name === ROUTE.foodEdit ? (route.params.foodId as FoodItemId) : null,
 )
+/**
+ * Le chemin du retour : le repas d'où l'on vient (`?retour=`), sinon la fiche
+ * modifiée, sinon la liste de ses aliments.
+ */
+const back = useBackLink(
+  route.name === ROUTE.foodEdit
+    ? {
+        to: { name: ROUTE.foodDetail, params: { foodId: String(route.params.foodId) } },
+        label: 'Aliment',
+      }
+    : { to: { name: ROUTE.foods }, label: 'Mes aliments' },
+)
+
 /** Fiche introuvable ou pas à soi : le formulaire n'a alors rien à proposer. */
 const unavailable = ref(false)
 
@@ -79,8 +93,8 @@ let nextServingId = 0
 const submitting = ref(false)
 
 const UNIT_OPTIONS = [
-  { value: BaseUnit.GRAM, label: 'Solide, en grammes' },
-  { value: BaseUnit.MILLILITRE, label: 'Liquide, en millilitres' },
+  { value: BaseUnit.GRAM, label: 'Solide', hint: 'Se pèse en grammes' },
+  { value: BaseUnit.MILLILITRE, label: 'Liquide', hint: 'Se mesure en millilitres' },
 ] as const
 
 function addServing(): void {
@@ -99,7 +113,11 @@ const calories = computed(
     fatG.value * KCAL_PER_GRAM.fat,
 )
 
-const canSubmit = computed(() => name.value.trim().length > 0 && !submitting.value)
+/**
+ * Message du nom manquant, montré à l'envoi : un bouton grisé ne dit pas ce
+ * qui manque (critère 3.3.1).
+ */
+const nameError = ref('')
 /** À la création, l'erreur vient de la recherche ; à la relecture ou la modification, du catalogue. */
 const error = computed(() => (editedId.value === null ? search.error : null) ?? catalog.error)
 
@@ -171,6 +189,12 @@ function input(): CustomFoodInput {
 }
 
 async function submit(): Promise<void> {
+  if (name.value.trim() === '') {
+    nameError.value = 'Écrivez le nom de l’aliment.'
+    document.querySelector<HTMLElement>('.custom [aria-invalid="true"]')?.focus()
+    return
+  }
+  nameError.value = ''
   submitting.value = true
   const id = editedId.value
   const saved =
@@ -183,26 +207,33 @@ async function submit(): Promise<void> {
   await router.push(id === null ? returnTo(saved.id) : { name: ROUTE.foodDetail, params: { foodId: id } })
 }
 
-const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modifier l’aliment'))
+const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'Modifier l’aliment'))
 </script>
 
 <template>
   <div class="custom">
+    <RouterLink
+      class="custom__back"
+      :to="back.to"
+    >
+      <span aria-hidden="true">←</span> {{ back.label }}
+    </RouterLink>
+
     <h1>{{ title }}</h1>
 
     <ErrorNotice :error="error" />
 
     <EmptyState
       v-if="unavailable"
-      title="Cet aliment ne peut pas être modifié ici"
-      description="Il n’existe plus, ou il appartient à un autre membre du foyer."
+      title="Vous ne pouvez pas modifier cet aliment."
+      description="Il a été supprimé, ou un autre membre du foyer l’a créé. Seule la personne qui l’a créé peut le modifier."
     />
 
     <p
       v-if="!unavailable"
       class="custom__intro"
     >
-      Renseignez les valeurs <strong>pour 100 {{ unit }}</strong>, telles qu’indiquées sur l’emballage.
+      Écrivez les valeurs <strong>pour 100 {{ unit }}</strong>, comme sur l’emballage.
     </p>
 
     <form
@@ -211,25 +242,26 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
       novalidate
       @submit.prevent="submit"
     >
-      <BaseCard title="Identification">
+      <BaseCard title="Nom">
         <BaseField
           v-model="name"
-          label="Nom"
+          label="Nom de l’aliment"
+          hint="Par exemple : Tarte aux pommes de mamie."
           required
-          placeholder="Tarte aux pommes maison"
+          v-bind="nameError === '' ? {} : { error: nameError }"
+          @update:model-value="nameError = ''"
         />
         <BaseField
           v-model="barcode"
           label="Code-barres"
-          hint="Facultatif — 8 à 14 chiffres, pour retrouver la fiche au scan."
-          placeholder="3017620422003"
+          hint="Facultatif. Le numéro écrit sous les barres, sur l’emballage (8 à 14 chiffres)."
         />
       </BaseCard>
 
-      <BaseCard title="Mesure">
+      <BaseCard title="Solide ou liquide ?">
         <fieldset class="custom__fieldset">
           <legend class="sr-only">
-            Unité de l’aliment
+            Solide ou liquide ?
           </legend>
           <div class="custom__choices">
             <label
@@ -243,15 +275,18 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
                 name="unit"
                 :value="option.value"
               >
-              <span>{{ option.label }}</span>
+              <span>
+                <strong>{{ option.label }}</strong>
+                <small>{{ option.hint }}</small>
+              </span>
             </label>
           </div>
         </fieldset>
       </BaseCard>
 
       <BaseCard
-        :title="`Valeurs pour 100 ${unit}`"
-        :subtitle="`Soit ${Math.round(calories)} kcal`"
+        :title="`Pour 100 ${unit}`"
+        :subtitle="`Cela fait ${Math.round(calories)} kcal.`"
       >
         <div class="custom__grid">
           <BaseField
@@ -282,8 +317,8 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
       </BaseCard>
 
       <BaseCard
-        title="Détail nutritionnel"
-        subtitle="Facultatif — ce qui reste à zéro n’alimente simplement aucune jauge."
+        title="Autres valeurs"
+        subtitle="Facultatif. Laissez 0 si vous ne savez pas."
       >
         <div class="custom__grid">
           <BaseField
@@ -296,7 +331,8 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
           />
           <BaseField
             v-model="sugarsG"
-            label="dont sucres"
+            label="Sucres"
+            hint="Ils font partie des glucides."
             type="number"
             suffix="g"
             :min="0"
@@ -304,7 +340,8 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
           />
           <BaseField
             v-model="saturatedFatG"
-            label="dont AG saturés"
+            label="Graisses saturées"
+            hint="Elles font partie des lipides."
             type="number"
             suffix="g"
             :min="0"
@@ -323,7 +360,7 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
 
       <BaseCard
         title="Portions"
-        subtitle="Facultatif — pour saisir « 2 parts » plutôt que peser."
+        subtitle="Facultatif. Par exemple : 1 part = 120 g. Vous pourrez ensuite noter « 2 parts » au lieu de peser."
       >
         <ul
           v-if="servings.length > 0"
@@ -336,12 +373,12 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
           >
             <BaseField
               v-model="serving.label"
-              :label="`Portion ${index + 1}`"
-              placeholder="part"
+              :label="`Nom de la portion ${index + 1}`"
+              hint="Par exemple : part."
             />
             <BaseField
               v-model="serving.amount"
-              label="Contenance"
+              :label="unit === 'ml' ? 'Volume' : 'Poids'"
               type="number"
               :suffix="unit"
               :min="0"
@@ -368,16 +405,36 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
       </BaseCard>
 
       <BaseCard
-        title="Marqueurs"
-        subtitle="Facultatif — servent à écarter l’aliment d’un régime incompatible."
+        title="Régimes"
+        subtitle="Facultatif. L’aliment sera masqué pour les personnes dont le régime ne lui convient pas."
       >
         <fieldset class="custom__fieldset">
-          <legend class="sr-only">
-            Marqueurs diététiques
+          <legend class="custom__legend">
+            Cet aliment contient :
           </legend>
           <div class="custom__choices">
             <label
-              v-for="option in TAG_OPTIONS"
+              v-for="option in CONTAINS_OPTIONS"
+              :key="option.value"
+              class="choice"
+            >
+              <input
+                type="checkbox"
+                :value="option.value"
+                :checked="tags.includes(option.value)"
+                @change="toggleTag(option.value)"
+              >
+              <span>{{ option.label }}</span>
+            </label>
+          </div>
+        </fieldset>
+        <fieldset class="custom__fieldset">
+          <legend class="custom__legend">
+            Cet aliment convient à un régime :
+          </legend>
+          <div class="custom__choices">
+            <label
+              v-for="option in SUITS_OPTIONS"
               :key="option.value"
               class="choice"
             >
@@ -396,7 +453,6 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
       <BaseButton
         type="submit"
         block
-        :disabled="!canSubmit"
         :loading="submitting"
       >
         {{ editedId === null ? 'Créer l’aliment' : 'Enregistrer' }}
@@ -412,8 +468,28 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
   gap: var(--space-4);
 }
 
+.custom__back {
+  align-self: flex-start;
+}
+
+.custom h1,
+.custom__intro {
+  margin: 0;
+}
+
 .custom__intro {
   color: var(--color-text-muted);
+}
+
+.custom__legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.custom__fieldset + .custom__fieldset {
+  margin-top: var(--space-4);
 }
 
 .custom__form {
@@ -468,7 +544,19 @@ const title = computed(() => (editedId.value === null ? 'Nouvel aliment' : 'Modi
   cursor: pointer;
 }
 
+.choice span {
+  display: flex;
+  flex-direction: column;
+}
+
+.choice small {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+}
+
 .choice input {
+  flex: none;
   accent-color: var(--color-accent);
   width: 1.15rem;
   height: 1.15rem;

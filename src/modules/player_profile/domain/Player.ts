@@ -1,3 +1,4 @@
+import type { DayKey } from '@/core/day'
 import { InvalidMeasurementError, InvalidPlayerError } from '@/core/errors'
 import { newId, type PlayerId } from '@/core/identity'
 import { KCAL_PER_GRAM, Macros } from '@/core/nutrition/Macros'
@@ -14,6 +15,7 @@ import {
 } from './BalancedDiet'
 import type { BodyMeasurements } from './BodyMeasurements'
 import { DietaryPreferences } from './DietaryPreferences'
+import { NeedsHistory, type NeedsSnapshot, type NeedsValues } from './NeedsHistory'
 
 const MAX_NAME_LENGTH = 60
 
@@ -23,6 +25,8 @@ export interface PlayerProps {
   readonly measurements: BodyMeasurements
   readonly activityLevel: ActivityLevel
   readonly preferences: DietaryPreferences
+  /** Besoins des jours passés, quand ils différaient des besoins actuels. */
+  readonly needsHistory?: readonly NeedsSnapshot[]
 }
 
 /**
@@ -38,6 +42,7 @@ export class Player {
     readonly measurements: BodyMeasurements,
     readonly activityLevel: ActivityLevel,
     readonly preferences: DietaryPreferences,
+    readonly needsHistory: readonly NeedsSnapshot[] = [],
   ) {}
 
   static create(props: {
@@ -45,6 +50,7 @@ export class Player {
     readonly measurements: BodyMeasurements
     readonly activityLevel: ActivityLevel
     readonly preferences?: DietaryPreferences
+    readonly needsHistory?: readonly NeedsSnapshot[]
     readonly id?: PlayerId
   }): Result<Player, InvalidPlayerError> {
     const name = props.name.trim()
@@ -62,6 +68,7 @@ export class Player {
         props.measurements,
         props.activityLevel,
         props.preferences ?? DietaryPreferences.none(),
+        props.needsHistory ?? [],
       ),
     )
   }
@@ -73,6 +80,7 @@ export class Player {
       props.measurements,
       props.activityLevel,
       props.preferences,
+      props.needsHistory ?? [],
     )
   }
 
@@ -132,6 +140,32 @@ export class Player {
     })
   }
 
+  /** Les besoins actuels, tels qu'ils seraient gardés dans l'historique. */
+  needs(): NeedsValues {
+    return {
+      targetCalories: this.targetCalories(),
+      targetMacros: this.targetMacros().toJSON(),
+      referenceNutrients: this.referenceNutrients().toJSON(),
+    }
+  }
+
+  /** Les besoins en vigueur un jour donné : ceux d'alors pour un jour passé. */
+  needsOn(day: DayKey): NeedsValues {
+    return NeedsHistory.on(this.needsHistory, day, this.needs())
+  }
+
+  /**
+   * `next`, qui remplace ce profil à partir de `today`, avec l'historique
+   * complété : si ses besoins diffèrent, ceux d'ici valaient jusqu'à hier.
+   */
+  succeededBy(next: Player, today: DayKey): Player {
+    if (NeedsHistory.same(this.needs(), next.needs())) return next
+    return Player.reconstitute({
+      ...next.props(),
+      needsHistory: NeedsHistory.record(this.needsHistory, this.needs(), today),
+    })
+  }
+
   rename(name: string): Result<Player, InvalidPlayerError> {
     return Player.create({ ...this.props(), name })
   }
@@ -149,6 +183,7 @@ export class Player {
       measurements,
       this.activityLevel,
       this.preferences,
+      this.needsHistory,
     )
   }
 
@@ -159,6 +194,7 @@ export class Player {
       this.measurements,
       activityLevel,
       this.preferences,
+      this.needsHistory,
     )
   }
 
@@ -169,6 +205,7 @@ export class Player {
       this.measurements,
       this.activityLevel,
       preferences,
+      this.needsHistory,
     )
   }
 
@@ -183,6 +220,7 @@ export class Player {
       measurements: this.measurements,
       activityLevel: this.activityLevel,
       preferences: this.preferences,
+      needsHistory: this.needsHistory,
     }
   }
 }

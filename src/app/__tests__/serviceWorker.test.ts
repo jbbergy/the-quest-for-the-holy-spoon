@@ -210,7 +210,7 @@ describe('ServiceWorkerNotice', () => {
 
     // Deux bandes empilées ne tiendraient pas au-dessus de la barre de
     // navigation sur un écran étroit ; celle qui appelle une décision passe.
-    expect(wrapper.text()).toContain('Une nouvelle version est prête.')
+    expect(wrapper.text()).toContain('Une nouvelle version de l’application est prête.')
     expect(wrapper.text()).not.toContain('sans connexion')
   })
 
@@ -219,7 +219,7 @@ describe('ServiceWorkerNotice', () => {
 
     sw.hooks.onOfflineReady()
     await nextTick()
-    expect(wrapper.text()).toContain('Prête à fonctionner sans connexion.')
+    expect(wrapper.text()).toContain('L’application marche maintenant sans Internet.')
 
     await wrapper.find('button').trigger('click')
     await nextTick()

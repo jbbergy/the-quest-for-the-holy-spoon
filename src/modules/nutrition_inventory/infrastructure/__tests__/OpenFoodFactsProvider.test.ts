@@ -74,7 +74,76 @@ describe('OpenFoodFactsProvider', () => {
         // vocabulaire du domaine : la traduction doit n'en retenir aucune plutôt
         // que d'inventer des marqueurs.
         expect(result.value.tags.every((tag) => tag in FoodTag)).toBe(true)
+        // Son allergène, lui, est reconnu : le muesli contient du gluten.
+        expect(result.value.hasTag(FoodTag.CONTAINS_GLUTEN)).toBe(true)
       }
+    })
+
+    it('déduit la viande de l’analyse des ingrédients, sauf pour un produit de la mer', async () => {
+      const product = (analysis: string[], allergens: string[] = []) => ({
+        ...nutellaFixture,
+        product: {
+          ...nutellaFixture.product,
+          labels_tags: [],
+          allergens_tags: allergens,
+          ingredients_analysis_tags: analysis,
+        },
+      })
+
+      const ham = await providerWith(
+        fetchReturning(product(['en:non-vegetarian'], ['en:milk'])),
+      ).findByBarcode('3017620422003')
+      const tuna = await providerWith(
+        fetchReturning(product(['en:non-vegetarian'], ['en:fish'])),
+      ).findByBarcode('3017620422003')
+
+      if (!isOk(ham) || ham.value === null || !isOk(tuna) || tuna.value === null) {
+        throw new Error('produits attendus')
+      }
+      expect(ham.value.hasTag(FoodTag.CONTAINS_MEAT)).toBe(true)
+      expect(ham.value.hasTag(FoodTag.CONTAINS_MILK)).toBe(true)
+      expect(tuna.value.hasTag(FoodTag.CONTAINS_MEAT)).toBe(false)
+      expect(tuna.value.hasTag(FoodTag.CONTAINS_FISH)).toBe(true)
+    })
+
+    it('lit le porc, le bœuf et l’alcool dans le nom et le degré, les fruits de mer dans les allergènes', async () => {
+      const product = (overrides: Record<string, unknown>) => ({
+        ...nutellaFixture,
+        product: {
+          ...nutellaFixture.product,
+          labels_tags: [],
+          allergens_tags: [],
+          ...overrides,
+        },
+      })
+      const read = async (overrides: Record<string, unknown>) => {
+        const result = await providerWith(fetchReturning(product(overrides))).findByBarcode(
+          '3017620422003',
+        )
+        if (!isOk(result) || result.value === null) throw new Error('produit attendu')
+        return result.value.tags
+      }
+
+      expect(await read({ product_name_fr: 'Jambon supérieur' })).toContain(FoodTag.CONTAINS_PORK)
+      expect(await read({ product_name_fr: 'Steak haché pur bœuf 5 %' })).toContain(
+        FoodTag.CONTAINS_BEEF,
+      )
+      expect(
+        await read({ product_name_fr: 'Cidre brut', nutriments: { ...nutellaFixture.product.nutriments, alcohol_100g: 4.5 } }),
+      ).toContain(FoodTag.CONTAINS_ALCOHOL)
+      expect(await read({ product_name_fr: 'Bière sans alcool' })).not.toContain(
+        FoodTag.CONTAINS_ALCOHOL,
+      )
+
+      const shrimps = await read({
+        product_name_fr: 'Beignets',
+        allergens_tags: ['en:crustaceans'],
+        ingredients_analysis_tags: ['en:non-vegetarian'],
+      })
+      expect(shrimps).toContain(FoodTag.CONTAINS_SHELLFISH)
+      expect(shrimps).not.toContain(FoodTag.CONTAINS_MEAT)
+      // Le nom seul ne donne pas le gluten ni le lait : les allergènes en décident.
+      expect(await read({ product_name_fr: 'Pain au lait' })).toEqual([])
     })
 
     it('traite un code inconnu comme un résultat nul, pas comme une erreur', async () => {

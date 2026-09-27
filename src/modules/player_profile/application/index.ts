@@ -12,6 +12,7 @@ import type { NutrientDetailProps } from '@/core/nutrition/NutrientDetail'
 import type { ActivityLevel } from '../domain/ActivityLevel'
 import type { BiologicalSex } from '../domain/BodyMeasurements'
 import type { DietaryRestriction } from '../domain/DietaryPreferences'
+import type { NeedsSnapshot } from '../domain/NeedsHistory'
 import type { Player } from '../domain/Player'
 
 export interface PlayerNutritionalNeeds {
@@ -29,6 +30,12 @@ export interface PlayerNutritionalNeeds {
   readonly referenceNutrients: NutrientDetailProps
   readonly restrictions: readonly DietaryRestriction[]
   readonly allergens: readonly string[]
+  /**
+   * Besoins des jours passés qui différaient des actuels, du plus ancien au
+   * plus récent ; chaque période court jusqu'à `until` inclus. Les jours
+   * qu'aucune ne couvre se lisent avec les besoins actuels.
+   */
+  readonly history: readonly NeedsSnapshot[]
 }
 
 export function toNutritionalNeeds(player: Player): PlayerNutritionalNeeds {
@@ -39,6 +46,7 @@ export function toNutritionalNeeds(player: Player): PlayerNutritionalNeeds {
     referenceNutrients: player.referenceNutrients().toJSON(),
     restrictions: [...player.preferences.restrictions],
     allergens: [...player.preferences.allergens],
+    history: player.needsHistory,
   }
 }
 
@@ -46,12 +54,20 @@ export function toNutritionalNeeds(player: Player): PlayerNutritionalNeeds {
 export interface PlayerProfileView {
   readonly playerId: PlayerId
   readonly name: string
+  readonly heightCm: number
+  readonly weightKg: number
+  readonly ageYears: number
+  readonly biologicalSex: BiologicalSex
+  readonly activityLevel: ActivityLevel
+  readonly restrictions: readonly DietaryRestriction[]
   readonly basalMetabolicRate: number
   readonly totalDailyEnergyExpenditure: number
   readonly targetCalories: number
   readonly targetMacros: MacrosProps
   readonly referenceNutrients: NutrientDetailProps
 }
+
+export type { NeedsSnapshot } from '../domain/NeedsHistory'
 
 export {
   CreatePlayerProfileUseCase,
@@ -66,6 +82,12 @@ export function toPlayerProfileView(player: Player): PlayerProfileView {
   return {
     playerId: player.id,
     name: player.name,
+    heightCm: player.measurements.heightCm,
+    weightKg: player.measurements.weightKg,
+    ageYears: player.measurements.ageYears,
+    biologicalSex: player.measurements.biologicalSex,
+    activityLevel: player.activityLevel,
+    restrictions: [...player.preferences.restrictions],
     basalMetabolicRate: player.basalMetabolicRate(),
     totalDailyEnergyExpenditure: player.totalDailyEnergyExpenditure(),
     targetCalories: player.targetCalories(),

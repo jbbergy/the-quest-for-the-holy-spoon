@@ -30,6 +30,7 @@
   --color-protein: #c2410c;
   --color-carbs: #0369a1;
   --color-fat: #a16207;
+  --color-fiber: #3f6b2c;
 
   /* Échelle d'espacement, base 4px. */
   --space-1: 0.25rem;
@@ -52,8 +53,12 @@
      rendu au premier affichage, ce qui compte pour une PWA hors-ligne. */
   --font-sans:
     system-ui, -apple-system, 'Segoe UI', roboto, 'Helvetica Neue', arial, sans-serif;
-  --font-size-xs: 0.75rem;
-  --font-size-sm: 0.875rem;
+  /* Tout est en `rem` : la taille de base est celle que la personne a choisie
+     (navigateur ou système, voir `main.scss`), jamais une valeur imposée ici.
+     Le plus petit texte ne descend pas sous 14 px à la taille par défaut —
+     en deçà, une personne qui voit mal ne lit plus les aides ni les légendes. */
+  --font-size-xs: 0.875rem;
+  --font-size-sm: 0.9375rem;
   --font-size-md: 1rem;
   --font-size-lg: 1.25rem;
   --font-size-xl: 1.75rem;

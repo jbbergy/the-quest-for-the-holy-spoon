@@ -1,29 +1,35 @@
 <script setup lang="ts">
 /**
- * Réglages : profil, thème et début de la journée.
+ * Réglages : le profil, les besoins, les aliments, la journée, l'apparence,
+ * le compte, le foyer et les données.
+ *
+ * Le profil ne se modifie pas ici : l'écran en montre le résumé, et
+ * « Modifier mon profil » ouvre le même formulaire qu'à la création — tout y
+ * est modifiable, pas seulement le poids.
  *
  * La liste des thèmes est **générée** depuis les `theme.json` du dossier
  * `styles/themes/` — aucune énumération codée en dur ici. Changer de thème
  * applique le nouveau immédiatement, sans rechargement ni confirmation : c'est
  * un réglage dont l'effet est sa propre prévisualisation.
  */
-import { defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { DAY_START_HOURS } from '@/app/day/DayStartPreference'
 import { useTodayStore } from '@/app/day/useTodayStore'
+import { GLOSSARY } from '@/app/glossary'
+import { ACTIVITY_OPTIONS, RESTRICTION_OPTIONS, SEX_OPTIONS } from '@/app/profileOptions'
 import { ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
 import { useHousehold } from '@/app/useHousehold'
 import { useDataExport } from '@/app/useDataExport'
 import { useThemeStore } from '@/app/theme/useThemeStore'
-import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
-import BaseField from '@/ui/BaseField.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import InfoTip from '@/ui/InfoTip.vue'
 import PasswordField from '@/ui/PasswordField.vue'
 
 /**
@@ -51,29 +57,32 @@ function selectDayStart(event: Event): void {
   clock.setStartHour(Number((event.target as HTMLSelectElement).value))
 }
 
-const weightKg = ref(players.player?.measurements.weightKg ?? 70)
-const activityLevel = ref<ActivityLevel>(players.player?.activityLevel ?? ActivityLevel.MODERATE)
-const saved = ref('')
-
-// Le profil peut arriver après le montage (chargement asynchrone) : les champs
-// se réalignent sur lui plutôt que de rester sur leurs valeurs de repli.
-watch(
-  () => players.player,
-  (player) => {
-    if (player === null) return
-    weightKg.value = player.measurements.weightKg
-    activityLevel.value = player.activityLevel
-  },
-  { immediate: true },
-)
-
-const ACTIVITY_OPTIONS = [
-  { value: ActivityLevel.SEDENTARY, label: 'Sédentaire' },
-  { value: ActivityLevel.LIGHT, label: 'Légère' },
-  { value: ActivityLevel.MODERATE, label: 'Modérée' },
-  { value: ActivityLevel.ACTIVE, label: 'Soutenue' },
-  { value: ActivityLevel.VERY_ACTIVE, label: 'Intense' },
-] as const
+/** Le profil, en mots : ce que l'on a saisi, tel qu'on l'a choisi. */
+const profileSummary = computed(() => {
+  const view = players.profileView
+  if (view === null) return null
+  const activity = ACTIVITY_OPTIONS.find((option) => option.value === view.activityLevel)
+  const diets = RESTRICTION_OPTIONS.filter((option) => view.restrictions.includes(option.value))
+  const decimal = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
+  return [
+    { label: 'Prénom ou surnom', value: view.name },
+    { label: 'Taille', value: `${decimal.format(view.heightCm)} cm` },
+    { label: 'Poids', value: `${decimal.format(view.weightKg)} kg` },
+    { label: 'Âge', value: `${view.ageYears} ans` },
+    {
+      label: 'Sexe',
+      value: SEX_OPTIONS.find((option) => option.value === view.biologicalSex)?.label ?? '',
+    },
+    {
+      label: 'Activité',
+      value: activity === undefined ? '' : `${activity.label} (${activity.hint.toLocaleLowerCase('fr-FR')})`,
+    },
+    {
+      label: 'Régime',
+      value: diets.length === 0 ? 'Aucun' : diets.map((option) => option.label).join(', '),
+    },
+  ]
+})
 
 const accountSync = useAccountSync()
 const accountMessage = ref('')
@@ -95,14 +104,15 @@ async function signOut(force = false): Promise<void> {
     await router.push({ name: ROUTE.auth })
     return
   }
-  accountMessage.value = 'Vous êtes déconnecté. Les données du compte ont été retirées de cet appareil.'
+  accountMessage.value =
+    'Vous êtes déconnecté. Les données du compte sont retirées de cet appareil.'
 }
 
 async function deleteAccount(): Promise<void> {
   accountMessage.value = ''
   if (!(await accountSync.deleteAccount(deletePassword.value))) return
   deletePassword.value = ''
-  accountMessage.value = 'Compte supprimé. Vos données restent sur cet appareil.'
+  accountMessage.value = 'Votre compte est supprimé. Vos données restent sur cet appareil.'
 }
 
 const sharingMessage = ref('')
@@ -113,18 +123,9 @@ async function toggleSharing(event: Event): Promise<void> {
   household.clearError()
   if (await household.setDaySharing(sharesDays)) {
     sharingMessage.value = sharesDays
-      ? 'Les membres du foyer voient de nouveau vos journées.'
-      : 'Vos journées ne sont plus visibles par le foyer.'
+      ? 'Le foyer voit de nouveau vos journées.'
+      : 'Le foyer ne voit plus vos journées.'
   }
-}
-
-async function save(): Promise<void> {
-  saved.value = ''
-  const updated = await players.update({
-    weightKg: weightKg.value,
-    activityLevel: activityLevel.value,
-  })
-  if (updated) saved.value = 'Profil mis à jour.'
 }
 </script>
 
@@ -136,12 +137,113 @@ async function save(): Promise<void> {
     <ErrorNotice :error="theme.error" />
 
     <BaseCard
-      title="Apparence"
-      subtitle="Le thème s’applique immédiatement et reste mémorisé sur cet appareil."
+      v-if="profileSummary"
+      title="Mon profil"
+    >
+      <dl class="settings__summary">
+        <div
+          v-for="line in profileSummary"
+          :key="line.label"
+        >
+          <dt>{{ line.label }}</dt>
+          <dd>{{ line.value }}</dd>
+        </div>
+      </dl>
+      <BaseButton
+        variant="secondary"
+        @click="router.push({ name: ROUTE.profileEdit })"
+      >
+        Modifier mon profil
+      </BaseButton>
+    </BaseCard>
+
+    <BaseCard
+      v-if="players.profileView"
+      title="Mes besoins"
+      subtitle="L’application les calcule avec votre profil."
+    >
+      <dl class="settings__needs">
+        <div>
+          <dt>
+            Au repos<InfoTip
+              term="énergie au repos"
+              :text="GLOSSARY.basalMetabolism"
+            />
+          </dt>
+          <dd>{{ Math.round(players.profileView.basalMetabolicRate) }} kcal par jour</dd>
+        </div>
+        <div>
+          <dt>
+            Votre besoin<InfoTip
+              term="besoin"
+              :text="GLOSSARY.needs"
+            />
+          </dt>
+          <dd>{{ Math.round(players.profileView.targetCalories) }} kcal par jour</dd>
+        </div>
+      </dl>
+      <p class="settings__note">
+        Votre besoin, c’est l’énergie au repos, plus celle de vos activités. C’est une
+        estimation<InfoTip
+          term="comment c’est calculé"
+          :text="GLOSSARY.formula"
+        />.
+      </p>
+    </BaseCard>
+
+    <BaseCard
+      title="Mes aliments"
+      subtitle="Les aliments et les recettes que vous avez créés vous-même."
+    >
+      <BaseButton
+        variant="secondary"
+        @click="router.push({ name: ROUTE.foods })"
+      >
+        Voir mes aliments
+      </BaseButton>
+    </BaseCard>
+
+    <BaseCard
+      title="Début de la journée"
+      subtitle="Ce réglage vaut pour cet appareil seulement."
+    >
+      <label
+        class="settings__legend"
+        for="day-start"
+      >
+        Ma journée commence à
+      </label>
+      <select
+        id="day-start"
+        class="settings__select"
+        aria-describedby="day-start-hint"
+        :value="clock.startHour"
+        @change="selectDayStart"
+      >
+        <option
+          v-for="hour in DAY_START_HOURS"
+          :key="hour"
+          :value="hour"
+        >
+          {{ hourLabel(hour) }}
+        </option>
+      </select>
+      <p
+        id="day-start-hint"
+        class="settings__note"
+      >
+        Avant cette heure, l’accueil montre encore la veille. Vous dormez la nuit ? Choisissez
+        minuit. Vous travaillez la nuit ? Choisissez une heure plus tard.
+      </p>
+    </BaseCard>
+
+    <BaseCard
+      title="Couleurs"
+      subtitle="Le changement se voit tout de suite. Il vaut pour cet appareil seulement."
     >
       <fieldset class="settings__fieldset">
         <legend class="sr-only">
-          Thème
+          Couleurs de l’application
         </legend>
         <ul class="settings__themes">
           <li
@@ -167,103 +269,11 @@ async function save(): Promise<void> {
     </BaseCard>
 
     <BaseCard
-      title="Journée"
-      subtitle="Réglage mémorisé sur cet appareil."
-    >
-      <label
-        class="settings__legend"
-        for="day-start"
-      >
-        La journée commence à
-      </label>
-      <select
-        id="day-start"
-        class="settings__select"
-        aria-describedby="day-start-hint"
-        :value="clock.startHour"
-        @change="selectDayStart"
-      >
-        <option
-          v-for="hour in DAY_START_HOURS"
-          :key="hour"
-          :value="hour"
-        >
-          {{ hourLabel(hour) }}
-        </option>
-      </select>
-      <p
-        id="day-start-hint"
-        class="settings__note"
-      >
-        Avant cette heure, l’accueil affiche encore la veille. Minuit convient à la plupart ;
-        une heure plus tardive garde un dîner après minuit sur la bonne journée, et suit un
-        rythme décalé si vous travaillez de nuit.
-      </p>
-    </BaseCard>
-
-    <BaseCard
-      title="Profil"
-      subtitle="Ces valeurs déterminent vos besoins caloriques."
-    >
-      <form
-        class="settings__form"
-        novalidate
-        @submit.prevent="save"
-      >
-        <BaseField
-          v-model="weightKg"
-          label="Poids"
-          type="number"
-          suffix="kg"
-          :min="20"
-          :max="640"
-          :step="0.1"
-        />
-
-        <fieldset class="settings__fieldset">
-          <legend class="settings__legend">
-            Activité
-          </legend>
-          <div class="settings__choices">
-            <label
-              v-for="option in ACTIVITY_OPTIONS"
-              :key="option.value"
-              class="choice"
-            >
-              <input
-                v-model="activityLevel"
-                type="radio"
-                name="activity"
-                :value="option.value"
-              >
-              <span>{{ option.label }}</span>
-            </label>
-          </div>
-        </fieldset>
-
-        <BaseButton
-          type="submit"
-          :loading="players.status === 'loading'"
-        >
-          Enregistrer
-        </BaseButton>
-      </form>
-
-      <p
-        class="settings__saved"
-        role="status"
-        aria-live="polite"
-      >
-        {{ saved }}
-      </p>
-    </BaseCard>
-
-    <BaseCard
       title="Compte"
       :subtitle="
         account.session
-          ? `Connecté avec ${account.session.email}.`
-          : 'Sans compte, tout reste sur cet appareil.'
+          ? `Vous êtes connecté avec ${account.session.email}.`
+          : 'Sans compte, vos données restent sur cet appareil.'
       "
     >
       <ErrorNotice :error="account.error" />
@@ -275,10 +285,11 @@ async function save(): Promise<void> {
           role="alert"
         >
           <p>
-            {{ unsent === Infinity ? 'Des modifications' : `${unsent} modification${unsent > 1 ? 's' : ''}` }}
-            n’ont pas pu être envoyées : le serveur est injoignable. En vous déconnectant
-            maintenant, vous les perdrez.
+            {{ unsent === Infinity ? 'Des changements' : `${unsent} changement${unsent > 1 ? 's' : ''}` }}
+            n’{{ unsent === 1 ? 'a' : 'ont' }} pas encore été envoyé{{ unsent === 1 ? '' : 's' }} :
+            le serveur ne répond pas.
           </p>
+          <p>Si vous vous déconnectez maintenant, vous les perdrez.</p>
           <div class="settings__actions">
             <BaseButton
               variant="danger"
@@ -300,11 +311,11 @@ async function save(): Promise<void> {
           :loading="account.status === 'loading'"
           @click="signOut()"
         >
-          Se déconnecter
+          Me déconnecter
         </BaseButton>
         <p class="settings__note">
-          À la déconnexion, les données du compte sont retirées de cet appareil ; elles restent
-          sur votre compte.
+          Si vous vous déconnectez, les données du compte sont retirées de cet appareil. Elles
+          restent sur votre compte.
         </p>
 
         <details class="settings__danger">
@@ -315,12 +326,12 @@ async function save(): Promise<void> {
             @submit.prevent="deleteAccount"
           >
             <p class="settings__note settings__note--body">
-              Le compte est effacé du serveur, définitivement. Les données de cet appareil sont
-              conservées : vous pourrez continuer sans compte.
+              Votre compte sera supprimé pour toujours. Les données de cet appareil restent : vous
+              pourrez continuer sans compte.
             </p>
             <PasswordField
               v-model="deletePassword"
-              label="Mot de passe, pour confirmer"
+              label="Votre mot de passe, pour confirmer"
               autocomplete="current-password"
               required
             />
@@ -329,7 +340,7 @@ async function save(): Promise<void> {
               variant="danger"
               :loading="account.status === 'loading'"
             >
-              Supprimer définitivement
+              Supprimer mon compte pour toujours
             </BaseButton>
           </form>
         </details>
@@ -337,7 +348,7 @@ async function save(): Promise<void> {
 
       <template v-else-if="account.status === 'unreachable'">
         <p class="settings__note settings__note--body">
-          Le serveur des comptes ne répond pas : impossible de savoir si vous êtes connecté.
+          Le serveur des comptes ne répond pas. Nous ne savons pas si vous êtes connecté.
         </p>
         <BaseButton
           variant="secondary"
@@ -347,20 +358,26 @@ async function save(): Promise<void> {
         </BaseButton>
       </template>
 
-      <div
-        v-else
-        class="settings__actions"
-      >
-        <BaseButton @click="router.push({ name: ROUTE.signIn })">
-          Se connecter
-        </BaseButton>
-        <BaseButton
-          variant="secondary"
-          @click="router.push({ name: ROUTE.signUp })"
-        >
-          Créer un compte
-        </BaseButton>
-      </div>
+      <template v-else>
+        <p class="settings__note settings__note--body">
+          Avec un compte, vous retrouvez vos repas sur vos autres appareils. Vous pouvez aussi
+          partager vos repas avec votre foyer<InfoTip
+            term="foyer"
+            :text="GLOSSARY.household"
+          />.
+        </p>
+        <div class="settings__actions">
+          <BaseButton @click="router.push({ name: ROUTE.signIn })">
+            Me connecter
+          </BaseButton>
+          <BaseButton
+            variant="secondary"
+            @click="router.push({ name: ROUTE.signUp })"
+          >
+            Créer un compte
+          </BaseButton>
+        </div>
+      </template>
 
       <p
         class="settings__saved"
@@ -374,10 +391,9 @@ async function save(): Promise<void> {
     <BaseCard
       v-if="account.session && household.household"
       title="Foyer"
-      :subtitle="`Vous faites partie de « ${household.household.name} ».`"
+      :subtitle="`Vous faites partie du foyer « ${household.household.name} ».`"
     >
       <ErrorNotice :error="household.error" />
-
       <label class="switch">
         <input
           type="checkbox"
@@ -386,16 +402,15 @@ async function save(): Promise<void> {
           aria-describedby="sharing-hint"
           @change="toggleSharing"
         >
-        <span>Partager mes journées avec le foyer</span>
+        <span>Montrer mes journées au foyer</span>
       </label>
       <p
         id="sharing-hint"
         class="settings__note"
       >
-        Les autres membres voient vos repas et vos jauges. Vos mensurations restent privées dans
-        tous les cas.
+        Les autres membres voient vos repas et vos jauges. Ils ne voient jamais votre taille,
+        votre poids ni votre âge.
       </p>
-
       <p
         class="settings__saved"
         role="status"
@@ -406,29 +421,16 @@ async function save(): Promise<void> {
     </BaseCard>
 
     <BaseCard
-      title="Mes aliments"
-      subtitle="Les aliments et recettes que vous avez saisis vous-même."
-    >
-      <BaseButton
-        variant="secondary"
-        @click="router.push({ name: ROUTE.foods })"
-      >
-        Gérer mes aliments
-      </BaseButton>
-    </BaseCard>
-
-    <BaseCard
-      title="Vos données"
+      title="Mes données"
       :subtitle="
         account.session
           ? 'Votre profil et vos repas sont sur cet appareil et sur votre compte.'
-          : 'Votre profil et vos repas sont stockés sur cet appareil.'
+          : 'Votre profil et vos repas sont sur cet appareil.'
       "
     >
       <p class="settings__note settings__note--body">
-        Le fichier contient votre profil, tous vos repas — passés et prévus — et
-        les aliments que vous avez créés. Le catalogue Ciqual en est
-        absent : l’application le régénère seule.
+        Vous pouvez télécharger un fichier avec votre profil, tous vos repas et les aliments que
+        vous avez créés.
       </p>
 
       <BaseButton
@@ -436,7 +438,7 @@ async function save(): Promise<void> {
         :loading="dataExport.busy.value"
         @click="dataExport.run()"
       >
-        Exporter mes données
+        Télécharger mes données
       </BaseButton>
 
       <p
@@ -445,35 +447,11 @@ async function save(): Promise<void> {
         aria-live="polite"
       >
         <template v-if="dataExport.lastFileName.value">
-          Export enregistré sous {{ dataExport.lastFileName.value }}.
+          Fichier enregistré : {{ dataExport.lastFileName.value }}.
         </template>
       </p>
 
       <ErrorNotice :error="dataExport.error.value" />
-    </BaseCard>
-
-    <BaseCard
-      v-if="players.profileView"
-      title="Besoins estimés"
-    >
-      <dl class="settings__needs">
-        <div>
-          <dt>Métabolisme de base</dt>
-          <dd>{{ Math.round(players.profileView.basalMetabolicRate) }} kcal</dd>
-        </div>
-        <div>
-          <dt>Dépense totale</dt>
-          <dd>{{ Math.round(players.profileView.totalDailyEnergyExpenditure) }} kcal</dd>
-        </div>
-        <div>
-          <dt>Besoin habituel</dt>
-          <dd>{{ Math.round(players.profileView.targetCalories) }} kcal</dd>
-        </div>
-      </dl>
-      <p class="settings__note">
-        Estimation par l’équation de Mifflin-St Jeor, pondérée par votre niveau d’activité.
-        L’accueil compare aussi vos apports moyens des sept derniers jours à ces besoins.
-      </p>
     </BaseCard>
 
     <component
@@ -575,6 +553,28 @@ async function save(): Promise<void> {
   font-weight: 600;
 }
 
+.settings__summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3);
+  margin: 0 0 var(--space-4);
+}
+
+.settings__summary div {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings__summary dt {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.settings__summary dd {
+  margin: 0;
+  font-weight: 600;
+}
+
 .settings__needs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
@@ -601,7 +601,7 @@ async function save(): Promise<void> {
 .settings__note {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
 }
 
 /* Le même bloc, mais lu comme du texte courant et non comme une mention de bas

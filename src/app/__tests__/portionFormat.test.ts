@@ -55,8 +55,8 @@ describe('formatPortion', () => {
 describe('formatWeight et measureOptionLabel', () => {
   it('parle dans l’unité de la fiche et signale une moyenne', () => {
     expect(formatWeight(50, slice)).toBe('50 g')
-    expect(formatWeight(206, glass, millilitre(1.03))).toBe('≈ 200 ml')
-    expect(measureOptionLabel(glass, millilitre(1.03))).toBe('verre · ≈ 200 ml')
+    expect(formatWeight(206, glass, millilitre(1.03))).toBe('environ 200 ml')
+    expect(measureOptionLabel(glass, millilitre(1.03))).toBe('verre (environ 200 ml)')
     expect(measureOptionLabel(GRAM)).toBe('g')
   })
 

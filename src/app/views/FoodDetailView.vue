@@ -11,7 +11,9 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { tagLabel } from '@/app/foodTags'
 import { formatWeight, per100Label } from '@/app/portionFormat'
+import { usePageTitle } from '@/app/pageTitle'
 import { ROUTE } from '@/app/router'
+import { useReturnQuery } from '@/app/useBackLink'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import type { FoodItemId } from '@/core/identity'
 import { FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
@@ -30,21 +32,24 @@ const router = useRouter()
 const catalog = useFoodCatalogStore()
 const players = usePlayerStore()
 const household = useHousehold()
+const returnQuery = useReturnQuery()
 
 const food = computed(() => catalog.current)
 const canEdit = computed(() => food.value?.isEditableBy(players.playerId) ?? false)
 const author = computed(() =>
   food.value === null ? null : foodAuthor(household.household, players.playerId, food.value.ownerId),
 )
+usePageTitle(() => food.value?.name ?? 'Aliment')
+
 const per100 = computed(() => (food.value === null ? '100 g' : per100Label(food.value)))
 
 /** Pourquoi la fiche ne se modifie pas : on le dit plutôt que de cacher le bouton sans un mot. */
 const readOnlyReason = computed(() => {
   if (food.value === null || canEdit.value) return null
   if (food.value.source !== FoodSource.USER) {
-    return 'Fiche de référence (Ciqual ou Open Food Facts) : elle ne se modifie pas.'
+    return 'Cet aliment vient d’un catalogue. Vous ne pouvez pas le modifier.'
   }
-  return `Aliment ajouté par ${author.value ?? 'un autre membre du foyer'} : seul son auteur peut le modifier.`
+  return `${author.value ?? 'Un autre membre du foyer'} a créé cet aliment. Seule cette personne peut le modifier.`
 })
 
 onMounted(() => catalog.open(route.params.foodId as FoodItemId))
@@ -58,8 +63,8 @@ async function remove(): Promise<void> {
 
 const NUTRIENTS = [
   { key: 'fiberG', label: 'Fibres' },
-  { key: 'sugarsG', label: 'dont sucres' },
-  { key: 'saturatedFatG', label: 'dont AG saturés' },
+  { key: 'sugarsG', label: 'Sucres' },
+  { key: 'saturatedFatG', label: 'Graisses saturées' },
   { key: 'saltG', label: 'Sel' },
 ] as const
 </script>
@@ -77,8 +82,8 @@ const NUTRIENTS = [
 
     <EmptyState
       v-if="food === null && catalog.status !== 'loading'"
-      title="Aliment introuvable"
-      description="Il a peut-être été supprimé, ici ou par un autre membre du foyer."
+      title="Cet aliment n’existe plus."
+      description="Il a été supprimé, sur cet appareil ou par un autre membre du foyer."
     />
 
     <template v-else-if="food">
@@ -119,7 +124,7 @@ const NUTRIENTS = [
 
       <BaseCard
         title="Portions"
-        :subtitle="food.unit === 'ml' ? 'Se mesure en millilitres.' : 'Se mesure en grammes.'"
+        :subtitle="food.unit === 'ml' ? 'Liquide : se mesure en millilitres.' : 'Solide : se pèse en grammes.'"
       >
         <ul
           v-if="food.servings.length > 0"
@@ -137,13 +142,13 @@ const NUTRIENTS = [
           v-else
           class="food__muted"
         >
-          Aucune portion : la quantité se saisit en {{ food.unit === 'ml' ? 'millilitres' : 'grammes' }}.
+          Pas de portion. La quantité se note en {{ food.unit === 'ml' ? 'millilitres' : 'grammes' }}.
         </p>
       </BaseCard>
 
       <BaseCard
         v-if="food.barcode || food.tags.length > 0"
-        title="Identification"
+        title="Autres informations"
       >
         <p
           v-if="food.barcode"
@@ -173,7 +178,7 @@ const NUTRIENTS = [
 
       <div class="food__actions">
         <BaseButton
-          @click="router.push({ name: ROUTE.mealEditor, query: { aliment: food.id } })"
+          @click="router.push({ name: ROUTE.mealEditor, query: { aliment: food.id, ...returnQuery } })"
         >
           Ajouter à un repas
         </BaseButton>
@@ -186,7 +191,7 @@ const NUTRIENTS = [
         </BaseButton>
         <ConfirmButton
           v-if="canEdit"
-          :question="`Supprimer « ${food.name} » ? Vos repas en gardent les valeurs.`"
+          :question="`Supprimer « ${food.name} » ? Les repas qui le contiennent ne changent pas.`"
           confirm-label="Supprimer"
           :loading="catalog.status === 'loading'"
           @confirm="remove"

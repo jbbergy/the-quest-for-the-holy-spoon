@@ -3,6 +3,7 @@ import { idFrom } from '@/core/identity'
 import type { ActivityLevel } from '../domain/ActivityLevel'
 import { type BiologicalSex, BodyMeasurements } from '../domain/BodyMeasurements'
 import { DietaryPreferences, type DietaryRestriction } from '../domain/DietaryPreferences'
+import type { NeedsSnapshot } from '../domain/NeedsHistory'
 import { Player } from '../domain/Player'
 
 /**
@@ -22,6 +23,11 @@ export interface PlayerRecord {
   readonly activityLevel: ActivityLevel
   readonly restrictions: readonly DietaryRestriction[]
   readonly allergens: readonly string[]
+  /**
+   * Facultatif : les profils enregistrés avant l'historique des besoins n'en
+   * ont pas, et leurs jours passés se lisent alors avec les besoins actuels.
+   */
+  readonly needsHistory?: readonly NeedsSnapshot[]
 }
 
 export function playerToRecord(player: Player): PlayerRecord {
@@ -35,6 +41,7 @@ export function playerToRecord(player: Player): PlayerRecord {
     activityLevel: player.activityLevel,
     restrictions: [...player.preferences.restrictions],
     allergens: [...player.preferences.allergens],
+    needsHistory: player.needsHistory.map((snapshot) => ({ ...snapshot })),
   }
 }
 
@@ -53,5 +60,6 @@ export function recordToPlayer(record: PlayerRecord): Player {
       restrictions: record.restrictions,
       allergens: record.allergens,
     }),
+    needsHistory: record.needsHistory ?? [],
   })
 }

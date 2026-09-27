@@ -23,6 +23,23 @@ html {
   /* Le défilement fluide n'est activé que si l'utilisateur ne l'a pas refusé ;
      `_a11y.scss` le neutralise sinon. */
   scroll-behavior: smooth;
+
+  /* Aucune taille de police ici : celle du navigateur fait foi, et tout le
+     reste en découle par les `rem`. Sur Android, Chrome y reporte la taille
+     de texte du système grâce à `<meta name="text-scale">` (index.html). */
+  text-size-adjust: 100%;
+}
+
+/* iOS ignore le réglage « Taille du texte » du système dans une page web, sauf
+   pour la police `-apple-system-body`. La reprendre sur `:root` fait suivre ce
+   réglage à tous les `rem`. Réservé aux écrans tactiles : sur un Mac, cette
+   police vaut 13 px et rapetisserait tout. */
+@supports (font: -apple-system-body) {
+  @media (pointer: coarse) {
+    html {
+      font: -apple-system-body;
+    }
+  }
 }
 
 body {

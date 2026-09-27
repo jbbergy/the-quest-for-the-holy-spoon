@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { DayKey } from '@/core/day'
+
 import { provideContainer, resetContainer } from '@/app/container'
 import { useDailyTracking } from '@/app/useDailyTracking'
 import { ApplicationError } from '@/core/errors'
@@ -160,7 +162,7 @@ describe('useDailyTracking', () => {
     const tracking = useDailyTracking()
     const before = tracking.suggestion.value!.remainingCalories
 
-    await players.update({ activityLevel: ActivityLevel.SEDENTARY })
+    await players.update({ activityLevel: ActivityLevel.SEDENTARY }, '2026-09-27' as DayKey)
 
     expect(tracking.suggestion.value!.remainingCalories).toBeLessThan(before)
   })

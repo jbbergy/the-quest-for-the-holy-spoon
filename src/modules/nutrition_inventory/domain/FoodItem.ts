@@ -23,7 +23,14 @@ export const FoodSource = {
 } as const
 export type FoodSource = (typeof FoodSource)[keyof typeof FoodSource]
 
-/** Marqueurs diététiques portés par la fiche, confrontés aux `DietaryPreferences`. */
+/**
+ * Marqueurs diététiques portés par la fiche, confrontés aux régimes
+ * (`DietSuitability`).
+ *
+ * Deux familles : les `CONTAINS_*` **excluent** un aliment d'un régime, les
+ * autres (`VEGAN`, `GLUTEN_FREE`…) l'y **admettent** malgré tout — un pain
+ * sans gluten reste un pain.
+ */
 export const FoodTag = {
   GLUTEN_FREE: 'GLUTEN_FREE',
   LACTOSE_FREE: 'LACTOSE_FREE',
@@ -32,6 +39,14 @@ export const FoodTag = {
   CONTAINS_FISH: 'CONTAINS_FISH',
   CONTAINS_MEAT: 'CONTAINS_MEAT',
   CONTAINS_NUTS: 'CONTAINS_NUTS',
+  CONTAINS_GLUTEN: 'CONTAINS_GLUTEN',
+  CONTAINS_MILK: 'CONTAINS_MILK',
+  CONTAINS_EGG: 'CONTAINS_EGG',
+  CONTAINS_PORK: 'CONTAINS_PORK',
+  CONTAINS_BEEF: 'CONTAINS_BEEF',
+  /** Crustacés et mollusques : crevettes, moules, huîtres, calmars, escargots. */
+  CONTAINS_SHELLFISH: 'CONTAINS_SHELLFISH',
+  CONTAINS_ALCOHOL: 'CONTAINS_ALCOHOL',
 } as const
 export type FoodTag = (typeof FoodTag)[keyof typeof FoodTag]
 

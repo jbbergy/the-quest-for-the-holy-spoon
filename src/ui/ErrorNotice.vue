@@ -11,55 +11,65 @@ import { computed } from 'vue'
 
 const props = defineProps<{ error: ErrorView | null }>()
 
+/**
+ * Une phrase simple par erreur, puis ce qu'il faut faire. Pas de mot technique :
+ * la personne doit comprendre ce qui s'est passé sans connaître l'application.
+ */
 const MESSAGES: Readonly<Record<string, string>> = {
-  INVALID_PORTION: 'La quantité doit être un nombre supérieur à zéro.',
-  INVALID_MACROS: 'Les valeurs nutritionnelles doivent être positives.',
-  INVALID_MEASUREMENT: 'Ces mesures sortent des valeurs plausibles.',
-  INVALID_PLAYER: 'Le nom du profil est obligatoire.',
-  INCOMPATIBLE_DIETARY_RESTRICTION: 'Ces régimes ne peuvent pas être combinés.',
+  INVALID_PORTION: 'La quantité doit être un nombre plus grand que 0.',
+  INVALID_MACROS: 'Les valeurs doivent être des nombres positifs.',
+  INVALID_NUTRIENTS: 'Les valeurs doivent être des nombres positifs.',
+  INVALID_MEASUREMENT:
+    'Une mesure semble fausse. Vérifiez votre taille (en cm), votre poids (en kg) et votre âge.',
+  INVALID_PLAYER: 'Écrivez un prénom ou un surnom, de 60 lettres au plus.',
+  INCOMPATIBLE_DIETARY_RESTRICTION:
+    'Ces régimes ne vont pas ensemble. Par exemple : végan et pescétarien. Gardez-en un seul.',
   INVALID_FOOD_ITEM:
-    'Cette fiche d’aliment est incomplète ou incohérente : vérifiez le nom, le code-barres et les portions.',
-  INVALID_MEAL: 'Cette modification du repas est impossible.',
-  FOOD_NOT_FOUND: 'Cet aliment est introuvable dans le catalogue.',
-  FOOD_READ_ONLY: 'Les fiches Ciqual et Open Food Facts ne se modifient pas.',
+    'Cet aliment n’est pas complet. Vérifiez son nom, son code-barres et ses portions.',
+  INVALID_MEAL: 'Ce changement n’est pas possible sur ce repas.',
+  FOOD_NOT_FOUND: 'Cet aliment n’existe plus.',
+  FOOD_READ_ONLY: 'Cet aliment vient d’un catalogue. Vous ne pouvez pas le modifier.',
   MEAL_NOT_FOUND: 'Ce repas n’existe plus.',
-  NO_CURRENT_PROFILE: 'Aucun profil actif : commencez par en créer un.',
-  STORAGE_QUOTA_EXCEEDED: 'L’espace de stockage est plein. Supprimez d’anciens repas.',
-  STORAGE_UNAVAILABLE: 'Le stockage local est indisponible sur cet appareil.',
-  REMOTE_UNAVAILABLE: 'La recherche en ligne est indisponible.',
-  UNKNOWN_THEME: 'Ce thème n’existe plus.',
-  INVALID_EMAIL: 'Cette adresse e-mail n’est pas valide.',
-  WEAK_PASSWORD: 'Le mot de passe doit compter au moins 12 caractères.',
-  INVALID_CREDENTIALS: 'Adresse ou mot de passe incorrect.',
+  NO_CURRENT_PROFILE: 'Il n’y a pas encore de profil. Créez d’abord votre profil.',
+  STORAGE_QUOTA_EXCEEDED:
+    'L’appareil n’a plus de place. Libérez de la place, puis réessayez.',
+  STORAGE_UNAVAILABLE:
+    'L’application ne peut pas enregistrer sur cet appareil. Vérifiez que le navigateur n’est pas en navigation privée.',
+  REMOTE_UNAVAILABLE: 'La recherche des produits de marque ne répond pas. Réessayez plus tard.',
+  UNKNOWN_THEME: 'Ces couleurs n’existent plus. Choisissez-en d’autres.',
+  INVALID_EMAIL: 'Cette adresse e-mail n’est pas correcte.',
+  WEAK_PASSWORD: 'Ce mot de passe est trop court. Il faut au moins 12 caractères.',
+  INVALID_CREDENTIALS: 'L’adresse e-mail ou le mot de passe est faux.',
   EMAIL_NOT_VERIFIED:
-    'Votre adresse n’est pas encore confirmée : un nouveau lien vient de vous être envoyé.',
-  TOKEN_INVALID: 'Ce lien a déjà servi ou a expiré. Demandez-en un nouveau.',
-  RATE_LIMITED: 'Trop de tentatives. Patientez quelques minutes avant de réessayer.',
-  PLAYER_ALREADY_LINKED: 'Ce profil est déjà rattaché à un autre compte.',
-  NOT_AUTHENTICATED: 'Votre session a expiré : reconnectez-vous.',
-  SERVER_UNREACHABLE: 'Le serveur ne répond pas. Vérifiez votre connexion, puis réessayez.',
-  INVALID_HOUSEHOLD_NAME: 'Le nom du foyer doit compter de 1 à 60 caractères.',
-  NOT_HOUSEHOLD_OWNER: 'Seul le propriétaire du foyer peut faire cela.',
-  NO_HOUSEHOLD: 'Vous ne faites plus partie d’aucun foyer.',
+    'Votre adresse n’est pas encore confirmée. Nous venons de vous envoyer un nouveau lien : regardez vos e-mails.',
+  TOKEN_INVALID: 'Ce lien ne marche plus. Il a déjà servi, ou il est trop ancien. Demandez un nouveau lien.',
+  RATE_LIMITED: 'Trop d’essais. Attendez quelques minutes, puis réessayez.',
+  PLAYER_ALREADY_LINKED: 'Ce profil est déjà lié à un autre compte.',
+  NOT_AUTHENTICATED: 'Vous n’êtes plus connecté. Connectez-vous de nouveau.',
+  SERVER_UNREACHABLE: 'Le serveur ne répond pas. Vérifiez votre connexion à Internet, puis réessayez.',
+  INVALID_HOUSEHOLD_NAME: 'Le nom du foyer doit avoir de 1 à 60 lettres.',
+  NOT_HOUSEHOLD_OWNER: 'Seule la personne responsable du foyer peut faire cela.',
+  NO_HOUSEHOLD: 'Vous ne faites plus partie d’un foyer.',
   ALREADY_IN_HOUSEHOLD:
-    'Vous faites déjà partie d’un foyer : quittez-le avant d’en créer ou d’en rejoindre un autre.',
+    'Vous faites déjà partie d’un foyer. Quittez-le d’abord pour en créer ou en rejoindre un autre.',
   ALREADY_HOUSEHOLD_MEMBER: 'Cette personne fait déjà partie du foyer.',
-  ALREADY_INVITED: 'Une invitation attend déjà la réponse de cette personne.',
-  HOUSEHOLD_FULL: 'Le foyer est complet : 12 membres au plus, invitations en attente comprises.',
-  INVITATION_NOT_FOUND: 'Cette invitation n’existe plus : elle a expiré ou a été annulée.',
+  ALREADY_INVITED: 'Cette personne a déjà une invitation. Elle n’a pas encore répondu.',
+  HOUSEHOLD_FULL: 'Le foyer est complet : 12 personnes au plus, invitations comprises.',
+  INVITATION_NOT_FOUND: 'Cette invitation n’existe plus. Elle est trop ancienne, ou elle a été annulée.',
   MEMBER_NOT_FOUND: 'Cette personne ne fait plus partie du foyer.',
-  OWNER_CANNOT_LEAVE: 'Le propriétaire ne quitte pas son foyer : il peut le dissoudre.',
-  DAYS_NOT_SHARED: 'Ce membre ne partage pas ses journées pour l’instant.',
+  OWNER_CANNOT_LEAVE:
+    'La personne responsable ne peut pas quitter le foyer. Elle peut le supprimer.',
+  DAYS_NOT_SHARED: 'Cette personne ne montre pas ses journées pour le moment.',
   NOT_SYNCED: 'Connectez-vous pour prévoir un repas pour le foyer.',
-  NOT_OWNER: 'Cette donnée appartient à un autre membre du foyer.',
+  NOT_OWNER: 'Un autre membre du foyer a créé cet élément. Vous ne pouvez pas le modifier.',
   HOUSEHOLD_CONFLICT:
-    'Le foyer a changé entre-temps. Voici son état actuel : réessayez si besoin.',
+    'Le foyer a changé pendant ce temps. Voici ce qu’il est maintenant. Réessayez si besoin.',
 }
 
 const text = computed(() =>
   props.error === null
     ? ''
-    : (MESSAGES[props.error.code] ?? 'Une erreur est survenue. Réessayez.'),
+    : (MESSAGES[props.error.code] ?? 'Quelque chose n’a pas marché. Réessayez.'),
 )
 </script>
 

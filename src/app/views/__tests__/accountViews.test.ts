@@ -100,7 +100,7 @@ describe('Connexion', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').text()).toContain('Adresse ou mot de passe incorrect')
+    expect(wrapper.find('[role="alert"]').text()).toContain('L’adresse e-mail ou le mot de passe est faux')
     expect(router.currentRoute.value.name).toBe(ROUTE.signIn)
   })
 
@@ -116,7 +116,7 @@ describe('Connexion', () => {
     const input = wrapper.find('input[type="email"]')
     expect(input.attributes('aria-invalid')).toBe('true')
     const describedBy = input.attributes('aria-describedby')!
-    expect(wrapper.find(`#${describedBy}`).text()).toContain('Adresse e-mail invalide')
+    expect(wrapper.find(`#${describedBy}`).text()).toContain('Cette adresse e-mail n’est pas correcte')
   })
 
   it('offre un mot de passe affichable', async () => {
@@ -159,7 +159,7 @@ describe('Inscription', () => {
     expect(wrapper.find('input[autocomplete="new-password"]').attributes('aria-invalid')).toBe(
       'true',
     )
-    expect(wrapper.text()).toContain('Mot de passe trop court')
+    expect(wrapper.text()).toContain('Ce mot de passe est trop court')
   })
 })
 
@@ -172,7 +172,7 @@ describe('Lien de confirmation', () => {
 
     expect(verifyEmail).toHaveBeenCalledWith('jeton-du-lien')
     expect(router.currentRoute.value.hash).toBe('')
-    expect(wrapper.text()).toContain('Adresse confirmée')
+    expect(wrapper.text()).toContain('Votre adresse est confirmée')
     expect(wrapper.text()).toContain('camille@example.fr')
   })
 
@@ -183,7 +183,7 @@ describe('Lien de confirmation', () => {
       },
     })
 
-    expect(wrapper.find('[role="alert"]').text()).toContain('a déjà servi ou a expiré')
+    expect(wrapper.find('[role="alert"]').text()).toContain('Il a déjà servi, ou il est trop ancien')
   })
 
   it('signale un lien incomplet sans appeler le serveur', async () => {
@@ -193,7 +193,7 @@ describe('Lien de confirmation', () => {
     })
 
     expect(verifyEmail).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Ce lien est incomplet')
+    expect(wrapper.text()).toContain('il est incomplet')
   })
 })
 
@@ -231,6 +231,6 @@ describe('Nouveau mot de passe', () => {
     })
 
     expect(wrapper.find('form').exists()).toBe(false)
-    expect(wrapper.text()).toContain('Ce lien est incomplet')
+    expect(wrapper.text()).toContain('il est incomplet')
   })
 })

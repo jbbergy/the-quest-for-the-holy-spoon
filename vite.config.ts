@@ -21,7 +21,7 @@ const pwa = VitePWA({
   manifest: {
     name: 'The Quest for the Holy Spoon',
     short_name: 'Holy Spoon',
-    description: 'Apprendre à manger équilibré, une quête à la fois.',
+    description: 'Apprendre à manger équilibré, un repas après l’autre.',
     lang: 'fr',
     start_url: '/',
     scope: '/',

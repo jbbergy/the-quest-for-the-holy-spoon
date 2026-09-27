@@ -57,6 +57,7 @@ describe('Journal des modifications', () => {
     const payload = needs?.op === 'upsert' ? needs.payload : {}
 
     expect(Object.keys(payload).sort()).toEqual([
+      'history',
       'id',
       'name',
       'playerId',

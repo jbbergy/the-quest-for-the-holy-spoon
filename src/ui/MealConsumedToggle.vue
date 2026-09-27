@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * Bascule « repas pris ».
+ * Bascule « repas mangé ».
  *
  * C'est un vrai `<button>` porteur de `aria-pressed`, et non deux boutons qui
  * se remplacent : l'état est annoncé par le bouton lui-même, le focus survit à
- * la bascule, et le libellé reste **stable** (« Pris ») au lieu de changer sous
+ * la bascule, et le libellé reste **stable** (« Mangé ») au lieu de changer sous
  * le lecteur d'écran. L'heure s'affiche à côté, hors du nom accessible, pour ne
  * pas le faire varier à chaque minute.
  */
@@ -48,9 +48,9 @@ const time = computed(() => {
         class="consumed__mark"
         aria-hidden="true"
       >{{ isConsumed ? '✓' : '○' }}</span>
-      <span>Pris</span>
+      <span>Mangé</span>
       <!-- Le libellé du repas n'est visible nulle part dans le bouton : sans lui,
-           une liste de quatre repas offrirait quatre boutons « Pris » identiques. -->
+           une liste de quatre repas offrirait quatre boutons « Mangé » identiques. -->
       <span class="sr-only"> — {{ mealLabel }}</span>
     </button>
 
@@ -64,7 +64,7 @@ const time = computed(() => {
       v-else
       class="consumed__time"
     >
-      Pas encore compté
+      Pas encore mangé
     </p>
   </div>
 </template>

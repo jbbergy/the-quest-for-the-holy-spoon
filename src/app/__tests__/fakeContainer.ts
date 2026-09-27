@@ -84,6 +84,7 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       getMeal: stub(ok(null)),
       recentPortions: stub(ok(new Map())),
       refreshPlanned: stub(ok(0)),
+      rescalePlanned: stub(ok(0)),
       journal: stub(
         ok({ day: '2026-04-10', meals: [], consumedMeals: [], totalCalories: 0 }),
       ),

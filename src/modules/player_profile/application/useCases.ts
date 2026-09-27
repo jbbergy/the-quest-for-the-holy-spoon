@@ -1,3 +1,4 @@
+import type { DayKey } from '@/core/day'
 import { ApplicationError, type DomainError, type RepositoryError } from '@/core/errors'
 import { err, ok, type Result } from '@/core/result'
 
@@ -72,6 +73,7 @@ export interface ProfileUpdate {
   readonly weightKg?: number
   readonly heightCm?: number
   readonly ageYears?: number
+  readonly biologicalSex?: BiologicalSex
   readonly activityLevel?: ActivityLevel
   readonly restrictions?: readonly DietaryRestriction[]
   readonly allergens?: readonly string[]
@@ -83,11 +85,15 @@ export interface ProfileUpdate {
  * Chaque étape produit une **nouvelle instance** de `Player` ; rien n'est muté
  * en place. L'ancienne instance reste valide, ce que la couche présentation
  * exploite pour comparer l'avant et l'après et animer la transition.
+ *
+ * `today` : le jour à partir duquel les nouveaux besoins valent. Quand ils
+ * changent, les anciens sont gardés pour les jours d'avant — un jour passé
+ * reste jugé avec les besoins qu'on avait alors.
  */
 export class UpdatePlayerProfileUseCase {
   constructor(private readonly players: IPlayerRepository) {}
 
-  async execute(update: ProfileUpdate): Promise<Result<Player, ProfileError>> {
+  async execute(update: ProfileUpdate, today: DayKey): Promise<Result<Player, ProfileError>> {
     const current = await this.players.findCurrent()
     if (!current.ok) {
       return err(
@@ -100,10 +106,11 @@ export class UpdatePlayerProfileUseCase {
       return err(new ApplicationError('NO_CURRENT_PROFILE', 'Aucun profil à mettre à jour.'))
     }
 
-    const updated = applyUpdate(current.value, update)
-    if (!updated.ok) return updated
+    const applied = applyUpdate(current.value, update)
+    if (!applied.ok) return applied
+    const updated = current.value.succeededBy(applied.value, today)
 
-    const saved = await this.players.save(updated.value)
+    const saved = await this.players.save(updated)
     if (!saved.ok) {
       return err(
         new ApplicationError('PROFILE_NOT_SAVED', 'La mise à jour n’a pas pu être enregistrée.', {
@@ -112,7 +119,7 @@ export class UpdatePlayerProfileUseCase {
       )
     }
 
-    return ok(updated.value)
+    return ok(updated)
   }
 }
 
@@ -153,7 +160,7 @@ function applyUpdate(player: Player, update: ProfileUpdate): Result<Player, Doma
       heightCm: update.heightCm ?? player.measurements.heightCm,
       weightKg: update.weightKg ?? player.measurements.weightKg,
       ageYears: update.ageYears ?? player.measurements.ageYears,
-      biologicalSex: player.measurements.biologicalSex,
+      biologicalSex: update.biologicalSex ?? player.measurements.biologicalSex,
     })
     if (!measurements.ok) return measurements
     next = next.withMeasurements(measurements.value)
@@ -183,6 +190,7 @@ function hasMeasurementChange(update: ProfileUpdate): boolean {
   return (
     update.heightCm !== undefined ||
     update.weightKg !== undefined ||
-    update.ageYears !== undefined
+    update.ageYears !== undefined ||
+    update.biologicalSex !== undefined
   )
 }

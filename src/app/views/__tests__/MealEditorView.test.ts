@@ -102,7 +102,7 @@ async function mountAt(
         changeQuantity: { execute: changeQuantity },
         removeEntry: { execute: removeEntry },
         addFood: { execute: addFood },
-        find: succeedsWith({ kind: 'by_name', items: [chicken, bread], onlineSearched: true }),
+        find: succeedsWith({ kind: 'by_name', items: [chicken, bread], excluded: [], onlineSearched: true }),
         recentPortions: succeedsWith(recent),
       } as never,
     }),
@@ -203,13 +203,13 @@ describe('MealEditorView — repas existant', () => {
     expect(removeEntry).toHaveBeenCalledWith(idFrom('meal-1'), idFrom('entry-1'))
   })
 
-  it('propose « Pris » pour un repas du jour', async () => {
+  it('propose « Mangé » pour un repas du jour', async () => {
     const wrapper = await mountAt('/semaine/repas/meal-1')
 
     expect(wrapper.find('[aria-pressed]').exists()).toBe(true)
   })
 
-  it('ne propose pas « Pris » pour un repas à venir', async () => {
+  it('ne propose pas « Mangé » pour un repas à venir', async () => {
     // Le domaine le refuserait : un bouton voué à l'échec n'a rien à faire là.
     const wrapper = await mountAt('/semaine/repas/meal-1', mealOf({ plannedFor: tomorrow }))
 
@@ -236,7 +236,7 @@ describe('MealEditorView — repas pris', () => {
 
     // Masquer les commandes sans expliquer laisserait croire à un bug.
     expect(wrapper.text()).toContain('100 g')
-    expect(wrapper.text()).toContain('décochez « Pris » pour le modifier')
+    expect(wrapper.text()).toContain('Pour le changer, décochez d’abord « Mangé »')
   })
 })
 
@@ -295,7 +295,7 @@ describe('MealEditorView — nouveau repas', () => {
 
     expect((wrapper.find('.portion__field input').element as HTMLInputElement).value).toBe('1')
     expect(wrapper.find('.portion__unit').text()).toBe('tranche')
-    expect(wrapper.find('.portion__weight').text()).toBe('Soit ≈ 25 g')
+    expect(wrapper.find('.portion__weight').text()).toBe('Soit environ 25 g')
 
     await wrapper.findAll('.portion__step')[1]!.trigger('click')
     expect(wrapper.find('.portion__unit').text()).toBe('tranche')
@@ -306,7 +306,7 @@ describe('MealEditorView — nouveau repas', () => {
     expect(addFood).toHaveBeenCalledWith(
       expect.objectContaining({ foodItemId: bread.id, grams: 50, measure: 'tranche' }),
     )
-    expect(wrapper.find('[role="status"]').text()).toContain('(2 tranches)')
+    expect(wrapper.find('.editor__feedback').text()).toContain('(2 tranches)')
   })
 
   it('reprend la dernière portion saisie pour l’aliment', async () => {

@@ -7,10 +7,11 @@ import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
 import { err, ok, type Result } from '@/core/result'
 
-import { FoodItem, FoodSource, type FoodTag } from '../domain/FoodItem'
+import { FoodItem, FoodSource } from '../domain/FoodItem'
 import type { IFoodRepository } from '../domain/repositories'
 
 import { ciqualPortions } from './ciqualPortions'
+import { ciqualTags } from './ciqualTags'
 import { type CiqualFood, ciqualCatalogSchema } from './ciqualSchema'
 
 /**
@@ -24,8 +25,12 @@ import { type CiqualFood, ciqualCatalogSchema } from './ciqualSchema'
  *
  * Passée à 3 avec les portions usuelles et l'unité des liquides, pour la même
  * raison.
+ *
+ * Passée à 4 avec les marqueurs gluten, lait et œuf, déduits aussi des noms :
+ * sans eux, le filtre des régimes ne masquerait que la viande et le poisson.
+ * Passée à 5 avec le porc, le bœuf, les fruits de mer et l'alcool.
  */
-export const CIQUAL_SEED_VERSION = 3
+export const CIQUAL_SEED_VERSION = 5
 
 const DEFAULT_CATALOG_URL = '/data/ciqual.json'
 
@@ -171,41 +176,11 @@ function toFoodItems(catalog: readonly CiqualFood[]): FoodItem[] {
         macrosPer100g: macros.value,
         detailPer100g: detail.value,
         source: FoodSource.CIQUAL,
-        tags: tagsForSubGroup(food.subGroupCode),
+        tags: ciqualTags(food.subGroupCode, food.name),
         ...ciqualPortions(food.subGroupCode, food.name),
       }),
     )
   }
 
   return items
-}
-
-/**
- * Marqueurs déduits du **sous-groupe** Ciqual.
- *
- * Le groupe de premier niveau est inutilisable ici : « viandes, œufs, poissons
- * et assimilés » réunit 788 aliments, et marquer tout ce lot `CONTAINS_MEAT`
- * classerait les œufs et le saumon comme de la viande. Le second niveau sépare
- * « viandes crues », « poissons cuits » ou « œufs », ce qui rend la déduction
- * sûre.
- *
- * La table reste volontairement incomplète : ces marqueurs servent à **exclure**
- * un aliment incompatible, jamais à affirmer qu'il convient. Ne rien marquer
- * laisse l'aliment visible ; le marquer à tort le ferait disparaître à tort.
- */
-const SUBGROUP_TAGS: Readonly<Record<string, readonly FoodTag[]>> = {
-  '0205': ['CONTAINS_NUTS'], // fruits à coque et graines oléagineuses
-  '0401': ['CONTAINS_MEAT'], // viandes cuites
-  '0402': ['CONTAINS_MEAT'], // viandes crues
-  '0403': ['CONTAINS_MEAT'], // charcuteries et assimilés
-  '0404': ['CONTAINS_MEAT'], // autres produits à base de viande
-  '0405': ['CONTAINS_FISH'], // poissons cuits
-  '0406': ['CONTAINS_FISH'], // poissons crus
-  '0407': ['CONTAINS_FISH'], // mollusques et crustacés cuits
-  '0408': ['CONTAINS_FISH'], // mollusques et crustacés crus
-  '0409': ['CONTAINS_FISH'], // produits à base de poissons et de la mer
-}
-
-function tagsForSubGroup(subGroupCode: string): FoodTag[] {
-  return [...(SUBGROUP_TAGS[subGroupCode] ?? [])]
 }

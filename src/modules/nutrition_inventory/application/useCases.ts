@@ -7,6 +7,7 @@ import { NutrientDetail, type NutrientDetailProps } from '@/core/nutrition/Nutri
 import { Quantity } from '@/core/nutrition/Quantity'
 import { err, ok, type Result } from '@/core/result'
 
+import { type Diet, DietSuitability } from '../domain/DietSuitability'
 import { FoodItem, FoodSource, type FoodTag, isBarcode } from '../domain/FoodItem'
 import { Meal, type MealType, portionScale } from '../domain/Meal'
 import { MealEntry } from '../domain/MealEntry'
@@ -55,6 +56,18 @@ export interface FoodSearchResults {
    * plutôt que laisser une liste courte passer pour une liste complète.
    */
   readonly onlineSearched: boolean
+  /**
+   * Résultats écartés parce qu'ils ne conviennent pas aux régimes demandés.
+   * Rendus plutôt que jetés : l'écran dit combien il en masque, et peut les
+   * montrer quand même — un marqueur déduit d'un nom peut se tromper.
+   */
+  readonly excluded: readonly FoodItem[]
+}
+
+export interface FoodSearchOptions {
+  readonly limit?: number
+  /** Régimes à respecter ; aucun par défaut. */
+  readonly diets?: readonly Diet[]
 }
 
 /**
@@ -85,8 +98,10 @@ export class FindFoodUseCase {
 
   async execute(
     text: string,
-    limit: number = DEFAULT_SEARCH_LIMIT,
+    options: FoodSearchOptions = {},
   ): Promise<Result<FoodSearchResults, InventoryError>> {
+    const limit = options.limit ?? DEFAULT_SEARCH_LIMIT
+    const diets = options.diets ?? []
     const trimmed = text.trim()
     const kind = isBarcode(trimmed) ? 'by_barcode' : 'by_name'
 
@@ -122,10 +137,12 @@ export class FindFoodUseCase {
     }
 
     const current = new Map(refreshed.map((item) => [item.id, item]))
+    const found = byName([...local.value.map((item) => current.get(item.id) ?? item), ...fresh])
     return ok({
       kind,
-      items: byName([...local.value.map((item) => current.get(item.id) ?? item), ...fresh]),
+      items: found.filter((item) => DietSuitability.suits(item, diets)),
       onlineSearched: remote !== null,
+      excluded: found.filter((item) => !DietSuitability.suits(item, diets)),
     })
   }
 
@@ -792,6 +809,58 @@ export class RefreshPlannedMealsUseCase {
       if (food.value !== null) catalog.set(id, food.value)
     }
     return ok(catalog)
+  }
+}
+
+/**
+ * Jusqu'où regarder devant soi : personne ne prévoit ses repas à plus d'un an.
+ * Au-delà, un repas prévu garde ses portions.
+ */
+const PLANNING_HORIZON_DAYS = 366
+
+/**
+ * Ajuste les portions des repas **prévus** à partir de `from`, quand les
+ * besoins de la personne changent — une pesée, une activité plus soutenue.
+ *
+ * Les repas pris ne bougent pas : ce qui a été mangé a été mangé. Les repas
+ * restés « prévus » des jours passés non plus : ce sont des oublis de cocher,
+ * pas des projets. Renvoie le nombre de repas réécrits.
+ */
+export class RescalePlannedMealsUseCase {
+  constructor(private readonly meals: IMealRepository) {}
+
+  async execute(
+    playerId: PlayerId,
+    from: DayKey,
+    scale: number,
+  ): Promise<Result<number, InventoryError>> {
+    if (scale === 1) return ok(0)
+
+    const found = await this.meals.findByPlayerBetween(
+      playerId,
+      from,
+      addDays(from, PLANNING_HORIZON_DAYS),
+    )
+    if (!found.ok) {
+      return err(
+        new ApplicationError('MEALS_UNREADABLE', 'Les repas prévus n’ont pas pu être relus.', {
+          cause: found.error,
+        }),
+      )
+    }
+
+    let rewritten = 0
+    for (const meal of found.value) {
+      if (meal.isConsumed || meal.isEmpty) continue
+      const rescaled = meal.rescale(scale)
+      if (!rescaled.ok) return rescaled
+      if (rescaled.value === meal) continue
+
+      const saved = await saveMeal(this.meals, rescaled.value)
+      if (!saved.ok) return saved
+      rewritten += 1
+    }
+    return ok(rewritten)
   }
 }
 

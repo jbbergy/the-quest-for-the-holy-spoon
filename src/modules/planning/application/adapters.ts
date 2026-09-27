@@ -7,7 +7,7 @@ import type { DailyConsumption, MealSummary } from '@/modules/nutrition_inventor
 import type { PlayerNutritionalNeeds } from '@/modules/player_profile/application'
 
 import type { ConsumedTotals, DailyTarget } from '../domain/MealCompletionService'
-import type { DailyIntake, NutrientValues } from '../domain/RecentIntakeService'
+import type { BaseOn, DailyIntake } from '../domain/RecentIntakeService'
 
 export function toDailyTarget(needs: PlayerNutritionalNeeds): DailyTarget {
   return {
@@ -25,9 +25,19 @@ export function toConsumedTotals(summaries: readonly MealSummary[]): ConsumedTot
   }))
 }
 
-/** Repères habituels, à plat : la forme sur laquelle raisonnent les moyennes. */
-export function toNutrientBase(needs: PlayerNutritionalNeeds): NutrientValues {
-  return { calories: needs.targetCalories, ...needs.targetMacros, ...needs.referenceNutrients }
+/**
+ * Repères de chaque jour, à plat : la forme sur laquelle raisonnent les
+ * moyennes. Un jour couvert par l'historique prend les besoins d'alors.
+ */
+export function toBaseOn(needs: PlayerNutritionalNeeds): BaseOn {
+  return (day) => {
+    const values = needs.history.find((snapshot) => snapshot.until >= day) ?? needs
+    return {
+      calories: values.targetCalories,
+      ...values.targetMacros,
+      ...values.referenceNutrients,
+    }
+  }
 }
 
 export function toDailyIntakes(history: readonly DailyConsumption[]): DailyIntake[] {

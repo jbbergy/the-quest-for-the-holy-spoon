@@ -669,3 +669,38 @@ describe('Meal.refreshFrom', () => {
   })
 })
 
+
+describe('Meal.rescale', () => {
+  it('ajuste les portions d’un repas prévu, arrondies à 5 g, sous le même identifiant', () => {
+    const meal = mealOf([entryOf(chicken, 150), entryOf(rice, 200)])
+
+    const rescaled = meal.rescale(0.9)
+
+    expect(isOk(rescaled) && rescaled.value.id).toBe(meal.id)
+    expect(isOk(rescaled) && rescaled.value.entries.map((entry) => entry.quantity.grams)).toEqual(
+      [135, 180],
+    )
+    // Les lignes gardent leur identité : l'écran ne les voit pas disparaître.
+    expect(isOk(rescaled) && rescaled.value.entries[0]?.id).toBe(meal.entries[0]?.id)
+  })
+
+  it('renvoie le repas lui-même quand aucune portion ne bouge', () => {
+    const meal = mealOf([entryOf(rice, 200)])
+
+    const rescaled = meal.rescale(1.01)
+
+    expect(isOk(rescaled) && rescaled.value).toBe(meal)
+  })
+
+  it('refuse un repas pris', () => {
+    const eaten = mealOf([entryOf(rice, 200)]).markConsumed(new Date())
+    if (!isOk(eaten)) throw new Error('repas de test invalide')
+
+    expect(isErr(eaten.value.rescale(1.2))).toBe(true)
+  })
+
+  it('refuse un facteur absurde', () => {
+    expect(isErr(mealOf([entryOf(rice, 200)]).rescale(0))).toBe(true)
+    expect(isErr(mealOf([entryOf(rice, 200)]).rescale(Number.NaN))).toBe(true)
+  })
+})

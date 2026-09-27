@@ -147,7 +147,7 @@ describe('FoodDetailView', () => {
 
     expect(buttonNamed(wrapper, 'Modifier')).toBeUndefined()
     expect(buttonNamed(wrapper, 'Supprimer')).toBeUndefined()
-    expect(wrapper.text()).toContain('seul son auteur peut le modifier')
+    expect(wrapper.text()).toContain('Seule cette personne peut le modifier')
   })
 
   it('montre une fiche de référence en lecture seule', async () => {
@@ -155,13 +155,13 @@ describe('FoodDetailView', () => {
 
     expect(buttonNamed(wrapper, 'Modifier')).toBeUndefined()
     expect(buttonNamed(wrapper, 'Supprimer')).toBeUndefined()
-    expect(wrapper.text()).toContain('Fiche de référence')
+    expect(wrapper.text()).toContain('vient d’un catalogue')
   })
 
   it('dit quand la fiche n’existe plus', async () => {
     const wrapper = await mountAt(FoodDetailView, '/aliments/disparu')
 
-    expect(wrapper.text()).toContain('Aliment introuvable')
+    expect(wrapper.text()).toContain('Cet aliment n’existe plus')
   })
 })
 
@@ -173,10 +173,10 @@ describe('CustomFoodView — modification', () => {
     const wrapper = await mountAt(CustomFoodView, `/aliments/${tart.id}/modifier`)
 
     expect(wrapper.find('h1').text()).toBe('Modifier l’aliment')
-    expect((field(wrapper, 'Nom').element as HTMLInputElement).value).toBe('Tarte de mamie')
-    expect((field(wrapper, 'Portion 1').element as HTMLInputElement).value).toBe('part')
+    expect((field(wrapper, 'Nom de l’aliment').element as HTMLInputElement).value).toBe('Tarte de mamie')
+    expect((field(wrapper, 'Nom de la portion 1').element as HTMLInputElement).value).toBe('part')
 
-    await field(wrapper, 'Nom').setValue('Tarte de mamie, moins sucrée')
+    await field(wrapper, 'Nom de l’aliment').setValue('Tarte de mamie, moins sucrée')
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
@@ -190,7 +190,7 @@ describe('CustomFoodView — modification', () => {
     const wrapper = await mountAt(CustomFoodView, `/aliments/${cake.id}/modifier`)
 
     expect(wrapper.find('form').exists()).toBe(false)
-    expect(wrapper.text()).toContain('ne peut pas être modifié ici')
+    expect(wrapper.text()).toContain('Vous ne pouvez pas modifier cet aliment')
   })
 
 })

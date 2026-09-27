@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import type { DayKey } from '@/core/day'
 import { err, isErr } from '@/core/result'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import { BiologicalSex } from '@/modules/player_profile/domain/BodyMeasurements'
@@ -138,12 +139,13 @@ describe('UpdatePlayerProfileUseCase', () => {
     await new CreatePlayerProfileUseCase(players).execute(validInput)
   })
 
+  const TODAY = '2026-09-27' as DayKey
   const update = (): UpdatePlayerProfileUseCase => new UpdatePlayerProfileUseCase(players)
 
   it('met à jour le poids et recalcule les besoins', async () => {
     const before = unwrap(await players.findCurrent())!
 
-    const after = unwrap(await update().execute({ weightKg: 90 }))
+    const after = unwrap(await update().execute({ weightKg: 90 }, TODAY))
 
     expect(after.measurements.weightKg).toBe(90)
     expect(after.basalMetabolicRate()).toBeCloseTo(before.basalMetabolicRate() + 100, 10)
@@ -152,21 +154,43 @@ describe('UpdatePlayerProfileUseCase', () => {
   it('produit une nouvelle instance sans muter l’ancienne', async () => {
     const before = unwrap(await players.findCurrent())!
 
-    const after = unwrap(await update().execute({ activityLevel: ActivityLevel.SEDENTARY }))
+    const after = unwrap(await update().execute({ activityLevel: ActivityLevel.SEDENTARY }, TODAY))
 
     expect(after).not.toBe(before)
     expect(after.id).toBe(before.id)
     expect(before.activityLevel).toBe(ActivityLevel.MODERATE)
   })
 
+  it('change le sexe biologique, et les besoins avec lui', async () => {
+    const before = unwrap(await players.findCurrent())!
+    const other =
+      before.measurements.biologicalSex === BiologicalSex.MALE
+        ? BiologicalSex.FEMALE
+        : BiologicalSex.MALE
+
+    const after = unwrap(await update().execute({ biologicalSex: other }, TODAY))
+
+    expect(after.measurements.biologicalSex).toBe(other)
+    expect(after.targetCalories()).not.toBe(before.targetCalories())
+  })
+
+  it('garde les besoins d’avant pour les jours passés', async () => {
+    const before = unwrap(await players.findCurrent())!
+
+    const after = unwrap(await update().execute({ weightKg: 70 }, TODAY))
+
+    expect(after.needsOn('2026-09-26' as DayKey)).toEqual(before.needs())
+    expect(unwrap(await players.findCurrent())?.needsHistory).toHaveLength(1)
+  })
+
   it('persiste la mise à jour', async () => {
-    await update().execute({ activityLevel: ActivityLevel.VERY_ACTIVE })
+    await update().execute({ activityLevel: ActivityLevel.VERY_ACTIVE }, TODAY)
 
     expect(unwrap(await players.findCurrent())?.activityLevel).toBe(ActivityLevel.VERY_ACTIVE)
   })
 
   it('ne touche qu’aux champs fournis', async () => {
-    const after = unwrap(await update().execute({ name: 'Karadoc' }))
+    const after = unwrap(await update().execute({ name: 'Karadoc' }, TODAY))
 
     expect(after.name).toBe('Karadoc')
     expect(after.measurements.weightKg).toBe(80)
@@ -179,7 +203,7 @@ describe('UpdatePlayerProfileUseCase', () => {
         weightKg: 75,
         activityLevel: ActivityLevel.SEDENTARY,
         restrictions: [DietaryRestriction.VEGETARIAN],
-      }),
+      }, TODAY),
     )
 
     expect(after.measurements.weightKg).toBe(75)
@@ -190,7 +214,7 @@ describe('UpdatePlayerProfileUseCase', () => {
   it('rejette d’un bloc une combinaison de mesures invalide', async () => {
     // Poids plausible mais âge aberrant : la reconstruction groupée refuse
     // l'ensemble plutôt que d'appliquer la moitié de la demande.
-    const result = await update().execute({ weightKg: 75, ageYears: 200 })
+    const result = await update().execute({ weightKg: 75, ageYears: 200 }, TODAY)
 
     expect(isErr(result)).toBe(true)
     if (isErr(result)) expect(result.error.code).toBe('INVALID_MEASUREMENT')
@@ -198,7 +222,7 @@ describe('UpdatePlayerProfileUseCase', () => {
   })
 
   it('refuse un renommage invalide sans rien enregistrer', async () => {
-    const result = await update().execute({ name: '   ' })
+    const result = await update().execute({ name: '   ' }, TODAY)
 
     expect(isErr(result)).toBe(true)
     expect(unwrap(await players.findCurrent())?.name).toBe('Perceval')
@@ -207,14 +231,14 @@ describe('UpdatePlayerProfileUseCase', () => {
   it('signale l’absence de profil à mettre à jour', async () => {
     const empty = new UpdatePlayerProfileUseCase(new InMemoryPlayerRepository())
 
-    const result = await empty.execute({ weightKg: 80 })
+    const result = await empty.execute({ weightKg: 80 }, TODAY)
 
     expect(isErr(result)).toBe(true)
     if (isErr(result)) expect(result.error.code).toBe('NO_CURRENT_PROFILE')
   })
 
   it('met à jour le read model consommé par planning', async () => {
-    const after = unwrap(await update().execute({ activityLevel: ActivityLevel.SEDENTARY }))
+    const after = unwrap(await update().execute({ activityLevel: ActivityLevel.SEDENTARY }, TODAY))
 
     const needs = toNutritionalNeeds(after)
 

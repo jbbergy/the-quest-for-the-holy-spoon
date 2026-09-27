@@ -29,7 +29,11 @@ onMounted(async () => {
     >
       🥄
     </p>
-    <h1 class="splash__title">
+    <!-- Nom en anglais : `lang` le fait prononcer comme tel (critère 3.1.2). -->
+    <h1
+      class="splash__title"
+      lang="en"
+    >
       The Quest for the Holy Spoon
     </h1>
     <p

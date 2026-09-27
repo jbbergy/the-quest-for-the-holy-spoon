@@ -136,7 +136,7 @@ describe('Écran Foyer', () => {
   it('sans compte, propose de se connecter puis d’y revenir', async () => {
     const wrapper = await mountAt(HouseholdView, '/foyer', {}, false)
 
-    expect(wrapper.text()).toContain('Un foyer demande un compte')
+    expect(wrapper.text()).toContain('Il faut un compte pour avoir un foyer')
     await button(wrapper, 'Se connecter').trigger('click')
     await flushPromises()
     expect(router.currentRoute.value.fullPath).toBe('/connexion?suite=/foyer')
@@ -156,7 +156,7 @@ describe('Écran Foyer', () => {
     await flushPromises()
 
     expect(create).toHaveBeenCalledWith('Les Martin')
-    expect(wrapper.text()).toContain('Foyer créé')
+    expect(wrapper.text()).toContain('Le foyer est créé')
     expect(wrapper.find('h2').text()).toBe('Les Martin')
   })
 
@@ -174,11 +174,11 @@ describe('Écran Foyer', () => {
   it('montre au propriétaire les membres, les invitations et qui ne partage pas', async () => {
     const wrapper = await mountAt(HouseholdView, '/foyer', { household: { get: succeedsWith(owned) } })
 
-    expect(wrapper.text()).toContain('Vous en êtes le propriétaire.')
-    expect(wrapper.text()).toContain('propriétaire · vous')
-    expect(wrapper.text()).toContain('ne partage pas ses journées')
+    expect(wrapper.text()).toContain('Vous êtes responsable de ce foyer.')
+    expect(wrapper.text()).toContain('responsable du foyer, vous')
+    expect(wrapper.text()).toContain('ne montre pas ses journées')
     expect(wrapper.text()).toContain('sacha@example.fr')
-    expect(wrapper.text()).toContain('Dissoudre le foyer')
+    expect(wrapper.text()).toContain('Supprimer le foyer')
   })
 
   it('invite par e-mail et le confirme', async () => {
@@ -192,7 +192,7 @@ describe('Écran Foyer', () => {
     await flushPromises()
 
     expect(invite).toHaveBeenCalledWith('noa@example.fr')
-    expect(wrapper.text()).toContain('Invitation envoyée à noa@example.fr.')
+    expect(wrapper.text()).toContain('L’invitation est envoyée à noa@example.fr.')
   })
 
   it('traduit le refus d’une invitation', async () => {
@@ -207,7 +207,7 @@ describe('Écran Foyer', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.find('[role="alert"]').text()).toContain('Une invitation attend déjà')
+    expect(wrapper.find('[role="alert"]').text()).toContain('Cette personne a déjà une invitation')
   })
 
   it('ne retire un membre qu’après confirmation', async () => {
@@ -234,7 +234,7 @@ describe('Écran Foyer', () => {
       household: { get: succeedsWith(joined), leave: { execute: leave } },
     })
 
-    expect(wrapper.text()).toContain('Vous en êtes membre.')
+    expect(wrapper.text()).toContain('Vous faites partie de ce foyer.')
     expect(wrapper.text()).not.toContain('Inviter')
     expect(wrapper.findAll('button').some((candidate) => candidate.text() === 'Retirer')).toBe(false)
 
@@ -263,10 +263,10 @@ describe('Écran d’invitation', () => {
     })
 
     expect(wrapper.find('h1').text()).toBe('Rejoindre « Chez Sacha » ?')
-    expect(wrapper.text()).toContain('Ce que les membres verront')
-    expect(wrapper.text()).toContain('Vos repas, prévus et pris.')
+    expect(wrapper.text()).toContain('Ce que les autres membres verront')
+    expect(wrapper.text()).toContain('Vos repas, prévus et mangés.')
     expect(wrapper.text()).toContain('Ce qui reste privé')
-    expect(wrapper.text()).toContain('Vos mensurations')
+    expect(wrapper.text()).toContain('Votre taille, votre poids et votre âge')
   })
 
   it('accepter mène au foyer rejoint', async () => {
@@ -305,7 +305,7 @@ describe('Écran d’invitation', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Vous faites déjà partie de « Les Martin »')
+    expect(wrapper.text()).toContain('Vous faites déjà partie du foyer « Les Martin »')
     await button(wrapper, 'Rejoindre le foyer').trigger('click')
     expect(accept).not.toHaveBeenCalled()
   })
@@ -324,7 +324,7 @@ describe('Réglages du foyer', () => {
     })
 
     const toggle = wrapper.find('input[role="switch"]')
-    expect(wrapper.text()).toContain('Vous faites partie de « Les Martin ».')
+    expect(wrapper.text()).toContain('Vous faites partie du foyer « Les Martin ».')
     expect((toggle.element as HTMLInputElement).checked).toBe(true)
 
     await toggle.setValue(false)
@@ -332,7 +332,7 @@ describe('Réglages du foyer', () => {
 
     expect(setDaySharing).toHaveBeenCalledWith(false)
     expect((toggle.element as HTMLInputElement).checked).toBe(false)
-    expect(wrapper.text()).toContain('Vos journées ne sont plus visibles par le foyer.')
+    expect(wrapper.text()).toContain('Le foyer ne voit plus vos journées.')
   })
 
   it('n’apparaît pas sans foyer', async () => {

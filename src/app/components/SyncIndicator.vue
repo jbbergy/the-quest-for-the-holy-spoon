@@ -16,19 +16,19 @@ const { status } = useSyncStatus()
 const announcement = ref('')
 
 const plural = (count: number): string =>
-  `${count} modification${count > 1 ? 's' : ''} en attente`
+  `${count} changement${count > 1 ? 's' : ''} à envoyer`
 
 const label = computed(() => {
   const { phase, pending } = status.value
   switch (phase) {
     case 'syncing':
-      return 'Synchronisation…'
+      return 'Envoi en cours…'
     case 'offline':
-      return pending > 0 ? `Hors ligne — ${plural(pending)}` : 'Hors ligne'
+      return pending > 0 ? `Pas d’Internet : ${plural(pending)}` : 'Pas d’Internet'
     case 'error':
-      return 'Synchronisation impossible'
+      return 'Envoi impossible'
     default:
-      return pending > 0 ? plural(pending) : 'À jour'
+      return pending > 0 ? plural(pending) : 'Tout est enregistré'
   }
 })
 
@@ -36,11 +36,12 @@ watch(
   () => status.value.phase,
   (phase, previous) => {
     if (phase === 'offline') {
-      announcement.value = 'Hors ligne : vos modifications seront envoyées au retour du réseau.'
+      announcement.value =
+        'Pas d’Internet. Vos changements partiront quand la connexion reviendra.'
     } else if (phase === 'error') {
-      announcement.value = 'La synchronisation a échoué.'
+      announcement.value = 'L’envoi de vos changements n’a pas marché.'
     } else if (phase === 'idle' && (previous === 'offline' || previous === 'error')) {
-      announcement.value = 'Synchronisation rétablie.'
+      announcement.value = 'Vos changements sont de nouveau envoyés.'
     }
   },
 )

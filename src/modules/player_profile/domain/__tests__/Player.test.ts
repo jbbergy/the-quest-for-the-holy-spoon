@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import type { DayKey } from '@/core/day'
 import { KCAL_PER_GRAM } from '@/core/nutrition/Macros'
 import { isErr, isOk } from '@/core/result'
 import {
@@ -293,5 +294,40 @@ describe('Player', () => {
 
     expect(player.name).toBe('Perceval')
     expect(player.targetCalories()).toBeCloseTo(1780 * 1.2, 10)
+  })
+
+  describe('historique des besoins', () => {
+    const today = '2026-09-27' as DayKey
+
+    it('garde les besoins d’avant quand ils changent', () => {
+      const before = playerOf()
+      const lighter = before.updateWeight(70)
+      if (!isOk(lighter)) throw new Error('pesée de test invalide')
+
+      const after = before.succeededBy(lighter.value, today)
+
+      expect(after.needsHistory).toHaveLength(1)
+      expect(after.needsOn('2026-09-26' as DayKey)).toEqual(before.needs())
+      expect(after.needsOn(today).targetCalories).toBeLessThan(before.targetCalories())
+    })
+
+    it('n’ajoute rien quand les besoins ne changent pas', () => {
+      const before = playerOf()
+      const renamed = before.rename('Karadoc')
+      if (!isOk(renamed)) throw new Error('nom de test invalide')
+
+      expect(before.succeededBy(renamed.value, today).needsHistory).toEqual([])
+    })
+
+    it('survit à un renommage et aux autres modifications', () => {
+      const before = playerOf()
+      const lighter = before.updateWeight(70)
+      if (!isOk(lighter)) throw new Error('pesée de test invalide')
+      const after = before.succeededBy(lighter.value, today)
+
+      const renamed = after.rename('Karadoc')
+      expect(isOk(renamed) && renamed.value.needsHistory).toHaveLength(1)
+      expect(after.withActivityLevel(ActivityLevel.LIGHT).needsHistory).toHaveLength(1)
+    })
   })
 })

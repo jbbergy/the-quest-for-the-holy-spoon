@@ -20,7 +20,7 @@ describe('OnlineSearchNotice', () => {
   it('en ligne, dit que le service n’a pas répondu et propose de relancer', async () => {
     const wrapper = mountWith(true)
 
-    expect(wrapper.text()).toContain('Open Food Facts n’a pas répondu')
+    expect(wrapper.text()).toContain('La recherche des produits de marque ne répond pas')
     expect(wrapper.text()).toContain('code-barres')
 
     await wrapper.get('button').trigger('click')
@@ -31,7 +31,7 @@ describe('OnlineSearchNotice', () => {
   it('hors connexion, le dit et ne propose pas une relance vouée à l’échec', () => {
     const wrapper = mountWith(false)
 
-    expect(wrapper.text()).toContain('Hors connexion')
+    expect(wrapper.text()).toContain('pas connecté à Internet')
     expect(wrapper.find('button').exists()).toBe(false)
   })
 

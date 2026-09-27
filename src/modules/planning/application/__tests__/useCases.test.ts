@@ -23,6 +23,7 @@ const needs: PlayerNutritionalNeeds = {
   referenceNutrients: { fiberG: 30, sugarsG: 100, saturatedFatG: 26.7, saltG: 5 },
   restrictions: [],
   allergens: [],
+  history: [],
 }
 
 const summary = (
@@ -131,6 +132,7 @@ describe('SuggestMealCompletionUseCase', () => {
         referenceNutrients: { fiberG: 30, sugarsG: 100, saturatedFatG: 24, saltG: 5 },
         restrictions: [],
         allergens: [],
+        history: [],
       },
       [],
     )
