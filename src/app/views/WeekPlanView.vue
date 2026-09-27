@@ -181,6 +181,17 @@ function subtitle(day: PlannedDay): string {
           :open="openDays.isOpen(day.day)"
           @update:open="(next) => openDays.setOpen(day.day, next)"
         >
+          <template #actions>
+            <BaseButton
+              variant="ghost"
+              size="sm"
+              @click="addMeal(day)"
+            >
+              <span aria-hidden="true">＋</span> Ajouter un repas
+              <span class="sr-only">le {{ formatDay(day.day) }}</span>
+            </BaseButton>
+          </template>
+
           <ul
             v-if="day.meals.length > 0"
             class="week__meals"
@@ -214,15 +225,6 @@ function subtitle(day: PlannedDay): string {
               />
             </li>
           </ul>
-
-          <BaseButton
-            variant="ghost"
-            size="sm"
-            @click="addMeal(day)"
-          >
-            <span aria-hidden="true">＋</span> Ajouter un repas
-            <span class="sr-only">le {{ formatDay(day.day) }}</span>
-          </BaseButton>
         </BaseCard>
       </li>
     </ol>
@@ -280,7 +282,7 @@ function subtitle(day: PlannedDay): string {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  margin: 0 0 var(--space-3);
+  margin: 0;
   padding: 0;
   list-style: none;
 }

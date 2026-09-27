@@ -12,6 +12,9 @@
  *
  * L'état ouvert appartient à l'appelant (`v-model:open`), qui décide de ce
  * qu'il en garde.
+ *
+ * Le slot `actions` se place dans l'en-tête, à côté du sous-titre : il reste
+ * accessible carte repliée, pour les gestes qui n'ont pas besoin du contenu.
  */
 import { useId } from 'vue'
 
@@ -55,12 +58,23 @@ const bodyId = useId()
           {{ title }}
         </template>
       </h2>
-      <p
-        v-if="subtitle"
-        class="card__subtitle"
+      <div
+        v-if="subtitle || $slots.actions"
+        class="card__meta"
       >
-        {{ subtitle }}
-      </p>
+        <p
+          v-if="subtitle"
+          class="card__subtitle"
+        >
+          {{ subtitle }}
+        </p>
+        <div
+          v-if="$slots.actions"
+          class="card__actions"
+        >
+          <slot name="actions" />
+        </div>
+      </div>
     </header>
     <div
       v-if="props.collapsible"
@@ -87,7 +101,8 @@ const bodyId = useId()
   margin-bottom: var(--space-4);
 }
 
-.card--collapsed .card__header {
+.card--collapsed .card__header,
+.card__header:has(+ .card__body:empty) {
   margin-bottom: 0;
 }
 
@@ -128,10 +143,26 @@ const bodyId = useId()
   transform: rotate(-135deg);
 }
 
+.card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-2);
+  margin-top: var(--space-1);
+}
+
 .card__subtitle {
-  margin: var(--space-1) 0 0;
+  margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+.card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-left: auto;
 }
 
 @media (prefers-reduced-motion: reduce) {

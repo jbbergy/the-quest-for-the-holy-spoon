@@ -308,6 +308,17 @@ describe('BaseCard', () => {
 
     expect(wrapper.emitted('update:open')).toEqual([[true]])
   })
+
+  it('garde ses actions accessibles une fois repliée', () => {
+    const wrapper = mount(BaseCard, {
+      props: { title: 'Lundi', subtitle: '1800 kcal', collapsible: true, open: false },
+      slots: { default: '<p>Repas</p>', actions: '<button type="button">Ajouter</button>' },
+    })
+
+    const action = wrapper.find('.card__actions button')
+    expect(action.text()).toBe('Ajouter')
+    expect(action.element.closest('[hidden]')).toBeNull()
+  })
 })
 
 
