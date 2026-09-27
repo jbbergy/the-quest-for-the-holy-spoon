@@ -1,8 +1,14 @@
 import { Email } from '@/core/Email'
 import type { DomainError } from '@/core/errors'
-import { type AccountId, type InvitationId, newId } from '@/core/identity'
+import { type AccountId, type InvitationId, newId, type PlayerId } from '@/core/identity'
 import { err, ok, type Result } from '@/core/result'
-import { AlreadyInHouseholdError, InvitationNotFoundError } from '@/modules/household/domain/errors'
+import type { DayKey } from '@/core/day'
+import {
+  AlreadyInHouseholdError,
+  DaysNotSharedError,
+  InvitationNotFoundError,
+  MemberNotFoundError,
+} from '@/modules/household/domain/errors'
 import { Household, type HouseholdActor } from '@/modules/household/domain/Household'
 import {
   type HouseholdView,
@@ -10,13 +16,20 @@ import {
   viewHousehold,
 } from '@/modules/household/domain/views'
 
-import type { Clock, IHouseholdNotifier, IHouseholdRepository } from '../domain/ports'
+import type {
+  Clock,
+  IHouseholdNotifier,
+  IHouseholdRepository,
+  IMemberDirectory,
+  MemberDays,
+} from '../domain/ports'
 
 import { HouseholdConflictError, HouseholdEmailNotVerifiedError, NoHouseholdError } from './errors'
 
 export interface HouseholdDependencies {
   readonly households: IHouseholdRepository
   readonly notifier: IHouseholdNotifier
+  readonly members: IMemberDirectory
   readonly clock: Clock
 }
 
@@ -53,8 +66,9 @@ abstract class HouseholdUseCase {
   }
 
   /** Vue d'un foyer dont le compte est forcément membre, sans quoi c'est un bug. */
-  protected view(household: Household, viewer: AccountId): HouseholdView {
-    const view = viewHousehold(household, viewer, this.deps.clock())
+  protected async view(household: Household, viewer: AccountId): Promise<HouseholdView> {
+    const profiles = await this.deps.members.profiles(household.members.map((member) => member.accountId))
+    const view = viewHousehold(household, viewer, this.deps.clock(), profiles)
     if (view === undefined) throw new Error(`Le compte ${viewer} n’est pas membre du foyer ${household.id}.`)
     return view
   }
@@ -66,7 +80,7 @@ abstract class HouseholdUseCase {
   ): Promise<Result<HouseholdView, Refusal>> {
     if (!changed.ok) return changed
     const saved = await this.persist(changed.value)
-    return saved.ok ? ok(this.view(saved.value, viewer)) : saved
+    return saved.ok ? ok(await this.view(saved.value, viewer)) : saved
   }
 }
 
@@ -75,7 +89,7 @@ export class GetHouseholdUseCase extends HouseholdUseCase {
     const verified = this.verified(account)
     if (!verified.ok) return verified
     const household = await this.deps.households.findByMember(account.id)
-    return ok(household === null ? null : this.view(household, account.id))
+    return ok(household === null ? null : await this.view(household, account.id))
   }
 }
 
@@ -94,7 +108,7 @@ export class CreateHouseholdUseCase extends HouseholdUseCase {
     if ((await this.deps.households.save(founded.value)) === 'conflict') {
       return err(new AlreadyInHouseholdError())
     }
-    return ok(this.view(founded.value, account.id))
+    return ok(await this.view(founded.value, account.id))
   }
 }
 
@@ -160,7 +174,7 @@ export class SetDaySharingUseCase extends HouseholdUseCase {
 
     const changed = household.value.setDaySharing(account.id, sharesDays)
     // Rien à écrire quand le réglage était déjà celui demandé.
-    if (changed.ok && changed.value === household.value) return ok(this.view(changed.value, account.id))
+    if (changed.ok && changed.value === household.value) return ok(await this.view(changed.value, account.id))
     return this.saveAndView(changed, account.id)
   }
 }
@@ -223,5 +237,32 @@ export class DeclineInvitationUseCase extends HouseholdUseCase {
     if (!declined.ok) return declined
     const saved = await this.persist(declined.value)
     return saved.ok ? ok(undefined) : saved
+  }
+}
+
+/**
+ * Journées d'un membre, pour les consulter depuis un autre appareil du foyer.
+ *
+ * Refusées si le membre a coupé le partage : c'est **son** réglage, et il
+ * s'applique à tous les autres membres, propriétaire compris.
+ */
+export class GetMemberDaysUseCase extends HouseholdUseCase {
+  async execute(
+    account: HouseholdAccount,
+    playerId: PlayerId,
+    range: { readonly from: DayKey; readonly to: DayKey },
+  ): Promise<Result<MemberDays, Refusal>> {
+    const household = await this.householdOf(account)
+    if (!household.ok) return household
+
+    const accountIds = household.value.members.map((member) => member.accountId)
+    const profiles = await this.deps.members.profiles(accountIds)
+    const target = household.value.members.find(
+      (member) => profiles.get(member.accountId)?.playerId === playerId,
+    )
+    if (target === undefined) return err(new MemberNotFoundError())
+    if (!target.sharesDays && target.accountId !== account.id) return err(new DaysNotSharedError())
+
+    return ok(await this.deps.members.days(target.accountId, range.from, range.to))
   }
 }

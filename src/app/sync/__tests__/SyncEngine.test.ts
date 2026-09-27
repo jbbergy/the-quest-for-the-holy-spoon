@@ -38,6 +38,11 @@ function memoryReplica(initial: SyncState | null = null) {
       return ok(new Set())
     },
     makeCurrent: async () => ok(undefined),
+    rebase: async (household) => {
+      if (state === null || (state.household ?? null) === household) return ok(false)
+      state = { ...state, cursor: 0, household }
+      return ok(true)
+    },
     stop: async () => {
       state = null
       pending = []

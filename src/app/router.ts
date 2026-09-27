@@ -25,6 +25,7 @@ export const ROUTE = {
   settings: 'settings',
   household: 'household',
   invitation: 'invitation',
+  memberDay: 'member-day',
   signIn: 'sign-in',
   signUp: 'sign-up',
   verifyEmail: 'verify-email',
@@ -114,6 +115,12 @@ export function createAppRouter(): Router {
         path: `${HOUSEHOLD_APP_LINK}/invitations/:invitationId`,
         name: ROUTE.invitation,
         component: () => import('./views/InvitationView.vue'),
+      },
+      {
+        // `?jour=AAAA-MM-JJ` : un jour passé ; aujourd'hui par défaut.
+        path: `${HOUSEHOLD_APP_LINK}/membres/:playerId`,
+        name: ROUTE.memberDay,
+        component: () => import('./views/MemberDayView.vue'),
       },
       {
         path: '/connexion',

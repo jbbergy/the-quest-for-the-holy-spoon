@@ -45,7 +45,7 @@ interface NavLink {
 
 const HOME: NavLink = { name: ROUTE.dashboard, label: 'Accueil', icon: '◎', also: [] }
 const WEEK: NavLink = { name: ROUTE.weekPlan, label: 'Semaine', icon: '▦', also: [ROUTE.mealEditor] }
-const HOUSEHOLD: NavLink = { name: ROUTE.household, label: 'Foyer', icon: '⌂', also: [ROUTE.invitation] }
+const HOUSEHOLD: NavLink = { name: ROUTE.household, label: 'Foyer', icon: '⌂', also: [ROUTE.invitation, ROUTE.memberDay] }
 const SETTINGS: NavLink = { name: ROUTE.settings, label: 'Réglages', icon: '⚙', also: [] }
 
 /** Le foyer n'existe qu'avec un compte : sans session, l'onglet n'aurait rien à montrer. */

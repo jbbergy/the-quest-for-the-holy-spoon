@@ -1,5 +1,5 @@
 import { InvalidFoodItemError } from '@/core/errors'
-import { type FoodItemId, newId } from '@/core/identity'
+import { type FoodItemId, newId, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
 import { err, ok, type Result } from '@/core/result'
@@ -40,6 +40,12 @@ export interface FoodItemProps {
   readonly source: FoodSource
   readonly barcode?: string
   readonly tags?: readonly FoodTag[]
+  /**
+   * Profil qui a créé l'aliment, pour une fiche `USER` ; `null` pour Ciqual et
+   * Open Food Facts, qui n'ont pas d'auteur. Au sein d'un foyer, chacun voit
+   * les aliments des autres, mais seul l'auteur les modifie.
+   */
+  readonly ownerId?: PlayerId | null
 }
 
 const MAX_NAME_LENGTH = 200
@@ -75,6 +81,7 @@ export class FoodItem {
     readonly source: FoodSource,
     readonly barcode: string | undefined,
     readonly tags: readonly FoodTag[],
+    readonly ownerId: PlayerId | null = null,
   ) {}
 
   static create(
@@ -104,6 +111,7 @@ export class FoodItem {
         props.source,
         barcode,
         dedupeTags(props.tags ?? []),
+        props.ownerId ?? null,
       ),
     )
   }
@@ -117,6 +125,7 @@ export class FoodItem {
       props.source,
       props.barcode,
       props.tags ?? [],
+      props.ownerId ?? null,
     )
   }
 
@@ -146,6 +155,7 @@ export class FoodItem {
       this.source,
       this.barcode,
       this.tags,
+      this.ownerId,
     )
   }
 
@@ -158,6 +168,7 @@ export class FoodItem {
       source: this.source,
       ...(this.barcode === undefined ? {} : { barcode: this.barcode }),
       tags: this.tags,
+      ownerId: this.ownerId,
     })
   }
 

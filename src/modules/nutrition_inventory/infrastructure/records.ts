@@ -38,6 +38,11 @@ export interface FoodRecord {
   readonly tags: readonly FoodTag[]
   /** Dérivé du nom, alimente l'index `multiEntry` de recherche. */
   readonly searchTokens: readonly string[]
+  /**
+   * Auteur d'un aliment créé à la main. Absent des enregistrements antérieurs
+   * au partage : la migration v3 l'attribue au profil courant de l'appareil.
+   */
+  readonly ownerId?: string | null
 }
 
 export function foodToRecord(item: FoodItem): FoodRecord {
@@ -57,6 +62,7 @@ export function foodToRecord(item: FoodItem): FoodRecord {
     ...(item.barcode === undefined ? {} : { barcode: item.barcode }),
     tags: [...item.tags],
     searchTokens: tokenize(item.name),
+    ownerId: item.ownerId,
   }
 }
 
@@ -73,6 +79,7 @@ export function recordToFood(record: FoodRecord): FoodItem {
     source: record.source,
     ...(record.barcode === undefined ? {} : { barcode: record.barcode }),
     tags: record.tags,
+    ownerId: record.ownerId == null ? null : idFrom(record.ownerId),
   })
 }
 
@@ -114,6 +121,8 @@ export interface MealRecord {
    * relecture s'appuie sur cette absence, voir `consumedAtOf`.
    */
   readonly consumedAt?: string | null
+  /** Profil qui a prévu ce repas pour celui-ci ; absent ou `null` : le sien. */
+  readonly plannedBy?: string | null
   readonly entries: readonly MealEntryRecord[]
 }
 
@@ -125,6 +134,7 @@ export function mealToRecord(meal: Meal): MealRecord {
     loggedAt: meal.loggedAt.toISOString(),
     dayKey: meal.plannedFor,
     consumedAt: meal.consumedAt === null ? null : meal.consumedAt.toISOString(),
+    plannedBy: meal.plannedBy,
     entries: meal.entries.map((entry) => ({
       id: entry.id,
       foodItemId: entry.foodItemId,
@@ -184,6 +194,7 @@ export function recordToMeal(record: MealRecord): Meal {
     // plutôt que de rendre tout le journal illisible.
     plannedFor: parseDayKey(record.dayKey) ?? dayKeyOf(new Date(record.loggedAt)),
     consumedAt: consumedAtOf(record),
+    plannedBy: record.plannedBy == null ? null : idFrom(record.plannedBy),
     entries: record.entries.map((entry) =>
       MealEntry.reconstitute({
         id: idFrom(entry.id),

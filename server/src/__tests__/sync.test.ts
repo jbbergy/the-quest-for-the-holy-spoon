@@ -155,13 +155,18 @@ describe('Propriété des enregistrements', () => {
       changes: [
         { op: 'upsert', entity: 'meal', id: 'meal-x', payload: { id: 'autre', playerId: 'player-alex' } },
         { op: 'upsert', entity: 'food', id: 'ciqual:1', payload: { id: 'ciqual:1', source: 'CIQUAL' } },
-        { op: 'upsert', entity: 'food', id: 'food-1', payload: { id: 'food-1', source: 'USER' } },
+        { op: 'upsert', entity: 'food', id: 'food-1', payload: { id: 'food-1', source: 'USER', ownerId: 'player-alex' } },
+        { op: 'upsert', entity: 'food', id: 'food-2', payload: { id: 'food-2', source: 'USER' } },
+        { op: 'upsert', entity: 'food', id: 'food-3', payload: { id: 'food-3', source: 'USER', ownerId: 'player-camille' } },
       ],
     })
 
+    // Un aliment perso porte son auteur : sans lui, ou signé d'un autre, il est refusé.
     expect(push.json().rejected.map((rejection: { id: string }) => rejection.id)).toEqual([
       'meal-x',
       'ciqual:1',
+      'food-2',
+      'food-3',
     ])
   })
 })

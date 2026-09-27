@@ -39,6 +39,9 @@ const owned: Household = {
   members: [
     {
       accountId: session.accountId,
+      playerId: session.playerId,
+      name: 'Camille',
+      targetCalories: 2000,
       email: 'camille@example.fr',
       isOwner: true,
       joinedAt: new Date('2026-09-20T10:00:00Z'),
@@ -46,6 +49,9 @@ const owned: Household = {
     },
     {
       accountId: idFrom('account-alex'),
+      playerId: idFrom('player-alex'),
+      name: null,
+      targetCalories: null,
       email: 'alex@example.fr',
       isOwner: false,
       joinedAt: new Date('2026-09-21T10:00:00Z'),

@@ -15,11 +15,14 @@ type Executable = { execute: (...args: never[]) => unknown }
 
 const stub = (result: unknown): Executable => ({ execute: async () => result })
 
+const UNREACHABLE = { kind: 'remote', code: 'SERVER_UNREACHABLE', message: 'hors ligne' }
+
 /** Chaque use case d'un groupe peut être remplacé par n'importe quel `execute`. */
 type GroupOverrides<TGroup> = Partial<Record<keyof TGroup, Executable>>
 
 export interface FakeContainerOverrides {
   readonly sync?: AppContainer['sync']
+  readonly memberDays?: { read: (...args: never[]) => unknown }
   readonly account?: GroupOverrides<AppContainer['account']>
   readonly household?: GroupOverrides<AppContainer['household']>
   readonly profile?: GroupOverrides<AppContainer['profile']>
@@ -32,6 +35,7 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
     network: new StaticNetworkStatus(true),
     databases: { get: async () => null, close: async () => undefined },
     sync: overrides.sync ?? fakeSyncEngine(),
+    memberDays: overrides.memberDays ?? { read: async () => ({ ok: false, error: UNREACHABLE }) },
 
     account: {
       getSession: stub(ok(null)),
@@ -80,6 +84,7 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       week: stub(ok({ days: [] })),
       history: stub(ok([])),
       markConsumed: stub(ok(null)),
+      planForMembers: stub(ok([])),
       exportData: stub(ok({ meals: [], customFoods: [] })),
       ...overrides.inventory,
     },
@@ -110,6 +115,7 @@ export function fakeSyncEngine(): AppContainer['sync'] {
     },
     onRemoteChanges: () => () => undefined,
     connect: async () => ok('resumed'),
+    rebase: async () => undefined,
     schedule: () => undefined,
     sync: async () => undefined,
     flush: async () => 0,

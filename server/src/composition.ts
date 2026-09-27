@@ -22,6 +22,7 @@ import {
   DeclineInvitationUseCase,
   DissolveHouseholdUseCase,
   GetHouseholdUseCase,
+  GetMemberDaysUseCase,
   type HouseholdDependencies,
   InviteUseCase,
   LeaveHouseholdUseCase,
@@ -31,8 +32,10 @@ import {
   SetDaySharingUseCase,
 } from './modules/household/application/useCases'
 import { KyselyHouseholdRepository } from './modules/household/infrastructure/KyselyHouseholdRepository'
+import { KyselyMemberDirectory } from './modules/household/infrastructure/KyselyMemberDirectory'
 import { MailHouseholdNotifier } from './modules/household/infrastructure/MailHouseholdNotifier'
 import { PullChangesUseCase, PushChangesUseCase } from './modules/sync/application/useCases'
+import { KyselyHouseholdDirectory } from './modules/sync/infrastructure/KyselyHouseholdDirectory'
 import { KyselyRecordStore } from './modules/sync/infrastructure/KyselyRecordStore'
 import type { Db } from './shared/db/database'
 import type { IMailer } from './shared/mail/Mailer'
@@ -58,9 +61,11 @@ export function createServerContainer(options: {
   }
 
   const records = new KyselyRecordStore(options.db)
+  const directory = new KyselyHouseholdDirectory(options.db)
   const household: HouseholdDependencies = {
     households: new KyselyHouseholdRepository(options.db),
     notifier: new MailHouseholdNotifier(options.mailer),
+    members: new KyselyMemberDirectory(options.db),
     clock: options.clock,
   }
 
@@ -77,10 +82,11 @@ export function createServerContainer(options: {
       received: new ListReceivedInvitationsUseCase(household),
       accept: new AcceptInvitationUseCase(household),
       decline: new DeclineInvitationUseCase(household),
+      memberDays: new GetMemberDaysUseCase(household),
     },
     sync: {
-      push: new PushChangesUseCase(records),
-      pull: new PullChangesUseCase(records),
+      push: new PushChangesUseCase(records, directory),
+      pull: new PullChangesUseCase(records, directory),
     },
     account: {
       authenticate: new AuthenticateUseCase(deps),

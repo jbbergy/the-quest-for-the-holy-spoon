@@ -31,6 +31,7 @@ export {
   GetMealUseCase,
   GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
+  PlanMealForMembersUseCase,
   RemoveMealEntryUseCase,
   RescheduleMealUseCase,
   type AddFoodInput,
@@ -40,7 +41,9 @@ export {
   type FoodSearchResults,
   type InventoryError,
   type InventoryExport,
+  type MealGuest,
   type MealSchedule,
+  type PlanForMembersInput,
   type PlannedDay,
   type WeekPlan,
 } from './useCases'

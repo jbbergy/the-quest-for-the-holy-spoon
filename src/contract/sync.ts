@@ -14,7 +14,7 @@ export const SYNC_ROUTE = {
   pull: '/sync/pull',
 } as const
 
-export const SYNC_ENTITIES = ['player', 'meal', 'food'] as const
+export const SYNC_ENTITIES = ['player', 'meal', 'food', 'needs'] as const
 export type SyncEntityName = (typeof SYNC_ENTITIES)[number]
 
 /** Au-delà, le client découpe : un envoi reste court même après une semaine hors ligne. */
@@ -58,3 +58,26 @@ export const pullResponseSchema = z.object({
   hasMore: z.boolean(),
 })
 export type PullResponse = z.infer<typeof pullResponseSchema>
+
+/**
+ * Besoins publiés d'un profil (entité `needs`, identifiant = celui du profil).
+ *
+ * Ce qu'un membre du foyer voit du profil d'un autre : son nom et ce qui en
+ * découle — besoin calorique, cibles de macros, repères. Jamais les
+ * mensurations, qui restent dans l'entité `player`, lisible par son seul compte.
+ */
+const grams = z.number().min(0)
+export const sharedNeedsSchema = z.object({
+  id: z.string().min(1),
+  playerId: z.string().min(1),
+  name: z.string(),
+  targetCalories: z.number().positive(),
+  targetMacros: z.object({ proteinG: grams, carbsG: grams, fatG: grams }),
+  referenceNutrients: z.object({
+    fiberG: grams,
+    sugarsG: grams,
+    saturatedFatG: grams,
+    saltG: grams,
+  }),
+})
+export type SharedNeeds = z.infer<typeof sharedNeedsSchema>

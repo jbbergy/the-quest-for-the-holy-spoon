@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { addDays, type DayKey, dayKeyOf, parseDayKey } from '@/core/day'
 import { RepositoryError } from '@/core/errors'
+import { err, ok } from '@/core/result'
 import { idFrom, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
@@ -17,6 +18,7 @@ import {
   GetMealUseCase,
   GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
+  PlanMealForMembersUseCase,
   RemoveMealEntryUseCase,
   RescheduleMealUseCase,
 } from '@/modules/nutrition_inventory/application/useCases'
@@ -997,5 +999,126 @@ describe('GetConsumptionHistoryUseCase', () => {
     const result = await history().execute(playerId, dayOf('2026-09-16'), dayOf('2026-09-22'))
 
     expect(isErr(result) && result.error.code).toBe('HISTORY_UNREADABLE')
+  })
+})
+
+describe('ExportInventoryUseCase — aliments du foyer', () => {
+  it('n’exporte que les aliments dont le profil est l’auteur', async () => {
+    const create = (name: string, ownerId: PlayerId | null) =>
+      new CreateCustomFoodUseCase(foods).execute({ name, proteinG: 1, carbsG: 1, fatG: 1, ownerId })
+    await create('Le mien', playerId)
+    await create('Sans auteur', null)
+    await create('Celui d’Alex', idFrom('player-alex'))
+
+    const archive = unwrap(await new ExportInventoryUseCase(meals, foods).execute(playerId))
+
+    expect(archive.customFoods.map((food) => food.name).sort()).toEqual(['Le mien', 'Sans auteur'])
+  })
+})
+
+describe('CreateCustomFoodUseCase — auteur', () => {
+  it('rattache l’aliment au profil qui le crée', async () => {
+    const food = unwrap(
+      await new CreateCustomFoodUseCase(foods).execute({
+        name: 'Houmous',
+        proteinG: 8,
+        carbsG: 14,
+        fatG: 17,
+        ownerId: playerId,
+      }),
+    )
+    expect(food.ownerId).toBe(playerId)
+  })
+})
+
+describe('PlanMealForMembersUseCase', () => {
+  const alex: PlayerId = idFrom('player-alex')
+  const sacha: PlayerId = idFrom('player-sacha')
+
+  async function lunch(): Promise<Meal> {
+    return unwrap(
+      await new AddFoodToMealUseCase(foods, meals).execute({
+        playerId,
+        foodItemId: rice.id,
+        grams: 200,
+        mealType: MealType.LUNCH,
+      }),
+    )
+  }
+
+  it('envoie à chaque membre sa copie, aux portions de ses besoins', async () => {
+    const offer = vi.fn(async () => ok(undefined))
+    const meal = await lunch()
+
+    const copies = unwrap(
+      await new PlanMealForMembersUseCase(meals, { offer }).execute({
+        mealId: meal.id,
+        plannedBy: playerId,
+        ownCalories: 2000,
+        guests: [
+          { playerId: alex, targetCalories: 2500 },
+          { playerId: sacha, targetCalories: null },
+        ],
+      }),
+    )
+
+    expect(copies.map((copy) => [copy.playerId, copy.entries[0]?.quantity.grams])).toEqual([
+      [alex, 250],
+      [sacha, 200],
+    ])
+    expect(offer).toHaveBeenCalledTimes(2)
+    expect(copies.every((copy) => copy.plannedBy === playerId && !copy.isConsumed)).toBe(true)
+  })
+
+  it('ne garde aucune copie sur l’appareil', async () => {
+    const meal = await lunch()
+
+    await new PlanMealForMembersUseCase(meals, { offer: async () => ok(undefined) }).execute({
+      mealId: meal.id,
+      plannedBy: playerId,
+      ownCalories: 2000,
+      guests: [{ playerId: alex, targetCalories: 2000 }],
+    })
+
+    expect(unwrap(await meals.findAllByPlayer(alex))).toEqual([])
+  })
+
+  it('n’envoie rien si une copie est impossible', async () => {
+    const offer = vi.fn(async () => ok(undefined))
+    const meal = await lunch()
+
+    const result = await new PlanMealForMembersUseCase(meals, { offer }).execute({
+      mealId: meal.id,
+      plannedBy: playerId,
+      ownCalories: 2000,
+      guests: [{ playerId: alex, targetCalories: 2000 }, { playerId, targetCalories: 2000 }],
+    })
+
+    expect(isErr(result)).toBe(true)
+    expect(offer).not.toHaveBeenCalled()
+  })
+
+  it('dit pourquoi l’envoi a échoué', async () => {
+    const meal = await lunch()
+    const result = await new PlanMealForMembersUseCase(meals, {
+      offer: async () => err(new RepositoryError('NOT_SYNCED', 'pas de compte')),
+    }).execute({
+      mealId: meal.id,
+      plannedBy: playerId,
+      ownCalories: null,
+      guests: [{ playerId: alex, targetCalories: null }],
+    })
+
+    expect(isErr(result) && result.error.code).toBe('NOT_SYNCED')
+  })
+
+  it('refuse un repas introuvable', async () => {
+    const result = await new PlanMealForMembersUseCase(meals, { offer: async () => ok(undefined) }).execute({
+      mealId: idFrom('inconnu'),
+      plannedBy: playerId,
+      ownCalories: null,
+      guests: [{ playerId: alex, targetCalories: null }],
+    })
+    expect(isErr(result) && result.error.code).toBe('MEAL_NOT_FOUND')
   })
 })

@@ -36,6 +36,7 @@ const summary = (
   plannedFor: dayKeyOf(new Date(2026, 3, 10)),
   // `planning` ne reçoit que des repas déjà pris : le tri est fait en amont.
   consumedAt: '2026-04-10T12:45:00.000Z',
+  plannedBy: null,
   entryCount: 2,
   macros,
   // `planning` ignore ces valeurs : sa suggestion reste calorique et

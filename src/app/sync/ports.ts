@@ -43,6 +43,11 @@ export interface ILocalReplica {
     changes: readonly RemoteChange[],
     cursor: number,
   ): Promise<Result<ReadonlySet<SyncEntity>, RepositoryError>>
+  /**
+   * Le foyer a changé (création, arrivée, départ) : les aliments des autres
+   * membres sont relus depuis le début. Renvoie `false` si rien n'a changé.
+   */
+  rebase(household: string | null): Promise<Result<boolean, RepositoryError>>
   /** Fait du profil du compte le profil courant de l'appareil. */
   makeCurrent(playerId: string): Promise<Result<void, RepositoryError>>
   /**

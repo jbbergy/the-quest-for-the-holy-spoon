@@ -16,8 +16,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import OnlineSearchNotice from '@/app/components/OnlineSearchNotice.vue'
+import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
 import { formatDay, MEAL_OPTIONS, mealLabel } from '@/app/mealLabels'
 import { ROUTE } from '@/app/router'
+import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import { dayKeyOf, parseDayKey } from '@/core/day'
 import type { FoodItemId, MealEntryId, MealId } from '@/core/identity'
 import { MealType } from '@/modules/nutrition_inventory/application'
@@ -37,6 +39,7 @@ const router = useRouter()
 const players = usePlayerStore()
 const editor = useMealEditorStore()
 const search = useFoodSearchStore()
+const household = useHousehold()
 
 const today = dayKeyOf(new Date())
 
@@ -370,7 +373,10 @@ async function createFood(): Promise<void> {
               <span class="editor__result">
                 <strong>{{ item.name }}</strong>
                 <small class="editor__result-meta">
-                  <FoodSourceTag :source="item.source" />
+                  <FoodSourceTag
+                    :source="item.source"
+                    :author="foodAuthor(household.household, players.playerId, item.ownerId)"
+                  />
                   {{ Math.round(item.macrosPer100g.calories()) }} kcal / 100 g
                 </small>
               </span>
@@ -424,6 +430,11 @@ async function createFood(): Promise<void> {
         </BaseButton>
       </div>
     </BaseCard>
+
+    <PlanForMembersCard
+      v-if="meal && meal.entries.length > 0"
+      :meal-id="meal.mealId"
+    />
 
     <p
       class="editor__feedback"

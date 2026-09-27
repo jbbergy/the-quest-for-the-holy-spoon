@@ -17,19 +17,37 @@ export const EXPORT_FORMAT = 'holy-spoon/export'
 /**
  * Version 2 : plus de section `progress` (le système d'XP a été retiré) et un
  * `plannedFor` sur chaque repas, distinct de `loggedAt` depuis la planification.
+ *
+ * Version 3 : le compte (son adresse) et le foyer (nom et rôle) quand il y en a
+ * un. Rien des autres membres : ni leurs journées, ni leurs aliments — les
+ * aliments exportés sont ceux dont on est l'auteur.
  */
-export const EXPORT_VERSION = 2
+export const EXPORT_VERSION = 3
+
+export interface AccountExport {
+  readonly email: string
+}
+
+export interface HouseholdExport {
+  readonly name: string
+  readonly role: 'owner' | 'member'
+}
 
 export interface HolySpoonExport {
   readonly format: typeof EXPORT_FORMAT
   readonly version: typeof EXPORT_VERSION
   readonly exportedAt: string
+  /** `null` : usage sans compte, tout est sur l'appareil. */
+  readonly account: AccountExport | null
+  readonly household: HouseholdExport | null
   readonly player: PlayerExport
   readonly meals: readonly MealExport[]
   readonly customFoods: readonly FoodExport[]
 }
 
 export interface ExportParts {
+  readonly account: AccountExport | null
+  readonly household: HouseholdExport | null
   readonly player: PlayerExport
   readonly meals: readonly MealExport[]
   readonly customFoods: readonly FoodExport[]
@@ -44,6 +62,8 @@ export function buildExport(parts: ExportParts, exportedAt: Date): HolySpoonExpo
     format: EXPORT_FORMAT,
     version: EXPORT_VERSION,
     exportedAt: exportedAt.toISOString(),
+    account: parts.account,
+    household: parts.household,
     player: parts.player,
     meals: parts.meals,
     customFoods: parts.customFoods,

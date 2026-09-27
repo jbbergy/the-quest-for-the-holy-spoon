@@ -10,12 +10,7 @@ import { computed, onMounted, watch } from 'vue'
 
 import { useDailyTracking } from '@/app/useDailyTracking'
 import { KCAL_PER_GRAM } from '@/core/nutrition/Macros'
-import {
-  CompletionStatus,
-  type DayBalance,
-  type Nutrient,
-  RECENT_DAYS,
-} from '@/modules/planning/application'
+import { CompletionStatus } from '@/modules/planning/application'
 import type { MealSummary } from '@/modules/nutrition_inventory/application'
 import { useConsumptionHistoryStore } from '@/modules/nutrition_inventory/presentation/useConsumptionHistoryStore'
 import { useJournalStore } from '@/modules/nutrition_inventory/presentation/useJournalStore'
@@ -23,10 +18,10 @@ import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerS
 import BaseCard from '@/ui/BaseCard.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
-import MacroGauge from '@/ui/MacroGauge.vue'
 import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
 import BaseButton from '@/ui/BaseButton.vue'
-import { formatDay, mealLabel, mealOrder } from '@/app/mealLabels'
+import DayOverview from '@/app/components/DayOverview.vue'
+import { mealLabel, mealOrder } from '@/app/mealLabels'
 import { ROUTE } from '@/app/router'
 import { useSyncStatus } from '@/app/sync/useSyncStatus'
 
@@ -45,70 +40,6 @@ onMounted(load)
 // Un repas coché sur un autre appareil apparaît ici sans recharger la page.
 const { remoteRevision } = useSyncStatus()
 watch([remoteRevision, () => players.playerId], load)
-
-/**
- * Totaux du jour, lus sur le read model.
- *
- * L'agrégation appartient à `GetDailyJournalUseCase`, qui ne somme que les
- * repas **effectivement pris** — composer un repas à l'avance ne remplit pas
- * les jauges de quelqu'un qui n'a encore rien mangé. La refaire ici rouvrirait
- * la possibilité que deux écrans filtrent différemment.
- */
-const consumed = computed(() => journal.totalMacros)
-const consumedDetail = computed(() => journal.totalDetail)
-
-const targets = computed(() => players.needs?.targetMacros ?? null)
-const references = computed(() => players.needs?.referenceNutrients ?? null)
-
-/**
- * Moyenne de la semaine écoulée pour un nutriment, telle que la jauge l'attend.
- * Sans historique lisible ni jour renseigné, rien : mieux vaut pas de moyenne
- * qu'une moyenne inventée.
- */
-function averageOf(nutrient: Nutrient) {
-  const recent = tracking.recent.value
-  return {
-    average: recent?.nutrients[nutrient].average ?? null,
-    averageDays: recent?.trackedDays ?? 0,
-    periodDays: RECENT_DAYS,
-  }
-}
-
-/** Les jours récents, du plus proche au plus lointain : hier d'abord. */
-const recentDays = computed(() => [...(tracking.recent.value?.recentDays ?? [])].reverse())
-
-/** Plafonds, avec l'accord qui convient à chacun. */
-const LIMIT_EXCEEDED: ReadonlyArray<readonly [Nutrient, string]> = [
-  ['sugarsG', 'sucres dépassés'],
-  ['saturatedFatG', 'AG saturés dépassés'],
-  ['saltG', 'sel dépassé'],
-]
-
-const decimal = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
-
-/**
- * Bilan d'une journée passée, en mots : « déficit » et « excès » plutôt qu'un
- * signe, qui se lit mal et s'entend plus mal encore.
- */
-function describeDay(day: DayBalance): string {
-  if (day.gap === null) return 'Non renseigné — aucun repas pris, hors de la moyenne'
-
-  const calories = Math.round(day.gap.calories)
-  // Même seuil que les jauges : sous le centième du besoin, pas d'écart à dire.
-  const habitual = players.needs?.targetCalories ?? 0
-  const balance =
-    Math.abs(day.gap.calories) < habitual * 0.01
-      ? 'À l’équilibre'
-      : calories < 0
-        ? `Déficit de ${-calories} kcal`
-        : `Excès de ${calories} kcal`
-
-  const gap = day.gap
-  const exceeded = LIMIT_EXCEEDED.filter(([nutrient]) => gap[nutrient] >= 0.05).map(
-    ([nutrient, words]) => `${words} de ${decimal.format(gap[nutrient])} g`,
-  )
-  return exceeded.length === 0 ? balance : `${balance} · ${exceeded.join(', ')}`
-}
 
 /**
  * Formulations volontairement neutres : elles décrivent où en est la journée,
@@ -165,123 +96,16 @@ async function setConsumed(mealId: MealSummary['mealId'], consumed: boolean): Pr
     <ErrorNotice :error="journal.error" />
     <ErrorNotice :error="history.error" />
 
-    <!--
-      Une seule carte pour toute la journée nutritionnelle : les apports et les
-      repères ne se lisent pas séparément, on regarde ce qu'il reste à prendre
-      et ce qu'on a déjà trop pris d'un même coup d'œil.
-
-      Les fibres figurent avec les macros parce qu'elles sont, comme elles, un
-      apport à atteindre. Seul le sens de lecture — objectif ou plafond —
-      justifie une séparation, d'où le sous-titre plutôt qu'une seconde carte.
-    -->
-    <BaseCard
-      v-if="targets && references && players.needs"
-      title="Apports du jour"
-      :subtitle="`${Math.round(journal.totalCalories)} sur ${Math.round(players.needs.targetCalories)} kcal`"
-    >
-      <div class="dashboard__gauges">
-        <MacroGauge
-          label="Calories"
-          unit="kcal"
-          :value="journal.totalCalories"
-          :target="players.needs.targetCalories"
-          v-bind="averageOf('calories')"
-        />
-        <MacroGauge
-          label="Protéines"
-          tone="protein"
-          :value="consumed.proteinG"
-          :target="targets.proteinG"
-          v-bind="averageOf('proteinG')"
-        />
-        <MacroGauge
-          label="Glucides"
-          tone="carbs"
-          :value="consumed.carbsG"
-          :target="targets.carbsG"
-          v-bind="averageOf('carbsG')"
-        />
-        <MacroGauge
-          label="Lipides"
-          tone="fat"
-          :value="consumed.fatG"
-          :target="targets.fatG"
-          v-bind="averageOf('fatG')"
-        />
-        <MacroGauge
-          label="Fibres"
-          tone="fiber"
-          mode="floor"
-          :value="consumedDetail.fiberG"
-          :target="references.fiberG"
-          v-bind="averageOf('fiberG')"
-        />
-      </div>
-
-      <h3 class="dashboard__subhead">
-        À ne pas dépasser
-      </h3>
-      <div class="dashboard__gauges">
-        <MacroGauge
-          label="Sucres"
-          mode="limit"
-          :value="consumedDetail.sugarsG"
-          :target="references.sugarsG"
-          v-bind="averageOf('sugarsG')"
-        />
-        <MacroGauge
-          label="AG saturés"
-          mode="limit"
-          :value="consumedDetail.saturatedFatG"
-          :target="references.saturatedFatG"
-          v-bind="averageOf('saturatedFatG')"
-        />
-        <MacroGauge
-          label="Sel"
-          mode="limit"
-          :value="consumedDetail.saltG"
-          :target="references.saltG"
-          v-bind="averageOf('saltG')"
-        />
-      </div>
-
-      <p
-        v-if="plannedCount > 0 || journal.consumedMeals.length === 0"
-        class="dashboard__hint"
-      >
-        Seuls les repas déclarés pris alimentent ces valeurs.
-      </p>
-
-      <!--
-        Le détail est replié : la jauge dit déjà la moyenne, ceci dit d'où elle
-        vient. <details> est accessible au clavier et annonce son état
-        replié ou déplié sans aucun ARIA à maintenir.
-      -->
-      <details
-        v-if="recentDays.some((day) => day.tracked)"
-        class="dashboard__recent"
-      >
-        <summary class="dashboard__recent-summary">
-          Bilan des {{ RECENT_DAYS }} derniers jours
-        </summary>
-        <p class="dashboard__hint">
-          Les repères nutritionnels se tiennent en moyenne, pas au jour près : les jauges montrent
-          donc aussi votre moyenne des {{ RECENT_DAYS }} derniers jours, sans changer l’objectif du
-          jour. Une journée sans repas pris n’est pas comptée.
-        </p>
-        <ul class="dashboard__recent-days">
-          <li
-            v-for="day in recentDays"
-            :key="day.day"
-            class="dashboard__recent-day"
-            :class="{ 'dashboard__recent-day--untracked': !day.tracked }"
-          >
-            <span class="dashboard__recent-date">{{ formatDay(day.day) }}</span>
-            <span>{{ describeDay(day) }}</span>
-          </li>
-        </ul>
-      </details>
-    </BaseCard>
+    <DayOverview
+      v-if="players.needs"
+      :needs="players.needs"
+      :total-calories="journal.totalCalories"
+      :total-macros="journal.totalMacros"
+      :total-detail="journal.totalDetail"
+      :recent="tracking.recent.value"
+      :planned-count="plannedCount"
+      :consumed-count="journal.consumedMeals.length"
+    />
 
     <BaseCard
       v-if="tracking.suggestion.value"
@@ -394,65 +218,6 @@ async function setConsumed(mealId: MealSummary['mealId'], consumed: boolean): Pr
 
 .dashboard__header h1 {
   margin: 0;
-}
-
-.dashboard__gauges {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-/* Sépare les plafonds des objectifs sans couper la carte en deux : c'est un
-   changement de sens de lecture, pas un autre sujet. */
-.dashboard__subhead {
-  margin: var(--space-5) 0 var(--space-3);
-  font-size: var(--font-size-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--color-text-muted);
-}
-
-.dashboard__recent {
-  margin-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
-}
-
-/* Cible tactile de 44px (critère 2.5.8) : un <summary> nu ne fait qu'une ligne. */
-.dashboard__recent-summary {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.dashboard__recent-days {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--font-size-sm);
-}
-
-.dashboard__recent-day {
-  display: flex;
-  flex-direction: column;
-}
-
-.dashboard__recent-date {
-  font-weight: 600;
-
-  &::first-letter {
-    text-transform: uppercase;
-  }
-}
-
-/* Un jour non renseigné est dit en toutes lettres ; le ton sourd ne fait que
-   l'accompagner (critère 1.4.1). */
-.dashboard__recent-day--untracked {
-  color: var(--color-text-muted);
 }
 
 .dashboard__status {

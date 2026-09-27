@@ -1,7 +1,8 @@
 import type { Email } from '@/core/Email'
+import type { DayKey } from '@/core/day'
 import type { AccountId, HouseholdId, InvitationId } from '@/core/identity'
 import type { Household } from '@/modules/household/domain/Household'
-import type { ReceivedInvitationView } from '@/modules/household/domain/views'
+import type { MemberProfile, ReceivedInvitationView } from '@/modules/household/domain/views'
 
 /**
  * Ports du module `household` côté serveur. L'agrégat et ses règles viennent
@@ -33,6 +34,24 @@ export interface InvitationNotice {
 /** Prévient la personne invitée. `linkBase` : origine de l'application. */
 export interface IHouseholdNotifier {
   invited(to: Email, notice: InvitationNotice, linkBase: string): Promise<void>
+}
+
+/** Enregistrement tel que l'appareil de son auteur l'a synchronisé. */
+export type SyncedRecord = Readonly<Record<string, unknown>>
+
+export interface MemberDays {
+  readonly meals: readonly SyncedRecord[]
+  readonly needs: SyncedRecord | null
+}
+
+/**
+ * Ce que les membres ont publié par la synchronisation : le profil rattaché à
+ * leur compte, leurs besoins calculés, leurs repas. Lecture seule.
+ */
+export interface IMemberDirectory {
+  profiles(accountIds: readonly AccountId[]): Promise<ReadonlyMap<AccountId, MemberProfile>>
+  /** Repas prévus entre deux jours (bornes incluses) et besoins du compte. */
+  days(accountId: AccountId, from: DayKey, to: DayKey): Promise<MemberDays>
 }
 
 export type Clock = () => Date

@@ -39,6 +39,8 @@ export interface MealSummary {
   readonly plannedFor: DayKey
   /** `null` tant que le repas n'est que prévu : il ne compte pas dans les totaux. */
   readonly consumedAt: string | null
+  /** Membre du foyer qui a prévu ce repas pour vous, ou `null`. */
+  readonly plannedBy: PlayerId | null
   readonly entryCount: number
   readonly macros: MacrosProps
   /** Fibres, sucres, AG saturés et sel du repas, en grammes. */
@@ -63,6 +65,7 @@ export function toMealSummary(meal: Meal): MealSummary {
     loggedAt: meal.loggedAt.toISOString(),
     plannedFor: meal.plannedFor,
     consumedAt: meal.consumedAt === null ? null : meal.consumedAt.toISOString(),
+    plannedBy: meal.plannedBy,
     entryCount: meal.entryCount,
     macros: totals.macros.toJSON(),
     detail: totals.detail.toJSON(),

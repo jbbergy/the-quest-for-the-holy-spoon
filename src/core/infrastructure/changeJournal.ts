@@ -24,6 +24,12 @@ export interface OutboxEntry {
   readonly entity: SyncEntity
   readonly id: string
   readonly op: SyncOp
+  /**
+   * Contenu à envoyer tel quel, pour un enregistrement que l'appareil ne garde
+   * pas : un repas prévu pour un autre membre du foyer. Absent, l'envoi relit
+   * l'état courant de l'enregistrement.
+   */
+  readonly payload?: Readonly<Record<string, unknown>>
 }
 
 export interface SyncState {
@@ -32,6 +38,12 @@ export interface SyncState {
   readonly playerId: string
   /** Révision serveur jusqu'à laquelle l'appareil est à jour. */
   readonly cursor: number
+  /**
+   * Empreinte du foyer (identifiant et membres) connue lors de la dernière
+   * lecture complète. Quand elle change, les aliments des autres membres sont
+   * relus depuis le début : ceux d'un nouveau venu datent d'avant le curseur.
+   */
+  readonly household?: string | null
 }
 
 interface SyncStateRecord {
@@ -58,21 +70,41 @@ export function writeSyncState(tx: IDBTransaction, state: SyncState | null): voi
 /**
  * Journalise une modification si elle concerne le compte connecté.
  *
- * `ownerPlayerId` : le profil auquel appartient l'enregistrement, ou `null`
- * pour un aliment créé à la main (partagé par tous les profils de l'appareil).
- * Un repas d'un autre profil local n'est pas journalisé : il n'appartient pas
- * au compte.
+ * `ownerPlayerId` : le profil auquel appartient l'enregistrement. Un repas ou
+ * un aliment d'un autre profil local n'est pas journalisé : il n'appartient
+ * pas au compte.
  */
 export async function journal(
   tx: IDBTransaction,
   change: OutboxEntry,
-  ownerPlayerId: string | null,
+  ownerPlayerId: string,
+): Promise<boolean> {
+  const state = await readSyncState(tx)
+  if (state === null || ownerPlayerId !== state.playerId) return false
+
+  tx.objectStore(STORE.outbox).add({ entity: change.entity, id: change.id, op: change.op })
+  return true
+}
+
+/**
+ * Dépose un enregistrement destiné à un autre compte, sans le garder sur
+ * l'appareil : les données des autres membres n'y sont jamais stockées. Sans
+ * compte connecté, rien n'est déposé — et la méthode le dit.
+ */
+export async function journalOffer(
+  tx: IDBTransaction,
+  entity: SyncEntity,
+  payload: Readonly<Record<string, unknown>> & { readonly id: string },
 ): Promise<boolean> {
   const state = await readSyncState(tx)
   if (state === null) return false
-  if (ownerPlayerId !== null && ownerPlayerId !== state.playerId) return false
 
-  tx.objectStore(STORE.outbox).add({ entity: change.entity, id: change.id, op: change.op })
+  tx.objectStore(STORE.outbox).add({
+    entity,
+    id: payload.id,
+    op: 'upsert',
+    payload,
+  } satisfies OutboxEntry)
   return true
 }
 

@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildExport, EXPORT_FORMAT, EXPORT_VERSION, exportFileName } from '@/app/dataExport'
@@ -32,6 +33,8 @@ const player = Player.reconstitute({
 const EXPORTED_AT = new Date('2026-09-22T21:45:00')
 
 const parts = {
+  account: null,
+  household: null,
   player: {
     name: 'Perceval',
     heightCm: 180,
@@ -123,6 +126,22 @@ describe('collectExport', () => {
     expect(archive.value.player.name).toBe('Perceval')
     expect(archive.value.meals).toHaveLength(1)
     expect(archive.value.customFoods).toHaveLength(1)
+  })
+
+  it('porte le compte et le foyer, sans rien des autres membres', async () => {
+    const archive = await collectExport(containerWith(), EXPORTED_AT, {
+      account: { email: 'camille@example.fr' },
+      household: { name: 'Les Martin', role: 'owner' },
+    })
+
+    expect(archive.ok && archive.value.account).toEqual({ email: 'camille@example.fr' })
+    expect(archive.ok && archive.value.household).toEqual({ name: 'Les Martin', role: 'owner' })
+  })
+
+  it('sans compte, le dit plutôt que d’omettre la section', async () => {
+    const archive = await collectExport(containerWith(), EXPORTED_AT)
+
+    expect(archive.ok && archive.value).toMatchObject({ account: null, household: null })
   })
 
   it('refuse d’exporter quand aucun profil n’est actif', async () => {
@@ -248,6 +267,7 @@ describe('useDataExport', () => {
     })
 
   beforeEach(() => {
+    setActivePinia(createPinia())
     vi.useFakeTimers()
     vi.setSystemTime(EXPORTED_AT)
     clicked = []

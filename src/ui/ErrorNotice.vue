@@ -47,6 +47,9 @@ const MESSAGES: Readonly<Record<string, string>> = {
   INVITATION_NOT_FOUND: 'Cette invitation n’existe plus : elle a expiré ou a été annulée.',
   MEMBER_NOT_FOUND: 'Cette personne ne fait plus partie du foyer.',
   OWNER_CANNOT_LEAVE: 'Le propriétaire ne quitte pas son foyer : il peut le dissoudre.',
+  DAYS_NOT_SHARED: 'Ce membre ne partage pas ses journées pour l’instant.',
+  NOT_SYNCED: 'Connectez-vous pour prévoir un repas pour le foyer.',
+  NOT_OWNER: 'Cette donnée appartient à un autre membre du foyer.',
   HOUSEHOLD_CONFLICT:
     'Le foyer a changé entre-temps. Voici son état actuel : réessayez si besoin.',
 }

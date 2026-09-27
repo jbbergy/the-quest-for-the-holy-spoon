@@ -53,3 +53,14 @@ export interface IMealRepository {
   save(meal: Meal): Promise<Result<void, RepositoryError>>
   delete(id: MealId): Promise<Result<void, RepositoryError>>
 }
+
+/**
+ * Envoi d'un repas prévu pour un autre membre du foyer.
+ *
+ * Ce n'est pas un dépôt : le repas n'est jamais relu sur cet appareil, qui ne
+ * garde pas les données des autres. Il est confié au transport, qui le remet
+ * au serveur. Sans compte connecté, l'envoi est refusé (`NOT_SYNCED`).
+ */
+export interface IMealOffers {
+  offer(meal: Meal): Promise<Result<void, RepositoryError>>
+}

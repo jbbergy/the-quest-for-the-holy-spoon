@@ -8,10 +8,10 @@ import { Quantity } from '@/core/nutrition/Quantity'
 import { err, ok, type Result } from '@/core/result'
 
 import { FoodItem, FoodSource, type FoodTag, isBarcode } from '../domain/FoodItem'
-import { Meal, type MealType } from '../domain/Meal'
+import { Meal, type MealType, portionScale } from '../domain/Meal'
 import { MealEntry } from '../domain/MealEntry'
 import type { IRemoteFoodCatalog } from '../domain/providers'
-import type { IFoodRepository, IMealRepository } from '../domain/repositories'
+import type { IFoodRepository, IMealOffers, IMealRepository } from '../domain/repositories'
 
 import {
   type FoodExport,
@@ -219,6 +219,11 @@ export interface CustomFoodInput {
   readonly saltG?: number
   readonly barcode?: string
   readonly tags?: readonly FoodTag[]
+  /**
+   * Profil qui crée l'aliment. Sans lui, l'aliment reste sur l'appareil : il
+   * ne peut pas être partagé avec le foyer, faute d'auteur à qui le rattacher.
+   */
+  readonly ownerId?: PlayerId | null
 }
 
 export class CreateCustomFoodUseCase {
@@ -247,6 +252,7 @@ export class CreateCustomFoodUseCase {
       source: FoodSource.USER,
       ...(input.barcode === undefined ? {} : { barcode: input.barcode }),
       tags: input.tags ?? [],
+      ownerId: input.ownerId ?? null,
     })
     if (!item.ok) return item
 
@@ -403,6 +409,69 @@ export class RescheduleMealUseCase {
     // Rien n'a changé : inutile de réécrire le même repas.
     if (updated === meal.value) return ok(updated)
     return saveMeal(this.meals, updated)
+  }
+}
+
+/** Membre du foyer pour qui l'on prévoit aussi un repas. */
+export interface MealGuest {
+  readonly playerId: PlayerId
+  /** Besoin calorique habituel du membre, s'il l'a publié. */
+  readonly targetCalories: number | null
+}
+
+export interface PlanForMembersInput {
+  readonly mealId: MealId
+  /** Profil qui prévoit : il signe les copies. */
+  readonly plannedBy: PlayerId
+  /** Son propre besoin calorique, pour mettre les portions à l'échelle. */
+  readonly ownCalories: number | null
+  readonly guests: readonly MealGuest[]
+  readonly at?: Date
+}
+
+/**
+ * Prévoit un repas pour d'autres membres du foyer.
+ *
+ * Chaque membre reçoit sa propre copie, non prise, aux portions ajustées au
+ * rapport de ses besoins à ceux de l'auteur. La copie ne reste pas sur
+ * l'appareil : elle part au serveur, qui la range dans la semaine du membre.
+ * Tout ou rien côté domaine — une copie impossible (repas vide) n'en envoie
+ * aucune —, puis une copie par membre à l'envoi.
+ */
+export class PlanMealForMembersUseCase {
+  constructor(
+    private readonly meals: IMealRepository,
+    private readonly offers: IMealOffers,
+  ) {}
+
+  async execute(input: PlanForMembersInput): Promise<Result<readonly Meal[], InventoryError>> {
+    const meal = await loadMeal(this.meals, input.mealId)
+    if (!meal.ok) return meal
+
+    const at = input.at ?? new Date()
+    const copies: Meal[] = []
+    for (const guest of input.guests) {
+      const copy = meal.value.planFor({
+        playerId: guest.playerId,
+        plannedBy: input.plannedBy,
+        scale: portionScale(input.ownCalories, guest.targetCalories),
+        at,
+      })
+      if (!copy.ok) return copy
+      copies.push(copy.value)
+    }
+
+    for (const copy of copies) {
+      const sent = await this.offers.offer(copy)
+      if (!sent.ok) {
+        return err(
+          new ApplicationError(sent.error.code, 'Le repas n’a pas pu être prévu pour le foyer.', {
+            cause: sent.error,
+          }),
+        )
+      }
+    }
+    return ok(copies)
   }
 }
 
@@ -690,7 +759,11 @@ export class ExportInventoryUseCase {
 
     return ok({
       meals: meals.value.map(toMealExport),
-      customFoods: customFoods.value.map(toFoodExport),
+      // Les siens seulement : ceux des autres membres du foyer, reçus par
+      // synchronisation, appartiennent à leur auteur et à son propre export.
+      customFoods: customFoods.value
+        .filter((item) => item.ownerId === null || item.ownerId === playerId)
+        .map(toFoodExport),
     })
   }
 }

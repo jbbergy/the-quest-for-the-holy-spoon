@@ -33,6 +33,7 @@ import {
 } from '@/modules/household/application'
 import { HttpHouseholdGateway } from '@/modules/household/infrastructure/HttpHouseholdGateway'
 
+import { MemberDaysReader } from './household/memberDays'
 import { HttpSyncGateway } from './sync/HttpSyncGateway'
 import { IndexedDbReplica } from './sync/IndexedDbReplica'
 import { SyncEngine } from './sync/SyncEngine'
@@ -49,6 +50,7 @@ import {
   GetMealUseCase,
   GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
+  PlanMealForMembersUseCase,
   RemoveMealEntryUseCase,
   RescheduleMealUseCase,
 } from '@/modules/nutrition_inventory/application'
@@ -56,6 +58,7 @@ import { CiqualSeeder } from '@/modules/nutrition_inventory/infrastructure/Ciqua
 import { IndexedDbFoodRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbFoodRepository'
 import { IndexedDbMealRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbMealRepository'
 import { OpenFoodFactsProvider } from '@/modules/nutrition_inventory/infrastructure/OpenFoodFactsProvider'
+import { OutboxMealOffers } from '@/modules/nutrition_inventory/infrastructure/OutboxMealOffers'
 
 import {
   SuggestMealCompletionUseCase,
@@ -82,6 +85,8 @@ export interface AppContainer {
   readonly databases: DatabaseProvider
   /** Synchronisation différée avec le compte connecté ; inerte sans compte. */
   readonly sync: SyncEngine
+  /** Journées des autres membres du foyer, lues en ligne et jamais stockées. */
+  readonly memberDays: MemberDaysReader
 
   readonly account: {
     readonly getSession: GetSessionUseCase
@@ -121,6 +126,7 @@ export interface AppContainer {
     readonly changeQuantity: ChangeMealEntryQuantityUseCase
     readonly reschedule: RescheduleMealUseCase
     readonly markConsumed: MarkMealConsumedUseCase
+    readonly planForMembers: PlanMealForMembersUseCase
     readonly deleteMeal: DeleteMealUseCase
     readonly getMeal: GetMealUseCase
     readonly journal: GetDailyJournalUseCase
@@ -157,6 +163,7 @@ export function createContainer(
     network,
     databases,
     sync: new SyncEngine(new IndexedDbReplica(databases), new HttpSyncGateway(), network),
+    memberDays: new MemberDaysReader(),
 
     account: {
       getSession: new GetSessionUseCase(accountGateway),
@@ -195,6 +202,7 @@ export function createContainer(
       changeQuantity: new ChangeMealEntryQuantityUseCase(mealRepository),
       reschedule: new RescheduleMealUseCase(mealRepository),
       markConsumed: new MarkMealConsumedUseCase(mealRepository),
+      planForMembers: new PlanMealForMembersUseCase(mealRepository, new OutboxMealOffers(databases)),
       deleteMeal: new DeleteMealUseCase(mealRepository),
       getMeal: new GetMealUseCase(mealRepository),
       journal: new GetDailyJournalUseCase(mealRepository),

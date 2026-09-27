@@ -42,4 +42,5 @@ export const API_ERROR = {
   memberNotFound: 'MEMBER_NOT_FOUND',
   ownerCannotLeave: 'OWNER_CANNOT_LEAVE',
   householdConflict: 'HOUSEHOLD_CONFLICT',
+  daysNotShared: 'DAYS_NOT_SHARED',
 } as const

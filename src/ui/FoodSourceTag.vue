@@ -16,7 +16,12 @@ import { computed } from 'vue'
 
 import { FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 
-const props = defineProps<{ source: string }>()
+/**
+ * `author` : pour une fiche personnelle créée par un autre membre du foyer, son
+ * nom. On sait alors qui l'a saisie — et donc à qui demander si un chiffre
+ * paraît faux.
+ */
+const props = defineProps<{ source: string; author?: string | null }>()
 
 const LABEL: Readonly<Record<string, string>> = {
   [FoodSource.CIQUAL]: 'Ciqual',
@@ -30,7 +35,11 @@ const TONE: Readonly<Record<string, string>> = {
   [FoodSource.USER]: 'tag--user',
 }
 
-const label = computed(() => LABEL[props.source] ?? props.source)
+const label = computed(() =>
+  props.source === FoodSource.USER && props.author != null
+    ? `Ajouté par ${props.author}`
+    : (LABEL[props.source] ?? props.source),
+)
 const tone = computed(() => TONE[props.source] ?? '')
 </script>
 

@@ -14,6 +14,9 @@ const HOUSEHOLD = {
   members: [
     {
       accountId: 'account-camille',
+      playerId: 'player-camille',
+      name: 'Camille',
+      targetCalories: 2000,
       email: 'camille@example.fr',
       isOwner: true,
       joinedAt: '2026-09-24T10:00:00.000Z',

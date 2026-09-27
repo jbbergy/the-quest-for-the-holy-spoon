@@ -9,7 +9,7 @@ import { openDatabase } from './idb'
  * entre deux modules.
  */
 export const DB_NAME = 'holy-spoon'
-export const DB_VERSION = 2
+export const DB_VERSION = 3
 
 export const STORE = {
   players: 'players',
@@ -53,7 +53,7 @@ export const META_KEY = {
 } as const
 
 export function openHolySpoonDatabase(): Promise<IDBDatabase> {
-  return openDatabase(DB_NAME, DB_VERSION, (db, oldVersion) => {
+  return openDatabase(DB_NAME, DB_VERSION, (db, oldVersion, tx) => {
     if (oldVersion < 1) {
       db.createObjectStore(STORE.players, { keyPath: 'id' })
 
@@ -77,7 +77,37 @@ export function openHolySpoonDatabase(): Promise<IDBDatabase> {
       const outbox = db.createObjectStore(STORE.outbox, { keyPath: 'seq', autoIncrement: true })
       outbox.createIndex(INDEX.outboxByRecord, ['entity', 'id'], { unique: false })
     }
+
+    if (oldVersion < 3) assignCustomFoods(tx)
   })
+}
+
+/**
+ * Migration v3 : chaque aliment créé à la main reçoit un auteur.
+ *
+ * Jusqu'ici, ces aliments étaient communs à tous les profils de l'appareil.
+ * Le partage au sein d'un foyer demande de savoir qui les a créés : ils sont
+ * attribués au profil courant, le seul qui ait pu les créer dans l'immense
+ * majorité des cas. Sans profil courant, ils restent sans auteur — visibles
+ * localement, mais jamais envoyés.
+ */
+function assignCustomFoods(tx: IDBTransaction): void {
+  const current = tx.objectStore(STORE.meta).get(META_KEY.currentPlayerId)
+  current.onsuccess = () => {
+    const ownerId = (current.result as { value?: unknown } | undefined)?.value
+    if (typeof ownerId !== 'string') return
+
+    const cursor = tx.objectStore(STORE.foods).openCursor()
+    cursor.onsuccess = () => {
+      const position = cursor.result
+      if (position === null) return
+      const record = position.value as { source?: string; ownerId?: unknown }
+      if (record.source === 'USER' && record.ownerId == null) {
+        position.update({ ...record, ownerId })
+      }
+      position.continue()
+    }
+  }
 }
 
 /**

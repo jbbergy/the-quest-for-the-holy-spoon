@@ -78,10 +78,15 @@ export const mealOf = (playerId: string, grams = 100, id?: string): Meal =>
     }),
   )
 
-export const customFoodOf = (id: string, source: FoodSource = FoodSource.USER): FoodItem =>
+export const customFoodOf = (
+  id: string,
+  source: FoodSource = FoodSource.USER,
+  ownerId = 'player-1',
+): FoodItem =>
   FoodItem.reconstitute({
     id: idFrom(id),
     name: 'Houmous maison',
     macrosPer100g: Macros.reconstitute({ proteinG: 8, carbsG: 14, fatG: 17 }),
     source,
+    ownerId: source === FoodSource.USER ? idFrom(ownerId) : null,
   })

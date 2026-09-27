@@ -54,7 +54,7 @@ export type AccountRow = Selectable<AccountsTable>
 export type NewAccountRow = Insertable<AccountsTable>
 
 export interface RecordsTable {
-  entity: 'player' | 'meal' | 'food'
+  entity: 'player' | 'meal' | 'food' | 'needs'
   id: string
   owner_account_id: string
   payload: ColumnType<Record<string, unknown> | null, string | null, string | null>

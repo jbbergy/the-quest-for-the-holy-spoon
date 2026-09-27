@@ -1,4 +1,4 @@
-import type { AccountId, HouseholdId, InvitationId } from '@/core/identity'
+import type { AccountId, HouseholdId, InvitationId, PlayerId } from '@/core/identity'
 
 import type { Household } from './Household'
 
@@ -11,6 +11,12 @@ import type { Household } from './Household'
  */
 export interface HouseholdMemberView {
   readonly accountId: AccountId
+  /** Profil rattaché au compte ; `null` tant que le membre n'en a pas. */
+  readonly playerId: PlayerId | null
+  /** Nom du profil, ou `null` s'il ne l'a pas encore publié : on affiche alors l'adresse. */
+  readonly name: string | null
+  /** Besoin calorique habituel, pour ajuster les portions d'un repas prévu pour lui. */
+  readonly targetCalories: number | null
   readonly email: string
   readonly isOwner: boolean
   readonly joinedAt: Date
@@ -36,6 +42,16 @@ export interface HouseholdView {
   readonly sharesDays: boolean
 }
 
+/**
+ * Ce que le foyer sait du profil d'un membre : ce qu'il a lui-même publié (nom
+ * et besoins calculés), jamais ses mensurations.
+ */
+export interface MemberProfile {
+  readonly playerId: PlayerId
+  readonly name: string | null
+  readonly targetCalories: number | null
+}
+
 /** Invitation vue par la personne qui la reçoit. */
 export interface ReceivedInvitationView {
   readonly id: InvitationId
@@ -50,6 +66,7 @@ export function viewHousehold(
   household: Household,
   viewer: AccountId,
   now: Date,
+  profiles: ReadonlyMap<AccountId, MemberProfile> = new Map(),
 ): HouseholdView | undefined {
   const self = household.memberOf(viewer)
   if (self === undefined) return undefined
@@ -63,6 +80,9 @@ export function viewHousehold(
     )
     .map((member) => ({
       accountId: member.accountId,
+      playerId: profiles.get(member.accountId)?.playerId ?? null,
+      name: profiles.get(member.accountId)?.name ?? null,
+      targetCalories: profiles.get(member.accountId)?.targetCalories ?? null,
       email: member.email.value,
       isOwner: household.isOwner(member.accountId),
       joinedAt: member.joinedAt,

@@ -7,7 +7,12 @@ import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
 import { Quantity } from '@/core/nutrition/Quantity'
 import { isErr, isOk } from '@/core/result'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
-import { Meal, MealType } from '@/modules/nutrition_inventory/domain/Meal'
+import {
+  Meal,
+  MealType,
+  portionScale,
+  scalePortion,
+} from '@/modules/nutrition_inventory/domain/Meal'
 import { MealEntry } from '@/modules/nutrition_inventory/domain/MealEntry'
 
 const playerId: PlayerId = idFrom('p-1')
@@ -492,5 +497,97 @@ describe('jour prévu', () => {
 
     expect(added.value.plannedFor).toBe('2026-09-24')
     expect(added.value.retype(MealType.LUNCH).plannedFor).toBe('2026-09-24')
+  })
+})
+
+describe('repas prévu pour un autre membre', () => {
+  const alex: PlayerId = idFrom('p-alex')
+  const at = new Date(2026, 8, 24, 9, 0)
+
+  const planned = (scale: number): Meal => {
+    const result = mealOf([entryOf(chicken, 150), entryOf(rice, 200)]).planFor({
+      playerId: alex,
+      plannedBy: playerId,
+      scale,
+      at,
+    })
+    if (!isOk(result)) throw new Error('copie de test invalide')
+    return result.value
+  }
+
+  it('crée un nouveau repas, non pris, signé par son auteur', () => {
+    const original = mealOf([entryOf(chicken, 150)])
+    const copy = planned(1)
+
+    expect(copy.id).not.toBe(original.id)
+    expect(copy.playerId).toBe(alex)
+    expect(copy.plannedBy).toBe(playerId)
+    expect(copy.isConsumed).toBe(false)
+    expect(copy.type).toBe(MealType.LUNCH)
+    expect(copy.loggedAt).toEqual(at)
+  })
+
+  it('garde les mêmes aliments, sous de nouvelles lignes', () => {
+    const original = mealOf([entryOf(chicken, 150), entryOf(rice, 200)])
+    const copy = original.planFor({ playerId: alex, plannedBy: playerId, scale: 1, at })
+
+    expect(isOk(copy) && copy.value.entries.map((entry) => entry.foodName)).toEqual([
+      'Blanc de poulet',
+      'Riz cuit',
+    ])
+    expect(isOk(copy) && copy.value.entries[0]?.id).not.toBe(original.entries[0]?.id)
+  })
+
+  it('ajuste les portions au rapport des besoins, arrondies à 5 g', () => {
+    // 2 400 kcal pour Alex, 2 000 pour l'auteur : ×1,2.
+    const copy = planned(1.2)
+
+    expect(copy.entries.map((entry) => entry.quantity.grams)).toEqual([180, 240])
+    // L'instantané suit la portion : les jauges d'Alex compteront ses grammes.
+    expect(copy.entries[0]?.macros.proteinG).toBeCloseTo(36)
+  })
+
+  it('reprend les portions telles quelles à l’échelle 1', () => {
+    const odd = mealOf([entryOf(rice, 123)]).planFor({ playerId: alex, plannedBy: playerId, scale: 1, at })
+    expect(isOk(odd) && odd.value.entries[0]?.quantity.grams).toBe(123)
+  })
+
+  it('ne réduit jamais une portion à rien', () => {
+    const tiny = mealOf([entryOf(rice, 4)]).planFor({ playerId: alex, plannedBy: playerId, scale: 0.5, at })
+    expect(isOk(tiny) && tiny.value.entries[0]?.quantity.grams).toBe(5)
+  })
+
+  it('refuse un repas vide, un facteur invalide, ou de se viser soi-même', () => {
+    expect(isErr(mealOf().planFor({ playerId: alex, plannedBy: playerId, scale: 1, at }))).toBe(true)
+    const full = mealOf([entryOf(rice, 100)])
+    expect(isErr(full.planFor({ playerId: alex, plannedBy: playerId, scale: 0, at }))).toBe(true)
+    expect(isErr(full.planFor({ playerId: alex, plannedBy: playerId, scale: Number.NaN, at }))).toBe(true)
+    expect(isErr(full.planFor({ playerId, plannedBy: playerId, scale: 1, at }))).toBe(true)
+  })
+
+  it('garde sa signature quand le membre le modifie', () => {
+    const copy = planned(1)
+    const edited = copy.changeEntryQuantity(copy.entries[0]!.id, quantityOf(90))
+    const eaten = copy.markConsumed(new Date(2026, 8, 30))
+
+    expect(isOk(edited) && edited.value.plannedBy).toBe(playerId)
+    expect(isOk(eaten) && eaten.value.plannedBy).toBe(playerId)
+  })
+})
+
+describe('portionScale', () => {
+  it('rapporte les besoins de l’invité à ceux de l’auteur', () => {
+    expect(portionScale(2000, 2400)).toBeCloseTo(1.2)
+  })
+
+  it('reprend les portions telles quelles faute de besoins connus', () => {
+    expect(portionScale(null, 2400)).toBe(1)
+    expect(portionScale(2000, null)).toBe(1)
+    expect(portionScale(0, 2400)).toBe(1)
+  })
+
+  it('arrondit au pas de 5 g', () => {
+    expect(scalePortion(100, 1.23)).toBe(125)
+    expect(scalePortion(100, 1)).toBe(100)
   })
 })

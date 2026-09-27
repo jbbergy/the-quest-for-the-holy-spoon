@@ -6,12 +6,17 @@ import {
   HOUSEHOLD_ROUTE,
   idParamSchema,
   inviteSchema,
+  MAX_MEMBER_DAYS,
+  memberDaysParamsSchema,
+  memberDaysQuerySchema,
 } from '@/contract/household'
+import { addDays, parseDayKey } from '@/core/day'
+import { API_ERROR } from '@/contract/http'
 import { idFrom } from '@/core/identity'
 import type { HouseholdView } from '@/modules/household/domain/views'
 
 import type { IAuthenticator } from '../../../shared/http/authenticator'
-import { parseWith, rejectWith } from '../../../shared/http/errors'
+import { HttpError, parseWith, rejectWith } from '../../../shared/http/errors'
 import { knownOrigin } from '../../../shared/http/origin'
 import { RATE, type RateLimiter } from '../../../shared/http/rateLimit'
 import type {
@@ -20,6 +25,7 @@ import type {
   DeclineInvitationUseCase,
   DissolveHouseholdUseCase,
   GetHouseholdUseCase,
+  GetMemberDaysUseCase,
   InviteUseCase,
   LeaveHouseholdUseCase,
   ListReceivedInvitationsUseCase,
@@ -41,6 +47,7 @@ export interface HouseholdRoutesDependencies {
     readonly received: ListReceivedInvitationsUseCase
     readonly accept: AcceptInvitationUseCase
     readonly decline: DeclineInvitationUseCase
+    readonly memberDays: GetMemberDaysUseCase
   }
   readonly authenticator: IAuthenticator
   readonly limiter: RateLimiter
@@ -124,6 +131,20 @@ export function registerHouseholdRoutes(app: FastifyInstance, deps: HouseholdRou
     const account = await authenticator.require(request, reply)
     const result = await useCases.accept.execute(account, idFrom<'InvitationId'>(paramId(request)))
     return result.ok ? household(result.value) : rejectWith(result.error)
+  })
+
+  app.get('/household/members/:playerId/days', async (request, reply) => {
+    const account = await authenticator.require(request, reply)
+    const { playerId } = parseWith(memberDaysParamsSchema, request.params)
+    const query = parseWith(memberDaysQuerySchema, request.query)
+    const from = parseDayKey(query.from)
+    const to = parseDayKey(query.to)
+    if (from === null || to === null || to < from || addDays(from, MAX_MEMBER_DAYS - 1) < to) {
+      throw new HttpError(400, API_ERROR.badRequest, 'Plage de jours invalide.')
+    }
+
+    const result = await useCases.memberDays.execute(account, idFrom<'PlayerId'>(playerId), { from, to })
+    return result.ok ? result.value : rejectWith(result.error)
   })
 
   app.post('/invitations/:id/decline', async (request, reply) => {

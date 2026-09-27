@@ -133,6 +133,7 @@ export default defineConfig({
         'src/app/useAccountSync.ts',
         'src/app/useHousehold.ts',
         'src/app/views/householdFormat.ts',
+        'src/app/household/**/*.ts',
         'src/app/sync/**/*.ts',
         'src/contract/**/*.ts',
         'src/app/accountForm.ts',

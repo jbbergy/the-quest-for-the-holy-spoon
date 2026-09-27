@@ -3,14 +3,24 @@ import { computed, type ComputedRef, ref } from 'vue'
 import type { AppContainer } from '@/app/composition'
 import { useContainer } from '@/app/container'
 import {
+  type AccountExport,
   buildExport,
   exportFileName,
   type HolySpoonExport,
+  type HouseholdExport,
 } from '@/app/dataExport'
 import { downloadJson } from '@/app/download'
 import { ApplicationError, type BaseError, type ErrorView, toErrorView } from '@/core/errors'
 import { err, ok, type Result } from '@/core/result'
+import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
+import { useHouseholdStore } from '@/modules/household/presentation/useHouseholdStore'
 import { toPlayerExport } from '@/modules/player_profile/application'
+
+/** Ce que l'appareil sait du compte et du foyer au moment de l'export. */
+export interface ExportContext {
+  readonly account: AccountExport | null
+  readonly household: HouseholdExport | null
+}
 
 /**
  * Rassemble les données des deux contextes qui appartiennent à l'utilisateur.
@@ -26,6 +36,7 @@ import { toPlayerExport } from '@/modules/player_profile/application'
 export async function collectExport(
   container: AppContainer,
   exportedAt: Date,
+  context: ExportContext = { account: null, household: null },
 ): Promise<Result<HolySpoonExport, BaseError>> {
   const current = await container.profile.getCurrent.execute()
   if (!current.ok) return current
@@ -42,6 +53,7 @@ export async function collectExport(
   return ok(
     buildExport(
       {
+        ...context,
         player: toPlayerExport(player),
         meals: inventory.value.meals,
         customFoods: inventory.value.customFoods,
@@ -59,6 +71,15 @@ export interface DataExport {
   run(): Promise<boolean>
 }
 
+function currentContext(): ExportContext {
+  const session = useAccountStore().session
+  const household = useHouseholdStore().household
+  return {
+    account: session === null ? null : { email: session.email },
+    household: household === null ? null : { name: household.name, role: household.role },
+  }
+}
+
 export function useDataExport(): DataExport {
   const busy = ref(false)
   const failure = ref<ErrorView | null>(null)
@@ -72,7 +93,7 @@ export function useDataExport(): DataExport {
 
     try {
       const now = new Date()
-      const archive = await collectExport(useContainer(), now)
+      const archive = await collectExport(useContainer(), now, currentContext())
       if (!archive.ok) {
         failure.value = toErrorView(archive.error)
         return false

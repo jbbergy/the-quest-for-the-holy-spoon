@@ -119,9 +119,9 @@ export class IndexedDbFoodRepository implements IFoodRepository {
   }
 
   /**
-   * Seuls les aliments créés à la main partent vers le serveur : une fiche
-   * Ciqual ou Open Food Facts se retrouve à sa source, et un repas garde de
-   * toute façon l'instantané de ses aliments.
+   * Seuls les aliments créés à la main partent vers le serveur, et seulement
+   * par leur auteur : une fiche Ciqual ou Open Food Facts se retrouve à sa
+   * source, et un repas garde de toute façon l'instantané de ses aliments.
    */
   async save(item: FoodItem): Promise<Result<void, RepositoryError>> {
     return guard('enregistrement d’un aliment', async () => {
@@ -130,7 +130,8 @@ export class IndexedDbFoodRepository implements IFoodRepository {
       tx.objectStore(STORE.foods).put(foodToRecord(item))
       const journaled =
         item.source === FoodSource.USER &&
-        (await journal(tx, { entity: 'food', id: item.id, op: 'upsert' }, null))
+        item.ownerId !== null &&
+        (await journal(tx, { entity: 'food', id: item.id, op: 'upsert' }, item.ownerId))
       await transactionToPromise(tx)
       if (journaled) localChanges.notify()
     })

@@ -15,6 +15,7 @@ import { useRouter } from 'vue-router'
 
 import { formatDay, formatWeek, mealLabel, mealOrder } from '@/app/mealLabels'
 import { ROUTE } from '@/app/router'
+import { memberName, useHousehold } from '@/app/useHousehold'
 import { useSyncStatus } from '@/app/sync/useSyncStatus'
 import { addDays, type DayKey, dayKeyOf } from '@/core/day'
 import type { MealId } from '@/core/identity'
@@ -29,6 +30,7 @@ import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
 const router = useRouter()
 const players = usePlayerStore()
 const week = useWeekPlanStore()
+const household = useHousehold()
 
 const today = dayKeyOf(new Date())
 
@@ -158,6 +160,10 @@ function subtitle(day: PlannedDay): string {
                   {{ meal.entries.map((entry) => entry.foodName).join(', ') }}
                 </span>
                 <span class="week__meal-kcal">{{ Math.round(meal.calories) }} kcal</span>
+                <span
+                  v-if="meal.plannedBy"
+                  class="week__meal-by"
+                >Prévu par {{ memberName(household.household, meal.plannedBy) ?? 'un membre du foyer' }}</span>
                 <span class="sr-only"> — modifier</span>
               </RouterLink>
 
@@ -276,6 +282,13 @@ function subtitle(day: PlannedDay): string {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
+}
+
+.week__meal-by {
+  grid-column: 1 / -1;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-style: italic;
 }
 
 .week__meal-foods {

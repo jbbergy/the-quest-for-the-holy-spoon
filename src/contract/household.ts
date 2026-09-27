@@ -16,6 +16,7 @@ export const HOUSEHOLD_ROUTE = {
   received: '/invitations',
   accept: (id: string) => `/invitations/${encodeURIComponent(id)}/accept`,
   decline: (id: string) => `/invitations/${encodeURIComponent(id)}/decline`,
+  memberDays: (playerId: string) => `/household/members/${encodeURIComponent(playerId)}/days`,
 } as const
 
 /** Page de l'application qu'ouvre l'e-mail d'invitation. */
@@ -37,6 +38,9 @@ export const householdSchema = z.object({
   members: z.array(
     z.object({
       accountId: id,
+      playerId: id.nullable(),
+      name: z.string().nullable(),
+      targetCalories: z.number().nullable(),
       email: z.string(),
       isOwner: z.boolean(),
       joinedAt: date,
@@ -57,3 +61,24 @@ export const receivedInvitationsResponseSchema = z.object({
   ),
 })
 export type ReceivedInvitationsPayload = z.infer<typeof receivedInvitationsResponseSchema>
+
+/**
+ * Journées d'un membre. `from` et `to` sont des jours locaux (`AAAA-MM-JJ`),
+ * bornes incluses. La plage est courte : l'écran montre un jour et la semaine
+ * qui le précède, pas un historique à parcourir.
+ */
+export const MAX_MEMBER_DAYS = 31
+const dayKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+export const memberDaysQuerySchema = z.object({ from: dayKey, to: dayKey })
+export const memberDaysParamsSchema = z.object({ playerId: id })
+
+/**
+ * Les repas sont au format d'enregistrement de l'appareil — celui que la
+ * synchronisation transporte déjà : le client les relit avec ses propres
+ * mappers. `needs` : les besoins publiés par le membre, ou `null`.
+ */
+export const memberDaysResponseSchema = z.object({
+  meals: z.array(z.record(z.string(), z.unknown())),
+  needs: z.record(z.string(), z.unknown()).nullable(),
+})
+export type MemberDaysPayload = z.infer<typeof memberDaysResponseSchema>

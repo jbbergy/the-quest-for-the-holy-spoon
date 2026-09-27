@@ -14,7 +14,10 @@ import {
   transactionToPromise,
 } from '@/core/infrastructure/idb'
 
+import type { PlayerRecord } from '@/modules/player_profile/infrastructure/records'
+
 import type { ILocalReplica, PendingBatch } from './ports'
+import { sharedNeedsOf } from './sharedNeeds'
 
 /** Store IndexedDB de chaque entité synchronisée. */
 const STORE_OF: Readonly<Record<SyncEntity, string>> = {
@@ -29,6 +32,12 @@ interface StoredRecord {
   readonly id: string
   readonly playerId?: string
   readonly source?: string
+  readonly ownerId?: string | null
+}
+
+/** Aliment créé à la main par un profil qui n'est pas sur l'appareil : celui d'un autre membre. */
+function isForeignFood(record: StoredRecord, localPlayers: ReadonlySet<string>): boolean {
+  return record.source === 'USER' && record.ownerId != null && !localPlayers.has(record.ownerId)
 }
 
 /**
@@ -79,11 +88,14 @@ export class IndexedDbReplica implements ILocalReplica {
       )
       for (const meal of meals) upsert('meal', meal.id)
 
-      // Les aliments créés à la main sont communs aux profils de l'appareil.
+      // Seuls les aliments dont ce profil est l'auteur : ceux des autres
+      // membres du foyer, reçus par synchronisation, sont déjà sur le serveur.
       const foods = await requestToPromise(
         tx.objectStore(STORE.foods).getAll() as IDBRequest<StoredRecord[]>,
       )
-      for (const food of foods) if (food.source === 'USER') upsert('food', food.id)
+      for (const food of foods) {
+        if (food.source === 'USER' && food.ownerId === playerId) upsert('food', food.id)
+      }
 
       await transactionToPromise(tx)
     })
@@ -110,14 +122,21 @@ export class IndexedDbReplica implements ILocalReplica {
         const record =
           entry.op === 'delete'
             ? undefined
-            : await requestToPromise<Record<string, unknown> | undefined>(
+            : (entry.payload ??
+              (await requestToPromise<Record<string, unknown> | undefined>(
                 tx.objectStore(STORE_OF[entry.entity]).get(entry.id),
-              )
+              )))
         changes.push(
           record === undefined
             ? { op: 'delete', entity: entry.entity, id: entry.id }
             : { op: 'upsert', entity: entry.entity, id: entry.id, payload: record },
         )
+        // Le profil part avec ses besoins : ce sont eux, et non lui, que les
+        // autres membres du foyer pourront lire.
+        if (entry.entity === 'player' && record !== undefined && entry.payload === undefined) {
+          const needs = sharedNeedsOf(record as unknown as PlayerRecord)
+          changes.push({ op: 'upsert', entity: 'needs', id: needs.id, payload: needs })
+        }
       }
 
       return { changes, lastSeq: entries.at(-1)!.seq }
@@ -155,6 +174,8 @@ export class IndexedDbReplica implements ILocalReplica {
       const changed = new Set<SyncEntity>()
 
       for (const change of changes) {
+        // Les besoins publiés se déduisent du profil : rien à stocker.
+        if (change.entity === 'needs') continue
         const pending = await requestToPromise(pendingIndex.count([change.entity, change.id]))
         if (pending > 0) continue
 
@@ -189,6 +210,33 @@ export class IndexedDbReplica implements ILocalReplica {
     })
   }
 
+  rebase(household: string | null) {
+    return guard('changement de foyer', async () => {
+      const tx = (await this.databases.get()).transaction(
+        [STORE.players, STORE.foods, STORE.outbox, STORE.meta],
+        'readwrite',
+      )
+      const state = await readSyncState(tx)
+      if (state === null || (state.household ?? null) === household) {
+        tx.abort()
+        return false
+      }
+
+      // On repart de zéro : les aliments des anciens membres disparaissent,
+      // ceux des membres actuels reviendront à la lecture suivante — y compris
+      // ceux d'un nouveau venu, créés avant le curseur.
+      const locals = await requestToPromise(tx.objectStore(STORE.players).getAllKeys())
+      await deleteFoods(tx, (food) => isForeignFood(food, new Set(locals.map(String))))
+      writeSyncState(tx, { ...state, cursor: 0, household })
+
+      // Le profil repart aussi, pour que ses besoins soient publiés : les
+      // nouveaux membres en ont besoin pour ajuster un repas prévu.
+      tx.objectStore(STORE.outbox).add({ entity: 'player', id: state.playerId, op: 'upsert' } satisfies OutboxEntry)
+      await transactionToPromise(tx)
+      return true
+    })
+  }
+
   stop(options: { readonly wipe: boolean }) {
     return guard('arrêt de la synchronisation', async () => {
       const tx = (await this.databases.get()).transaction(
@@ -212,6 +260,12 @@ export class IndexedDbReplica implements ILocalReplica {
         // Le profil courant devient un autre profil resté sur l'appareil, s'il
         // en existe un ; sinon l'application revient à l'accueil.
         const others = await requestToPromise(tx.objectStore(STORE.players).getAllKeys())
+        const remaining = new Set(others.map(String).filter((key) => key !== state.playerId))
+
+        // Les aliments du compte et ceux des autres membres du foyer partent
+        // aussi ; ceux des profils restés sur l'appareil demeurent.
+        await deleteFoods(tx, (food) => isForeignFood(food, remaining))
+
         const next = others.find((key) => key !== state.playerId)
         const meta = tx.objectStore(STORE.meta)
         if (next === undefined) meta.delete(META_KEY.currentPlayerId)
@@ -221,6 +275,18 @@ export class IndexedDbReplica implements ILocalReplica {
       await transactionToPromise(tx)
     })
   }
+}
+
+/** Supprime les aliments qui satisfont le critère, dans la transaction donnée. */
+async function deleteFoods(
+  tx: IDBTransaction,
+  matches: (record: StoredRecord) => boolean,
+): Promise<number> {
+  const foods = tx.objectStore(STORE.foods)
+  const records = await requestToPromise(foods.getAll() as IDBRequest<StoredRecord[]>)
+  const doomed = records.filter(matches)
+  for (const record of doomed) foods.delete(record.id)
+  return doomed.length
 }
 
 /** Égalité structurelle de deux enregistrements sérialisables. */

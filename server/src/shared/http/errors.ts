@@ -41,6 +41,7 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   [API_ERROR.householdFull]: 409,
   [API_ERROR.ownerCannotLeave]: 409,
   [API_ERROR.householdConflict]: 409,
+  [API_ERROR.daysNotShared]: 403,
 }
 
 /** Traduit le refus d'un use case en réponse HTTP. */

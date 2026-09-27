@@ -3,7 +3,7 @@ import { DomainError, InvalidMealError } from '@/core/errors'
 import { type MealId, newId, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
-import type { Quantity } from '@/core/nutrition/Quantity'
+import { Quantity } from '@/core/nutrition/Quantity'
 import { err, ok, type Result } from '@/core/result'
 
 import { MealEntry } from './MealEntry'
@@ -32,9 +32,38 @@ export interface MealProps {
   readonly entries: readonly MealEntry[]
   /** Date de consommation réelle, ou `null` tant que le repas n'est que prévu. */
   readonly consumedAt: Date | null
+  /**
+   * Profil d'un autre membre du foyer qui a prévu ce repas pour celui-ci, ou
+   * `null` quand on l'a composé soi-même. Facultatif : les repas antérieurs au
+   * partage n'en ont pas.
+   */
+  readonly plannedBy?: PlayerId | null
 }
 
 const MAX_ENTRIES = 100
+
+/** Pas d'arrondi des portions ajustées : personne ne pèse son riz au gramme près. */
+export const PORTION_STEP_G = 5
+
+/**
+ * Facteur de portion entre deux personnes : le rapport de leurs besoins
+ * caloriques. Faute de connaître l'un des deux, les portions sont reprises
+ * telles quelles plutôt que devinées.
+ */
+export function portionScale(fromCalories: number | null, toCalories: number | null): number {
+  if (fromCalories === null || toCalories === null || fromCalories <= 0 || toCalories <= 0) return 1
+  return toCalories / fromCalories
+}
+
+/**
+ * Portion ajustée d'un facteur, arrondie au pas le plus proche, jamais nulle.
+ * À l'échelle 1, la portion est reprise telle quelle : l'arrondir ferait
+ * varier un repas que personne n'a demandé de changer.
+ */
+export function scalePortion(grams: number, scale: number): number {
+  if (scale === 1) return grams
+  return Math.max(PORTION_STEP_G, Math.round((grams * scale) / PORTION_STEP_G) * PORTION_STEP_G)
+}
 
 /**
  * Racine d'agrégat : un repas et ses lignes.
@@ -60,6 +89,7 @@ export class Meal {
     readonly plannedFor: DayKey,
     readonly entries: readonly MealEntry[],
     readonly consumedAt: Date | null,
+    readonly plannedBy: PlayerId | null = null,
   ) {}
 
   static create(props: {
@@ -106,6 +136,7 @@ export class Meal {
       props.plannedFor,
       Object.freeze([...props.entries]),
       props.consumedAt,
+      props.plannedBy ?? null,
     )
   }
 
@@ -192,6 +223,62 @@ export class Meal {
       this.plannedFor,
       this.entries,
       this.consumedAt,
+      this.plannedBy,
+    )
+  }
+
+  /**
+   * Copie du repas pour un autre membre du foyer.
+   *
+   * Même jour, même type, mêmes aliments ; les portions sont ajustées de
+   * `scale` — le rapport entre les besoins des deux personnes — puis arrondies.
+   * La copie est un **nouveau** repas, non pris, qui appartient au membre et
+   * porte la signature de son auteur : c'est au membre de l'ajuster et de le
+   * cocher. Le repas d'origine n'est pas touché.
+   */
+  planFor(input: {
+    readonly playerId: PlayerId
+    readonly plannedBy: PlayerId
+    readonly scale: number
+    readonly at: Date
+  }): Result<Meal, DomainError> {
+    if (this.isEmpty) {
+      return err(new InvalidMealError('Un repas vide ne se prévoit pas pour quelqu’un d’autre.'))
+    }
+    if (input.playerId === input.plannedBy) {
+      return err(new InvalidMealError('Un repas se prévoit pour un autre membre, pas pour soi.'))
+    }
+    if (!Number.isFinite(input.scale) || input.scale <= 0) {
+      return err(new InvalidMealError(`Facteur de portion invalide : ${input.scale}.`))
+    }
+
+    const entries: MealEntry[] = []
+    for (const entry of this.entries) {
+      const quantity = Quantity.create(scalePortion(entry.quantity.grams, input.scale))
+      if (!quantity.ok) return quantity
+      const scaled = entry.withQuantity(quantity.value)
+      if (!scaled.ok) return scaled
+      entries.push(
+        MealEntry.reconstitute({
+          id: newId<'MealEntryId'>(),
+          foodItemId: scaled.value.foodItemId,
+          quantity: scaled.value.quantity,
+          snapshot: scaled.value.snapshot,
+        }),
+      )
+    }
+
+    return ok(
+      new Meal(
+        newId<'MealId'>(),
+        input.playerId,
+        this.type,
+        new Date(input.at.getTime()),
+        this.plannedFor,
+        Object.freeze(entries),
+        null,
+        input.plannedBy,
+      ),
     )
   }
 
@@ -215,6 +302,7 @@ export class Meal {
         plannedFor,
         this.entries,
         this.consumedAt,
+        this.plannedBy,
       ),
     )
   }
@@ -286,6 +374,7 @@ export class Meal {
       this.plannedFor,
       this.entries,
       consumedAt,
+      this.plannedBy,
     )
   }
 
@@ -309,6 +398,7 @@ export class Meal {
       this.plannedFor,
       Object.freeze([...entries]),
       this.consumedAt,
+      this.plannedBy,
     )
   }
 }

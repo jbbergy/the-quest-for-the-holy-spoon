@@ -16,7 +16,9 @@ import { computed, ref } from 'vue'
 
 import OnlineSearchNotice from '@/app/components/OnlineSearchNotice.vue'
 import { ROUTE } from '@/app/router'
+import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
+import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
@@ -25,6 +27,8 @@ import ErrorNotice from '@/ui/ErrorNotice.vue'
 import FoodSourceTag from '@/ui/FoodSourceTag.vue'
 
 const search = useFoodSearchStore()
+const players = usePlayerStore()
+const household = useHousehold()
 
 const query = ref('')
 
@@ -100,7 +104,10 @@ const resultAnnouncement = computed(() => {
         >
           <div class="foods__item-main">
             <span class="foods__name">{{ item.name }}</span>
-            <FoodSourceTag :source="item.source" />
+            <FoodSourceTag
+              :source="item.source"
+              :author="foodAuthor(household.household, players.playerId, item.ownerId)"
+            />
           </div>
           <p class="foods__macros">
             Pour 100 g : {{ Math.round(item.macrosPer100g.calories()) }} kcal ·

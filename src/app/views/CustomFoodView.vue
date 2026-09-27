@@ -13,6 +13,7 @@ import { ROUTE } from '@/app/router'
 import { KCAL_PER_GRAM } from '@/core/nutrition/Macros'
 import { FoodTag } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
+import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
@@ -39,6 +40,7 @@ function returnTo(foodId: string): RouteLocationRaw {
   return { name: ROUTE.mealEditor, query: { aliment: foodId } }
 }
 const search = useFoodSearchStore()
+const players = usePlayerStore()
 
 const name = ref('')
 const proteinG = ref(0)
@@ -91,6 +93,8 @@ async function submit(): Promise<void> {
     saltG: saltG.value,
     ...(barcode.value.trim() === '' ? {} : { barcode: barcode.value.trim() }),
     tags: tags.value,
+    // L'auteur de la fiche : c'est ce qui permet de la partager avec le foyer.
+    ownerId: players.playerId,
   })
   submitting.value = false
 

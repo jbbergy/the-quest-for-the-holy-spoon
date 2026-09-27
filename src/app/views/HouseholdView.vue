@@ -37,6 +37,8 @@ const myAccountId = computed(() => account.session?.accountId ?? null)
 
 function memberNote(member: HouseholdMemberView): string {
   const notes = [
+    // Le nom du profil s'affiche en titre ; l'adresse reste là pour lever un doute.
+    member.name === null ? null : member.email,
     member.isOwner ? 'propriétaire' : null,
     member.accountId === myAccountId.value ? 'vous' : null,
     member.sharesDays ? null : 'ne partage pas ses journées',
@@ -62,7 +64,10 @@ async function invite(): Promise<void> {
 }
 
 const remove = (member: HouseholdMemberView) =>
-  run(() => store.removeMember(member.accountId), `${member.email} ne fait plus partie du foyer.`)
+  run(
+    () => store.removeMember(member.accountId),
+    `${member.name ?? member.email} ne fait plus partie du foyer.`,
+  )
 
 async function leave(): Promise<void> {
   await run(() => store.leave(), 'Vous avez quitté le foyer.')
@@ -170,13 +175,20 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
               class="household__item"
             >
               <span class="household__who">
-                <strong>{{ member.email }}</strong>
+                <strong>{{ member.name ?? member.email }}</strong>
                 <small>{{ memberNote(member) }}</small>
+                <RouterLink
+                  v-if="member.playerId && member.sharesDays && member.accountId !== myAccountId"
+                  class="household__days"
+                  :to="{ name: ROUTE.memberDay, params: { playerId: member.playerId } }"
+                >
+                  Voir ses journées<span class="sr-only"> ({{ member.name ?? member.email }})</span>
+                </RouterLink>
               </span>
               <ConfirmButton
                 v-if="store.isOwner && !member.isOwner"
                 size="sm"
-                :question="`Retirer ${member.email} du foyer ?`"
+                :question="`Retirer ${member.name ?? member.email} du foyer ?`"
                 confirm-label="Retirer"
                 @confirm="remove(member)"
               >
@@ -423,6 +435,15 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
 .household__meta {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
+}
+
+.household__days {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  align-self: flex-start;
+  margin-top: var(--space-1);
+  font-size: var(--font-size-sm);
 }
 
 .household__text {

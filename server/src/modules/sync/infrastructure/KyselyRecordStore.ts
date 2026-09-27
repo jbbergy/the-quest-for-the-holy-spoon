@@ -4,7 +4,7 @@ import type { AccountId } from '@/core/identity'
 
 import type { Db } from '../../../shared/db/database'
 import type { ChangePage, IRecordStore, StoredChange } from '../domain/ports'
-import type { IncomingChange, RecordKey } from '../domain/SyncChange'
+import type { IncomingChange, IncomingUpsert, RecordKey } from '../domain/SyncChange'
 
 /**
  * Clé du verrou qui sérialise les écritures.
@@ -78,11 +78,32 @@ export class KyselyRecordStore implements IRecordStore {
     })
   }
 
-  async changesSince(owner: AccountId, since: number, limit: number): Promise<ChangePage> {
+  async offer(owner: AccountId, change: IncomingUpsert): Promise<boolean> {
+    return this.db.transaction().execute(async (tx) => {
+      await sql`select pg_advisory_xact_lock(${WRITE_LOCK})`.execute(tx)
+      const created = await sql<{ revision: string }>`
+        insert into records (entity, id, owner_account_id, payload, deleted, revision)
+        values (${change.entity}, ${change.id}, ${owner}, ${JSON.stringify(change.payload)}::jsonb,
+                false, nextval('records_revision_seq'))
+        on conflict (entity, id) do nothing
+        returning revision`.execute(tx)
+      return created.rows.length > 0
+    })
+  }
+
+  async changesSince(
+    owner: AccountId,
+    foodAuthors: readonly AccountId[],
+    since: number,
+    limit: number,
+  ): Promise<ChangePage> {
+    // `= any` accepte un tableau vide : sans foyer, la seconde branche ne lit rien.
     const rows = await sql<RecordRow>`
       select entity, id, payload, deleted, revision::text as revision
         from records
-        where owner_account_id = ${owner} and revision > ${since}
+        where revision > ${since}
+          and (owner_account_id = ${owner}
+               or (entity = 'food' and owner_account_id = any(${[...foodAuthors]}::uuid[])))
         -- La colonne, pas l'alias : \`revision::text\` se trierait comme du texte
         -- (« 1000 » avant « 999 »), et le curseur sauterait des écritures.
         order by records.revision

@@ -167,6 +167,15 @@ export class SyncEngine {
     return count.ok ? count.value : Number.POSITIVE_INFINITY
   }
 
+  /**
+   * Le foyer du compte a changé : les aliments partagés sont relus depuis le
+   * début. Sans effet quand l'empreinte est déjà connue.
+   */
+  async rebase(household: string | null): Promise<void> {
+    const changed = await this.replica.rebase(household)
+    if (changed.ok && changed.value) await this.sync()
+  }
+
   /** Débranche l'appareil du compte. */
   async disconnect(options: { readonly wipe: boolean }): Promise<Result<void, BaseError>> {
     if (this.timer !== null) clearTimeout(this.timer)

@@ -62,3 +62,10 @@ export class AlreadyInHouseholdError extends DomainError {
     super('ALREADY_IN_HOUSEHOLD', 'Ce compte appartient déjà à un foyer.')
   }
 }
+
+/** Le membre a coupé le partage de ses journées : elles ne se consultent plus. */
+export class DaysNotSharedError extends DomainError {
+  constructor() {
+    super('DAYS_NOT_SHARED', 'Ce membre ne partage pas ses journées.')
+  }
+}

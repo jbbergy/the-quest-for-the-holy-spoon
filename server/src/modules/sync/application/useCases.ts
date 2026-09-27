@@ -2,7 +2,7 @@ import { ApplicationError } from '@/core/errors'
 import type { AccountId, PlayerId } from '@/core/identity'
 import { err, ok, type Result } from '@/core/result'
 
-import type { ChangePage, IRecordStore } from '../domain/ports'
+import type { ChangePage, IHouseholdDirectory, IRecordStore } from '../domain/ports'
 import { authorizeChange, type IncomingChange, type RecordKey } from '../domain/SyncChange'
 
 /** Ce que la synchronisation sait du compte connecté. */
@@ -29,7 +29,10 @@ export class NoProfileLinkedError extends ApplicationError {
  * lot entier bloquerait son journal indéfiniment.
  */
 export class PushChangesUseCase {
-  constructor(private readonly records: IRecordStore) {}
+  constructor(
+    private readonly records: IRecordStore,
+    private readonly household: IHouseholdDirectory,
+  ) {}
 
   async execute(
     account: SyncAccount,
@@ -39,23 +42,44 @@ export class PushChangesUseCase {
     if (playerId === null) return err(new NoProfileLinkedError())
 
     const rejected: Rejection[] = []
-    const authorized: IncomingChange[] = []
+    const own: IncomingChange[] = []
+    const reject = (key: RecordKey, code: string) =>
+      rejected.push({ entity: key.entity, id: key.id, code })
+
     for (const change of changes) {
       const verdict = authorizeChange(change, playerId)
-      if (verdict.ok) authorized.push(verdict.value)
-      else rejected.push({ entity: change.entity, id: change.id, code: verdict.error.code })
+      if (!verdict.ok) {
+        reject(change, verdict.error.code)
+      } else if (verdict.value.kind === 'own') {
+        own.push(verdict.value.change)
+      } else {
+        // Repas prévu pour un autre : il faut un membre du même foyer, et un
+        // identifiant encore libre — on crée chez autrui, on n'y modifie rien.
+        const { change: offer, playerId: target } = verdict.value
+        const member = await this.household.memberAccountOf(account.id, target)
+        const created = member !== null && (await this.records.offer(member, offer))
+        if (!created) reject(offer, 'NOT_OWNER')
+      }
     }
 
-    const notOwned = await this.records.apply(account.id, authorized)
-    return ok([...rejected, ...notOwned.map((key) => ({ ...key, code: 'NOT_OWNER' }))])
+    const notOwned = await this.records.apply(account.id, own)
+    for (const key of notOwned) reject(key, 'NOT_OWNER')
+    return ok(rejected)
   }
 }
 
-/** Lecture des modifications survenues depuis une révision donnée. */
+/**
+ * Lecture des modifications survenues depuis une révision donnée : les
+ * siennes, et les aliments créés par les autres membres du foyer.
+ */
 export class PullChangesUseCase {
-  constructor(private readonly records: IRecordStore) {}
+  constructor(
+    private readonly records: IRecordStore,
+    private readonly household: IHouseholdDirectory,
+  ) {}
 
-  execute(account: SyncAccount, since: number, limit: number): Promise<ChangePage> {
-    return this.records.changesSince(account.id, since, limit)
+  async execute(account: SyncAccount, since: number, limit: number): Promise<ChangePage> {
+    const foodAuthors = await this.household.coMembers(account.id)
+    return this.records.changesSince(account.id, foodAuthors, since, limit)
   }
 }

@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { localChanges } from '@/core/infrastructure/changeJournal'
-import { FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
+import { idFrom } from '@/core/identity'
+import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
+
+import { OutboxMealOffers } from '@/modules/nutrition_inventory/infrastructure/OutboxMealOffers'
 
 import { createDevice, customFoodOf, type Device, mealOf, playerOf, unwrap } from './fixtures'
 
@@ -34,12 +37,51 @@ describe('Journal des modifications', () => {
     unwrap(await device.foods.save(customFoodOf('food-1')))
     stop()
 
+    // Le profil part avec ses besoins publiés, calculés à l'envoi.
     expect((await pendingChanges()).map((change) => [change.op, change.entity, change.id])).toEqual([
       ['upsert', 'player', 'player-1'],
+      ['upsert', 'needs', 'player-1'],
       ['upsert', 'meal', meal.id],
       ['upsert', 'food', 'food-1'],
     ])
     expect(notified).toBe(3)
+  })
+
+  it('publie le nom et les besoins, jamais les mensurations', async () => {
+    unwrap(await device.replica.start(STATE))
+    unwrap(await device.players.save(playerOf('player-1')))
+
+    const needs = (await pendingChanges()).find((change) => change.entity === 'needs')
+    const payload = needs?.op === 'upsert' ? needs.payload : {}
+
+    expect(Object.keys(payload).sort()).toEqual([
+      'id',
+      'name',
+      'playerId',
+      'referenceNutrients',
+      'targetCalories',
+      'targetMacros',
+    ])
+    expect(payload.targetCalories).toBeGreaterThan(0)
+  })
+
+  it('ne journalise pas l’aliment d’un autre profil, ni un aliment sans auteur', async () => {
+    unwrap(await device.replica.start(STATE))
+
+    unwrap(await device.foods.save(customFoodOf('food-alex', FoodSource.USER, 'player-alex')))
+    unwrap(
+      await device.foods.save(
+        FoodItem.reconstitute({
+          id: idFrom('food-orphelin'),
+          name: 'Orphelin',
+          macrosPer100g: customFoodOf('x').macrosPer100g,
+          source: FoodSource.USER,
+          ownerId: null,
+        }),
+      ),
+    )
+
+    expect(unwrap(await device.replica.pendingCount())).toBe(0)
   })
 
   it('ignore les autres profils de l’appareil et les fiches de catalogue', async () => {
@@ -111,8 +153,20 @@ describe('Premier envoi', () => {
     expect((await pendingChanges()).map((change) => change.entity).sort()).toEqual([
       'food',
       'meal',
+      'needs',
       'player',
     ])
+  })
+
+  it('n’inscrit que les aliments dont le profil est l’auteur', async () => {
+    unwrap(await device.foods.save(customFoodOf('food-1')))
+    unwrap(await device.foods.save(customFoodOf('food-alex', FoodSource.USER, 'player-alex')))
+    unwrap(await device.replica.start(STATE))
+
+    unwrap(await device.replica.enqueueAll('player-1'))
+
+    const foods = (await pendingChanges()).filter((change) => change.entity === 'food')
+    expect(foods.map((change) => change.id)).toEqual(['food-1'])
   })
 })
 
@@ -250,3 +304,89 @@ async function readStored(target: Device, id: string): Promise<Record<string, un
     request.onsuccess = () => resolve(request.result as Record<string, unknown>)
   })
 }
+
+describe('Partage au sein du foyer', () => {
+  const foreignFood = (id: string, ownerId = 'player-alex') => ({
+    entity: 'food' as const,
+    id,
+    deleted: false as const,
+    revision: 3,
+    payload: { id, name: id, source: 'USER', ownerId, proteinG: 1, carbsG: 1, fatG: 1, tags: [], searchTokens: [id] },
+  })
+
+  it('reçoit les aliments des autres membres, et ignore les besoins publiés', async () => {
+    unwrap(await device.replica.start(STATE))
+
+    const changed = unwrap(
+      await device.replica.applyRemote(
+        [
+          foreignFood('food-alex'),
+          { entity: 'needs', id: 'player-1', deleted: false, revision: 4, payload: { id: 'player-1' } },
+        ],
+        4,
+      ),
+    )
+
+    expect([...changed]).toEqual(['food'])
+    expect(unwrap(await device.foods.findById(idFrom('food-alex')))?.ownerId).toBe('player-alex')
+  })
+
+  it('relit tout quand le foyer change, sans garder les aliments des anciens membres', async () => {
+    unwrap(await device.players.save(playerOf('player-1')))
+    unwrap(await device.foods.save(customFoodOf('food-1')))
+    unwrap(await device.replica.start({ ...STATE, cursor: 12 }))
+    unwrap(await device.replica.applyRemote([foreignFood('food-alex')], 12))
+    unwrap(await device.replica.acknowledge(Number.MAX_SAFE_INTEGER))
+
+    expect(unwrap(await device.replica.rebase('foyer-1:a,b'))).toBe(true)
+
+    expect(unwrap(await device.replica.state())).toMatchObject({ cursor: 0, household: 'foyer-1:a,b' })
+    expect(unwrap(await device.foods.findById(idFrom('food-alex')))).toBeNull()
+    expect(unwrap(await device.foods.findById(idFrom('food-1')))).not.toBeNull()
+    // Le profil repart, pour republier ses besoins auprès du nouveau foyer.
+    expect((await pendingChanges()).map((change) => change.entity)).toEqual(['player', 'needs'])
+
+    expect(unwrap(await device.replica.rebase('foyer-1:a,b'))).toBe(false)
+  })
+
+  it('n’a rien à relire sans compte connecté', async () => {
+    expect(unwrap(await device.replica.rebase('foyer-1'))).toBe(false)
+  })
+
+  it('à la déconnexion, efface les aliments du compte et du foyer, garde ceux des autres profils locaux', async () => {
+    unwrap(await device.players.save(playerOf('player-1')))
+    unwrap(await device.players.save(playerOf('player-2')))
+    unwrap(await device.foods.save(customFoodOf('food-1')))
+    unwrap(await device.foods.save(customFoodOf('food-2', FoodSource.USER, 'player-2')))
+    unwrap(await device.replica.start(STATE))
+    unwrap(await device.replica.applyRemote([foreignFood('food-alex')], 5))
+
+    unwrap(await device.replica.stop({ wipe: true }))
+
+    const remaining = unwrap(await device.foods.findBySource(FoodSource.USER)).map((food) => food.id)
+    expect(remaining).toEqual(['food-2'])
+  })
+})
+
+describe('Repas prévu pour un autre membre', () => {
+  it('part tel quel sans être stocké sur l’appareil', async () => {
+    unwrap(await device.replica.start(STATE))
+    const copy = mealOf('player-alex')
+    let notified = 0
+    const stop = localChanges.subscribe(() => (notified += 1))
+
+    unwrap(await new OutboxMealOffers(device.databases).offer(copy))
+    stop()
+
+    const [change] = await pendingChanges()
+    expect(change).toMatchObject({ op: 'upsert', entity: 'meal', id: copy.id })
+    expect(change?.op === 'upsert' && change.payload.playerId).toBe('player-alex')
+    expect(unwrap(await device.meals.findById(copy.id))).toBeNull()
+    expect(notified).toBe(1)
+  })
+
+  it('est refusé sans compte connecté', async () => {
+    const result = await new OutboxMealOffers(device.databases).offer(mealOf('player-alex'))
+    expect(!result.ok && result.error.code).toBe('NOT_SYNCED')
+  })
+})

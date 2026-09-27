@@ -98,6 +98,9 @@ function toView(payload: HouseholdPayload): HouseholdView {
     sharesDays: payload.sharesDays,
     members: payload.members.map((member) => ({
       accountId: idFrom<'AccountId'>(member.accountId),
+      playerId: member.playerId === null ? null : idFrom<'PlayerId'>(member.playerId),
+      name: member.name,
+      targetCalories: member.targetCalories,
       email: member.email,
       isOwner: member.isOwner,
       joinedAt: new Date(member.joinedAt),
