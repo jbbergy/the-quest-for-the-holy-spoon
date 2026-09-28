@@ -1,0 +1,15 @@
+services:
+  api:
+    build: .
+    image: holyspoon-api
+    container_name: holyspoon-api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:4319:4319"
+    networks:
+      - infra
+
+networks:
+  infra:
+    external: true
