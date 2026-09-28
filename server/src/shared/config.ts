@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
  *
  * Tout a une valeur par défaut adaptée au développement : `npm run dev:all` doit
  * fonctionner sans fichier `.env`. En production, `NODE_ENV=production` rend les
- * cookies `Secure` et exige `APP_URL`.
+ * cookies `Secure` et exige `APP_URL` et `DATABASE_URL`.
  */
 export interface ServerConfig {
   readonly host: string
@@ -28,6 +28,10 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): ServerConfi
   const production = env.NODE_ENV === 'production'
   const appUrl = env.APP_URL ?? (production ? undefined : DEV_ORIGINS[0])
   if (appUrl === undefined) throw new Error('APP_URL est obligatoire en production.')
+  // Sans ce garde-fou, un oubli ferait tourner la production sur un PGlite local.
+  if (production && env.DATABASE_URL === undefined) {
+    throw new Error('DATABASE_URL est obligatoire en production.')
+  }
 
   return {
     host: env.HOST ?? (production ? '0.0.0.0' : '127.0.0.1'),
