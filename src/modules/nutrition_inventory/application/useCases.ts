@@ -1174,7 +1174,7 @@ export class ExportInventoryUseCase {
   }
 }
 
-async function loadMeal(
+export async function loadMeal(
   meals: IMealRepository,
   mealId: MealId,
 ): Promise<Result<Meal, InventoryError>> {
@@ -1192,7 +1192,7 @@ async function loadMeal(
   return ok(found.value)
 }
 
-async function saveMeal(
+export async function saveMeal(
   meals: IMealRepository,
   meal: Meal,
 ): Promise<Result<Meal, InventoryError>> {

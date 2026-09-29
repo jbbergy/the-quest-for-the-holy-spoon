@@ -6,12 +6,13 @@
  * les Use Cases.
  */
 import type { DayKey } from '@/core/day'
-import type { FoodItemId, MealEntryId, MealId, PlayerId } from '@/core/identity'
+import type { FoodItemId, MealEntryId, MealId, PlayerId, RecipeId } from '@/core/identity'
 import type { MacrosProps } from '@/core/nutrition/Macros'
 import type { NutrientDetailProps } from '@/core/nutrition/NutrientDetail'
 
 import type { FoodItem, FoodTag } from '../domain/FoodItem'
 import type { Meal, MealType } from '../domain/Meal'
+import { lineAmount, type Recipe } from '../domain/Recipe'
 import type { BaseUnit, Measure, Serving } from '../domain/Measure'
 
 /**
@@ -82,6 +83,36 @@ export function toMealSummary(meal: Meal): MealSummary {
       measure: entry.measure,
       amount: entry.amount,
       calories: entry.calories(),
+    })),
+  }
+}
+
+/** Un ingrédient de recette, tel qu'on l'affiche : « Riz — 150 g ». */
+export interface RecipeLineSummary {
+  readonly foodItemId: FoodItemId
+  readonly foodName: string
+  readonly grams: number
+  readonly measure: Measure
+  readonly amount: number
+}
+
+/** Read model d'une recette, pour la liste de l'éditeur de repas. */
+export interface RecipeSummary {
+  readonly recipeId: RecipeId
+  readonly name: string
+  readonly lines: readonly RecipeLineSummary[]
+}
+
+export function toRecipeSummary(recipe: Recipe): RecipeSummary {
+  return {
+    recipeId: recipe.id,
+    name: recipe.name,
+    lines: recipe.lines.map((line) => ({
+      foodItemId: line.foodItemId,
+      foodName: line.foodName,
+      grams: line.quantity.grams,
+      measure: line.measure,
+      amount: lineAmount(line),
     })),
   }
 }

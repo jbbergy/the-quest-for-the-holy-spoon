@@ -16,13 +16,19 @@ import { useRoute, useRouter } from 'vue-router'
 
 import OnlineSearchNotice from '@/app/components/OnlineSearchNotice.vue'
 import PortionPicker from '@/app/components/PortionPicker.vue'
+import RecipeResults from '@/app/components/RecipeResults.vue'
 import { GLOSSARY } from '@/app/glossary'
 import { per100Label } from '@/app/portionFormat'
 import { dietLabel, dietsOf } from '@/app/profileOptions'
 import { ROUTE } from '@/app/router'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import type { FoodItemId } from '@/core/identity'
-import { DietSuitability, type RecentPortion } from '@/modules/nutrition_inventory/application'
+import {
+  DietSuitability,
+  type RecentPortion,
+  type RecipeSummary,
+  recipesMatching,
+} from '@/modules/nutrition_inventory/application'
 import type { FoodItem } from '@/modules/nutrition_inventory/domain/FoodItem'
 import type { Measure } from '@/modules/nutrition_inventory/domain/Measure'
 import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
@@ -51,8 +57,21 @@ const props = withDefaults(
     busy?: boolean
     /** Aliment à présélectionner — celui qu'on vient de créer. */
     preselect?: FoodItemId | null
+    /**
+     * Recettes du joueur, à retrouver par la recherche. Absentes, la recherche
+     * ne cherche que des aliments — comme dans la liste de courses.
+     */
+    recipes?: readonly RecipeSummary[]
+    addRecipe?: (recipe: RecipeSummary) => Promise<void>
+    removeRecipe?: (recipe: RecipeSummary) => Promise<void>
   }>(),
-  { recent: () => new Map(), preview: false, busy: false, preselect: null },
+  {
+    recent: () => new Map(),
+    preview: false,
+    busy: false,
+    preselect: null,
+    recipes: () => [],
+  },
 )
 
 const route = useRoute()
@@ -73,6 +92,13 @@ const diets = computed(() => dietsOf(players.needs?.restrictions ?? []))
 /** Les résultats affichés : ceux qui conviennent, puis, sur demande, les autres. */
 const shownResults = computed<readonly FoodItem[]>(() =>
   showExcluded.value ? [...search.results, ...search.excluded] : search.results,
+)
+
+/** Les recettes qui répondent à la dernière recherche lancée. */
+const matchingRecipes = computed(() =>
+  props.addRecipe === undefined || props.removeRecipe === undefined || search.status !== 'ready'
+    ? []
+    : recipesMatching(props.recipes, search.query),
 )
 
 const selected = computed(
@@ -223,8 +249,16 @@ async function createFood(): Promise<void> {
       </BaseButton>
     </div>
 
+    <RecipeResults
+      v-if="matchingRecipes.length > 0 && addRecipe && removeRecipe"
+      :recipes="matchingRecipes"
+      :busy="busy"
+      :add="addRecipe"
+      :remove="removeRecipe"
+    />
+
     <EmptyState
-      v-if="shownResults.length === 0 && search.status === 'ready'"
+      v-if="shownResults.length === 0 && matchingRecipes.length === 0 && search.status === 'ready'"
       :title="emptyTitle"
       :description="emptyDescription"
     >

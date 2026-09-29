@@ -193,13 +193,25 @@ async function toggleSharing(event: Event): Promise<void> {
 
     <BaseCard
       title="Mes aliments"
-      subtitle="Les aliments et les recettes que vous avez créés vous-même."
+      subtitle="Les aliments que vous avez créés vous-même."
     >
       <BaseButton
         variant="secondary"
         @click="router.push({ name: ROUTE.foods })"
       >
         Voir mes aliments
+      </BaseButton>
+    </BaseCard>
+
+    <BaseCard
+      title="Mes recettes"
+      subtitle="Les repas que vous avez gardés, pour les ajouter d’un geste."
+    >
+      <BaseButton
+        variant="secondary"
+        @click="router.push({ name: ROUTE.recipes })"
+      >
+        Voir mes recettes
       </BaseButton>
     </BaseCard>
 

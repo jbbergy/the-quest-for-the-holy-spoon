@@ -21,6 +21,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import FoodPicker, { type FoodChoice } from '@/app/components/FoodPicker.vue'
 import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
+import RecipesCard from '@/app/components/RecipesCard.vue'
 import { formatDay, MEAL_OPTIONS, mealLabel } from '@/app/mealLabels'
 import { usePageTitle } from '@/app/pageTitle'
 import { formatPortion, pluralize } from '@/app/portionFormat'
@@ -29,8 +30,13 @@ import { useBackLink } from '@/app/useBackLink'
 import { parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
 import type { FoodItemId, MealId } from '@/core/identity'
-import { type MealEntrySummary, MealType } from '@/modules/nutrition_inventory/application'
+import {
+  type MealEntrySummary,
+  MealType,
+  type RecipeSummary,
+} from '@/modules/nutrition_inventory/application'
 import { useMealEditorStore } from '@/modules/nutrition_inventory/presentation/useMealEditorStore'
+import { useRecipeStore } from '@/modules/nutrition_inventory/presentation/useRecipeStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
@@ -41,6 +47,7 @@ const route = useRoute()
 const router = useRouter()
 const players = usePlayerStore()
 const editor = useMealEditorStore()
+const recipeStore = useRecipeStore()
 
 const clock = useTodayStore()
 const today = computed(() => clock.today)
@@ -98,7 +105,10 @@ onMounted(async () => {
   if (typeof requested === 'string') preselect.value = requested as FoodItemId
 
   if (players.playerId !== null) {
-    await editor.loadRecentPortions(players.playerId, editor.schedule.plannedFor)
+    await Promise.all([
+      editor.loadRecentPortions(players.playerId, editor.schedule.plannedFor),
+      recipeStore.load(players.playerId),
+    ])
   }
 })
 
@@ -136,11 +146,52 @@ async function add(choice: FoodChoice): Promise<boolean> {
 
   feedback.value = `${choice.food.name} ajouté (${formatPortion(choice.grams / choice.measure.grams, choice.measure)}).`
 
-  // Le repas existe désormais : l'adresse le désigne, un rechargement le retrouve.
+  await followNewMeal(wasNew)
+  return true
+}
+
+/** Le repas existe désormais : l'adresse le désigne, un rechargement le retrouve. */
+async function followNewMeal(wasNew: boolean): Promise<void> {
   if (wasNew && editor.mealId !== null) {
     await router.replace({ name: ROUTE.mealEditor, params: { mealId: editor.mealId } })
   }
-  return true
+}
+
+async function addRecipe(recipe: RecipeSummary): Promise<void> {
+  const playerId = players.playerId
+  if (playerId === null) return
+
+  const wasNew = isNew.value
+  const result = await editor.addRecipe(playerId, recipe.recipeId)
+  if (result === null) {
+    feedback.value = ''
+    return
+  }
+
+  const added = `${recipe.name} ajoutée (${result.added} ${result.added > 1 ? 'aliments' : 'aliment'}).`
+  feedback.value =
+    result.missing.length === 0
+      ? added
+      : `${added} Ces aliments n’existent plus, ils manquent : ${result.missing.join(', ')}.`
+  await followNewMeal(wasNew)
+}
+
+async function saveRecipe(name: string): Promise<boolean> {
+  const playerId = players.playerId
+  const id = editor.mealId
+  if (playerId === null || id === null) return false
+
+  const saved = await recipeStore.saveMeal(playerId, id, name)
+  feedback.value = saved === null ? '' : `Recette « ${saved.name} » enregistrée.`
+  return saved !== null
+}
+
+async function removeRecipe(recipe: RecipeSummary): Promise<void> {
+  const playerId = players.playerId
+  if (playerId === null) return
+  if (await recipeStore.remove(playerId, recipe.recipeId)) {
+    feedback.value = `Recette « ${recipe.name} » supprimée.`
+  }
 }
 
 /**
@@ -191,6 +242,7 @@ async function remove(): Promise<void> {
     </h1>
 
     <ErrorNotice :error="editor.error" />
+    <ErrorNotice :error="recipeStore.error" />
 
     <BaseCard title="Quand ?">
       <label class="editor__date">
@@ -311,10 +363,19 @@ async function remove(): Promise<void> {
         :add="add"
         :recent="editor.recentPortions"
         :preselect="preselect"
-        :busy="editor.status === 'loading'"
+        :busy="editor.status === 'loading' || recipeStore.status === 'loading'"
+        :recipes="recipeStore.recipes"
+        :add-recipe="addRecipe"
+        :remove-recipe="removeRecipe"
         preview
       />
     </BaseCard>
+
+    <RecipesCard
+      v-if="meal && meal.entries.length > 0"
+      :busy="editor.status === 'loading' || recipeStore.status === 'loading'"
+      :save="saveRecipe"
+    />
 
     <PlanForMembersCard
       v-if="meal && meal.entries.length > 0"

@@ -9,7 +9,7 @@ import { openDatabase } from './idb'
  * entre deux modules.
  */
 export const DB_NAME = 'holy-spoon'
-export const DB_VERSION = 4
+export const DB_VERSION = 5
 
 export const STORE = {
   players: 'players',
@@ -29,6 +29,8 @@ export const STORE = {
   outbox: 'outbox',
   /** Articles de courses : ceux du foyer et ceux des listes personnelles. */
   shopping: 'shopping',
+  /** Recettes : des ingrédients et leurs quantités, à réutiliser dans un repas. */
+  recipes: 'recipes',
 } as const
 
 export const INDEX = {
@@ -46,6 +48,8 @@ export const INDEX = {
   outboxByRecord: 'by_record',
   /** Articles d'une liste : clé composée `[listKey, week]` (foyer ou personne, lundi). */
   shoppingByList: 'by_list',
+  /** Recettes d'un profil. */
+  recipesByPlayer: 'by_player',
 } as const
 
 /** Clés du store `meta`, qui porte les singletons de l'application. */
@@ -87,6 +91,11 @@ export function openHolySpoonDatabase(): Promise<IDBDatabase> {
     if (oldVersion < 4) {
       const shopping = db.createObjectStore(STORE.shopping, { keyPath: 'id' })
       shopping.createIndex(INDEX.shoppingByList, ['listKey', 'week'], { unique: false })
+    }
+
+    if (oldVersion < 5) {
+      const recipes = db.createObjectStore(STORE.recipes, { keyPath: 'id' })
+      recipes.createIndex(INDEX.recipesByPlayer, 'playerId', { unique: false })
     }
   })
 }

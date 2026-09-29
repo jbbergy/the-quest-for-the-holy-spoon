@@ -26,6 +26,8 @@ export const ROUTE = {
   foodDetail: 'food-detail',
   foodEdit: 'food-edit',
   customFood: 'custom-food',
+  recipes: 'recipes',
+  recipeDetail: 'recipe-detail',
   settings: 'settings',
   profileEdit: 'profile-edit',
   household: 'household',
@@ -147,6 +149,19 @@ export function createAppRouter(): Router {
         name: ROUTE.settings,
         meta: { title: 'Réglages' },
         component: () => import('./views/SettingsView.vue'),
+      },
+      {
+        // Mes recettes, ouvertes depuis les réglages.
+        path: '/reglages/recettes',
+        name: ROUTE.recipes,
+        meta: { title: 'Mes recettes' },
+        component: () => import('./views/RecipeListView.vue'),
+      },
+      {
+        path: '/reglages/recettes/:recipeId',
+        name: ROUTE.recipeDetail,
+        meta: { title: 'Recette' },
+        component: () => import('./views/RecipeDetailView.vue'),
       },
       {
         path: '/reglages/profil',

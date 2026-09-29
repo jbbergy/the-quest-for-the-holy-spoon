@@ -26,9 +26,16 @@ const STORE_OF: Readonly<Record<SyncEntity, string>> = {
   meal: STORE.meals,
   food: STORE.foods,
   shopping: STORE.shopping,
+  recipe: STORE.recipes,
 }
 
-const DATA_STORES = [STORE.players, STORE.meals, STORE.foods, STORE.shopping] as const
+const DATA_STORES = [
+  STORE.players,
+  STORE.meals,
+  STORE.foods,
+  STORE.shopping,
+  STORE.recipes,
+] as const
 
 interface StoredRecord {
   readonly id: string
@@ -73,7 +80,7 @@ export class IndexedDbReplica implements ILocalReplica {
   enqueueAll(playerId: string) {
     return guard('préparation du premier envoi', async () => {
       const tx = (await this.databases.get()).transaction(
-        [STORE.players, STORE.meals, STORE.foods, STORE.shopping, STORE.outbox],
+        [...DATA_STORES, STORE.outbox],
         'readwrite',
       )
       const outbox = tx.objectStore(STORE.outbox)
@@ -91,6 +98,12 @@ export class IndexedDbReplica implements ILocalReplica {
         IDBKeyRange.bound([playerId, ''], [playerId, '￿']),
       )
       for (const meal of meals) upsert('meal', meal.id)
+
+      const recipes = await getAllFromIndex<StoredRecord>(
+        tx.objectStore(STORE.recipes).index(INDEX.recipesByPlayer),
+        IDBKeyRange.only(playerId),
+      )
+      for (const recipe of recipes) upsert('recipe', recipe.id)
 
       // Seuls les aliments dont ce profil est l'auteur : ceux des autres
       // membres du foyer, reçus par synchronisation, sont déjà sur le serveur.
@@ -280,6 +293,12 @@ export class IndexedDbReplica implements ILocalReplica {
         )
         for (const key of mealKeys) meals.delete(key)
         tx.objectStore(STORE.players).delete(state.playerId)
+
+        const recipes = tx.objectStore(STORE.recipes)
+        const recipeKeys = await requestToPromise(
+          recipes.index(INDEX.recipesByPlayer).getAllKeys(IDBKeyRange.only(state.playerId)),
+        )
+        for (const key of recipeKeys) recipes.delete(key)
 
         // Le profil courant devient un autre profil resté sur l'appareil, s'il
         // en existe un ; sinon l'application revient à l'accueil.

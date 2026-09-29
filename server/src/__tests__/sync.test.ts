@@ -123,6 +123,25 @@ describe('Propriété des enregistrements', () => {
     expect((await pull(alex)).changes.map((change: { id: string }) => change.id)).toEqual(['meal-alex-2'])
   })
 
+  it('synchronise les recettes d’un profil, et seulement pour lui', async () => {
+    const recipe = (playerId: string) => ({
+      op: 'upsert',
+      entity: 'recipe',
+      id: 'recipe-1',
+      payload: { id: 'recipe-1', playerId, name: 'Poke bowl', lines: [] },
+    })
+
+    const foreign = await alex.request('POST', '/sync/push', { changes: [recipe('player-camille')] })
+    const own = await camille.request('POST', '/sync/push', { changes: [recipe('player-camille')] })
+
+    expect(foreign.json().rejected).toEqual([{ entity: 'recipe', id: 'recipe-1', code: 'NOT_OWNER' }])
+    expect(own.json()).toEqual({ rejected: [] })
+    expect((await pull(camille)).changes).toContainEqual(
+      expect.objectContaining({ entity: 'recipe', id: 'recipe-1', deleted: false }),
+    )
+    expect((await pull(alex)).changes).toEqual([])
+  })
+
   it('refuse d’écraser ou de supprimer l’enregistrement d’un autre compte', async () => {
     const overwrite = await alex.request('POST', '/sync/push', {
       changes: [meal('meal-camille', 'player-alex')],

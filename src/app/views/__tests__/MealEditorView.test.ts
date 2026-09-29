@@ -89,6 +89,7 @@ async function mountAt(
   path: string,
   meal = mealOf(),
   recent: ReadonlyMap<string, { grams: number; measure: string }> = new Map(),
+  inventory: Record<string, unknown> = {},
 ): Promise<VueWrapper> {
   changeQuantity = vi.fn(async () => ok(null))
   removeEntry = vi.fn(async () => ok(null))
@@ -104,6 +105,7 @@ async function mountAt(
         addFood: { execute: addFood },
         find: succeedsWith({ kind: 'by_name', items: [chicken, bread], excluded: [], onlineSearched: true }),
         recentPortions: succeedsWith(recent),
+        ...inventory,
       } as never,
     }),
   )
@@ -336,5 +338,152 @@ describe('MealEditorView — nouveau repas', () => {
     const wrapper = await mountAt('/semaine/repas?jour=2026-02-30&type=LUNCH')
 
     expect((wrapper.find('input[type="date"]').element as HTMLInputElement).value).toBe(today)
+  })
+})
+
+describe('MealEditorView — recettes', () => {
+  const pokeBowl = {
+    recipeId: idFrom('recipe-1'),
+    name: 'Poke bowl',
+    lines: [
+      {
+        foodItemId: chicken.id,
+        foodName: 'Blanc de poulet',
+        grams: 100,
+        measure: GRAM,
+        amount: 100,
+      },
+    ],
+  }
+
+  async function search(wrapper: VueWrapper, text: string): Promise<void> {
+    await wrapper.find('.picker__search input').setValue(text)
+    await wrapper.find('form.picker__search').trigger('submit')
+    await flushPromises()
+  }
+
+  const recipeButton = (wrapper: VueWrapper, label: string) =>
+    wrapper.findAll('.recipes button').find((button) => button.text().startsWith(label))!
+
+  it('ne montre aucune recette tant qu’on ne cherche pas', async () => {
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
+      listRecipes: succeedsWith([pokeBowl]),
+    })
+
+    expect(wrapper.find('.recipes').exists()).toBe(false)
+  })
+
+  it('retrouve une recette par son nom, avant les aliments', async () => {
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
+      listRecipes: succeedsWith([pokeBowl]),
+    })
+
+    await search(wrapper, 'POKÉ')
+    expect(wrapper.find('.recipes').exists()).toBe(true)
+    expect(wrapper.find('.recipes').text()).toContain('Blanc de poulet (100 g)')
+
+    await search(wrapper, 'pain')
+    expect(wrapper.find('.recipes').exists()).toBe(false)
+  })
+
+  it('ne dit pas « aucun aliment » quand une recette répond', async () => {
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
+      listRecipes: succeedsWith([pokeBowl]),
+      find: succeedsWith({ kind: 'by_name', items: [], excluded: [], onlineSearched: true }),
+    })
+
+    await search(wrapper, 'poke')
+
+    expect(wrapper.text()).not.toContain('Aucun aliment trouvé')
+  })
+
+  it('ajoute une recette au repas en cours, puis le dit', async () => {
+    const addRecipe = vi.fn(async () => ok({ meal: { id: idFrom('meal-1') }, added: 3, missing: [] }))
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
+      listRecipes: succeedsWith([pokeBowl]),
+      addRecipe: { execute: addRecipe },
+    })
+
+    await search(wrapper, 'poke')
+    await recipeButton(wrapper, 'Ajouter').trigger('click')
+    await flushPromises()
+
+    expect(addRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ playerId, recipeId: idFrom('recipe-1'), mealId: idFrom('meal-1') }),
+    )
+    expect(wrapper.find('.editor__feedback').text()).toBe('Poke bowl ajoutée (3 aliments).')
+  })
+
+  it('nomme les aliments qui manquent au catalogue', async () => {
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
+      listRecipes: succeedsWith([pokeBowl]),
+      addRecipe: {
+        execute: async () => ok({ meal: { id: idFrom('meal-1') }, added: 1, missing: ['Saumon cru'] }),
+      },
+    })
+
+    await search(wrapper, 'poke')
+    await recipeButton(wrapper, 'Ajouter').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.editor__feedback').text()).toContain('Saumon cru')
+  })
+
+  it('garde le repas en cours comme recette et vide le champ', async () => {
+    const saveAsRecipe = vi.fn(async () => ok(pokeBowl))
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
+      saveAsRecipe: { execute: saveAsRecipe },
+    })
+
+    const input = wrapper.find('.save input')
+    await input.setValue('Poke bowl')
+    await wrapper.find('.save').trigger('submit')
+    await flushPromises()
+
+    expect(saveAsRecipe).toHaveBeenCalledWith(idFrom('meal-1'), 'Poke bowl')
+    expect(wrapper.find('.editor__feedback').text()).toBe('Recette « Poke bowl » enregistrée.')
+    expect((input.element as HTMLInputElement).value).toBe('')
+  })
+
+  it('n’enregistre pas une recette sans nom', async () => {
+    const saveAsRecipe = vi.fn(async () => ok(pokeBowl))
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
+      saveAsRecipe: { execute: saveAsRecipe },
+    })
+
+    await wrapper.find('.save input').setValue('   ')
+    await wrapper.find('.save').trigger('submit')
+
+    expect(saveAsRecipe).not.toHaveBeenCalled()
+  })
+
+  it('demande confirmation avant de supprimer une recette', async () => {
+    const deleteRecipe = vi.fn(async () => ok(undefined))
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
+      listRecipes: succeedsWith([pokeBowl]),
+      deleteRecipe: { execute: deleteRecipe },
+    })
+
+    await search(wrapper, 'poke')
+    await recipeButton(wrapper, 'Supprimer').trigger('click')
+    expect(deleteRecipe).not.toHaveBeenCalled()
+
+    await recipeButton(wrapper, 'Oui, supprimer').trigger('click')
+    await flushPromises()
+
+    expect(deleteRecipe).toHaveBeenCalledWith(idFrom('recipe-1'))
+    expect(wrapper.find('.editor__feedback').text()).toBe('Recette « Poke bowl » supprimée.')
+  })
+
+  it('ne cherche ni n’ajoute rien dans un repas mangé, mais permet de le garder', async () => {
+    const wrapper = await mountAt(
+      '/semaine/repas/meal-1',
+      mealOf({ consumedAt: '2026-04-10T12:45:00.000Z' }),
+      new Map(),
+      { listRecipes: succeedsWith([pokeBowl]) },
+    )
+
+    expect(wrapper.find('.picker__search').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Garder comme recette')
   })
 })

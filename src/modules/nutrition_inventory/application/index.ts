@@ -13,12 +13,30 @@ export {
   toFoodExport,
   toMealExport,
   toMealSummary,
+  toRecipeSummary,
   type FoodExport,
   type MealEntryExport,
   type MealEntrySummary,
   type MealExport,
   type MealSummary,
+  type RecipeLineSummary,
+  type RecipeSummary,
 } from './readModels'
+
+export { recipesMatching } from './recipeSearch'
+
+export {
+  AddRecipeToMealUseCase,
+  ChangeRecipeLineQuantityUseCase,
+  DeleteRecipeUseCase,
+  GetRecipeUseCase,
+  ListRecipesUseCase,
+  RemoveRecipeLineUseCase,
+  RenameRecipeUseCase,
+  SaveMealAsRecipeUseCase,
+  type AddRecipeInput,
+  type AddRecipeResult,
+} from './recipeUseCases'
 
 export {
   AddFoodToMealUseCase,

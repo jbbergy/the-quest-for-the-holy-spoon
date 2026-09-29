@@ -139,6 +139,12 @@ export class InvalidMealError extends DomainError {
   }
 }
 
+export class InvalidRecipeError extends DomainError {
+  constructor(message: string) {
+    super('INVALID_RECIPE', message)
+  }
+}
+
 export class InvalidPlayerError extends DomainError {
   constructor(message: string) {
     super('INVALID_PLAYER', message)

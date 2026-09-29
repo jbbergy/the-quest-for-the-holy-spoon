@@ -5,13 +5,22 @@ import { localChanges } from '@/core/infrastructure/changeJournal'
 import { idFrom } from '@/core/identity'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 
+import { recipeToRecord } from '@/modules/nutrition_inventory/infrastructure/records'
 import { OutboxMealOffers } from '@/modules/nutrition_inventory/infrastructure/OutboxMealOffers'
 
 import { playerToRecord } from '@/modules/player_profile/infrastructure/records'
 import { ShoppingItem, type ShoppingListRef } from '@/modules/shopping/domain/ShoppingItem'
 import { shoppingItemToRecord } from '@/modules/shopping/infrastructure/records'
 
-import { createDevice, customFoodOf, type Device, mealOf, playerOf, unwrap } from './fixtures'
+import {
+  createDevice,
+  customFoodOf,
+  type Device,
+  mealOf,
+  playerOf,
+  recipeOf,
+  unwrap,
+} from './fixtures'
 
 const STATE = { accountId: 'account-1', playerId: 'player-1', cursor: 0 }
 
@@ -165,6 +174,8 @@ describe('Premier envoi', () => {
     unwrap(await device.meals.save(mealOf('player-1')))
     unwrap(await device.meals.save(mealOf('player-2')))
     unwrap(await device.foods.save(customFoodOf('food-1')))
+    unwrap(await device.recipes.save(recipeOf('player-1')))
+    unwrap(await device.recipes.save(recipeOf('player-2')))
     unwrap(await device.replica.start(STATE))
 
     unwrap(await device.replica.enqueueAll('player-1'))
@@ -174,6 +185,7 @@ describe('Premier envoi', () => {
       'meal',
       'needs',
       'player',
+      'recipe',
     ])
   })
 
@@ -538,5 +550,40 @@ describe('Liste de courses', () => {
 
     expect(await names(householdList())).toEqual([])
     expect(await names(personalList())).toEqual(['Chocolat'])
+  })
+})
+
+describe('Recettes', () => {
+  it('reçoit les recettes du compte et renvoie les siennes', async () => {
+    unwrap(await device.replica.start(STATE))
+    const remote = recipeOf('player-1', 'Curry')
+    const payload = recipeToRecord(remote)
+
+    const changed = unwrap(
+      await device.replica.applyRemote(
+        [{ deleted: false, entity: 'recipe', id: remote.id, payload: { ...payload }, revision: 1 }],
+        1,
+      ),
+    )
+
+    expect(changed.has('recipe')).toBe(true)
+    expect(unwrap(await device.recipes.findByPlayer(remote.playerId)).map((r) => r.name)).toEqual([
+      'Curry',
+    ])
+    // Le retour de ses propres envois ne réécrit rien.
+    expect(unwrap(await device.replica.pendingCount())).toBe(0)
+  })
+
+  it('efface les recettes du compte, pas celles d’un autre profil de l’appareil', async () => {
+    unwrap(await device.players.save(playerOf('player-local')))
+    unwrap(await device.players.save(playerOf('player-1')))
+    unwrap(await device.replica.start(STATE))
+    unwrap(await device.recipes.save(recipeOf('player-1')))
+    unwrap(await device.recipes.save(recipeOf('player-local', 'Salade')))
+
+    unwrap(await device.replica.stop({ wipe: true }))
+
+    expect(unwrap(await device.recipes.findByPlayer(playerOf('player-1').id))).toEqual([])
+    expect(unwrap(await device.recipes.findByPlayer(playerOf('player-local').id))).toHaveLength(1)
   })
 })

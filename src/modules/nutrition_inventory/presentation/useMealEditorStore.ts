@@ -4,7 +4,7 @@ import { computed, ref, shallowRef } from 'vue'
 import { useContainer } from '@/app/container'
 import { type BaseError, type ErrorView, toErrorView } from '@/core/errors'
 import { type DayKey, dayKeyOf } from '@/core/day'
-import type { FoodItemId, MealEntryId, MealId, PlayerId } from '@/core/identity'
+import type { FoodItemId, MealEntryId, MealId, PlayerId, RecipeId } from '@/core/identity'
 
 import { type MealSchedule, type MealSummary, MealType, type RecentPortion } from '../application'
 
@@ -104,6 +104,32 @@ export const useMealEditorStore = defineStore('mealEditor', () => {
     return reload(result.value.id)
   }
 
+  /**
+   * Ajoute tous les ingrédients d'une recette, en créant le repas s'il n'existe
+   * pas encore. Rend ce qui a été ajouté et ce qui manquait au catalogue, ou
+   * `null` si l'ajout a échoué.
+   */
+  async function addRecipe(
+    playerId: PlayerId,
+    recipeId: RecipeId,
+  ): Promise<{ readonly added: number; readonly missing: readonly string[] } | null> {
+    status.value = 'loading'
+    const result = await useContainer().inventory.addRecipe.execute({
+      playerId,
+      recipeId,
+      mealType: schedule.value.type,
+      plannedFor: schedule.value.plannedFor,
+      ...(mealId.value === null ? {} : { mealId: mealId.value }),
+    })
+    if (!result.ok) {
+      fail(result.error)
+      return null
+    }
+
+    const { added, missing, meal: saved } = result.value
+    return (await reload(saved.id)) ? { added, missing } : null
+  }
+
   async function removeEntry(entryId: MealEntryId): Promise<boolean> {
     const id = mealId.value
     if (id === null) return false
@@ -188,6 +214,7 @@ export const useMealEditorStore = defineStore('mealEditor', () => {
     startNew,
     open,
     addFood,
+    addRecipe,
     removeEntry,
     changeQuantity,
     reschedule,

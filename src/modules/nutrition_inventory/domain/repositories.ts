@@ -1,10 +1,11 @@
 import type { DayKey } from '@/core/day'
 import type { RepositoryError } from '@/core/errors'
-import type { FoodItemId, MealId, PlayerId } from '@/core/identity'
+import type { FoodItemId, MealId, PlayerId, RecipeId } from '@/core/identity'
 import type { Result } from '@/core/result'
 
 import type { FoodItem, FoodSource } from './FoodItem'
 import type { Meal } from './Meal'
+import type { Recipe } from './Recipe'
 
 /**
  * Ports de persistance du module.
@@ -57,6 +58,15 @@ export interface IMealRepository {
   findAllByPlayer(playerId: PlayerId): Promise<Result<Meal[], RepositoryError>>
   save(meal: Meal): Promise<Result<void, RepositoryError>>
   delete(id: MealId): Promise<Result<void, RepositoryError>>
+}
+
+export interface IRecipeRepository {
+  findById(id: RecipeId): Promise<Result<Recipe | null, RepositoryError>>
+  /** Les recettes d'un joueur, triées par nom. */
+  findByPlayer(playerId: PlayerId): Promise<Result<Recipe[], RepositoryError>>
+  save(recipe: Recipe): Promise<Result<void, RepositoryError>>
+  /** Supprimer une recette absente n'est pas une erreur. */
+  delete(id: RecipeId): Promise<Result<void, RepositoryError>>
 }
 
 /**

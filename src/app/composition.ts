@@ -60,10 +60,19 @@ import {
   RescalePlannedMealsUseCase,
   RemoveMealEntryUseCase,
   RescheduleMealUseCase,
+  AddRecipeToMealUseCase,
+  ChangeRecipeLineQuantityUseCase,
+  DeleteRecipeUseCase,
+  GetRecipeUseCase,
+  ListRecipesUseCase,
+  RemoveRecipeLineUseCase,
+  RenameRecipeUseCase,
+  SaveMealAsRecipeUseCase,
 } from '@/modules/nutrition_inventory/application'
 import { CiqualSeeder } from '@/modules/nutrition_inventory/infrastructure/CiqualSeeder'
 import { IndexedDbFoodRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbFoodRepository'
 import { IndexedDbMealRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbMealRepository'
+import { IndexedDbRecipeRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbRecipeRepository'
 import { OpenFoodFactsProvider } from '@/modules/nutrition_inventory/infrastructure/OpenFoodFactsProvider'
 import { OutboxMealOffers } from '@/modules/nutrition_inventory/infrastructure/OutboxMealOffers'
 
@@ -157,6 +166,14 @@ export interface AppContainer {
     readonly week: GetWeekPlanUseCase
     readonly history: GetConsumptionHistoryUseCase
     readonly exportData: ExportInventoryUseCase
+    readonly listRecipes: ListRecipesUseCase
+    readonly saveAsRecipe: SaveMealAsRecipeUseCase
+    readonly getRecipe: GetRecipeUseCase
+    readonly renameRecipe: RenameRecipeUseCase
+    readonly changeRecipeLine: ChangeRecipeLineQuantityUseCase
+    readonly removeRecipeLine: RemoveRecipeLineUseCase
+    readonly deleteRecipe: DeleteRecipeUseCase
+    readonly addRecipe: AddRecipeToMealUseCase
   }
   readonly planning: {
     readonly suggestCompletion: SuggestMealCompletionUseCase
@@ -186,6 +203,7 @@ export function createContainer(
   const playerRepository = new IndexedDbPlayerRepository(databases)
   const foodRepository = new IndexedDbFoodRepository(databases)
   const mealRepository = new IndexedDbMealRepository(databases)
+  const recipeRepository = new IndexedDbRecipeRepository(databases)
   const shoppingRepository = new IndexedDbShoppingRepository(databases)
 
   const accountGateway = new HttpAccountGateway()
@@ -250,6 +268,14 @@ export function createContainer(
       week: new GetWeekPlanUseCase(mealRepository),
       history: new GetConsumptionHistoryUseCase(mealRepository),
       exportData: new ExportInventoryUseCase(mealRepository, foodRepository),
+      listRecipes: new ListRecipesUseCase(recipeRepository),
+      saveAsRecipe: new SaveMealAsRecipeUseCase(mealRepository, recipeRepository),
+      getRecipe: new GetRecipeUseCase(recipeRepository),
+      renameRecipe: new RenameRecipeUseCase(recipeRepository),
+      changeRecipeLine: new ChangeRecipeLineQuantityUseCase(recipeRepository),
+      removeRecipeLine: new RemoveRecipeLineUseCase(recipeRepository),
+      deleteRecipe: new DeleteRecipeUseCase(recipeRepository),
+      addRecipe: new AddRecipeToMealUseCase(recipeRepository, foodRepository, mealRepository),
     },
     planning: {
       suggestCompletion: new SuggestMealCompletionUseCase(),

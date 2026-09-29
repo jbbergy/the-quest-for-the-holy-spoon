@@ -65,6 +65,14 @@ const MESSAGES: Readonly<Record<string, string>> = {
   HOUSEHOLD_CONFLICT:
     'Le foyer a changé pendant ce temps. Voici ce qu’il est maintenant. Réessayez si besoin.',
   INVALID_SHOPPING_ITEM: 'Écrivez le nom de l’article, en 80 lettres au plus.',
+  INVALID_RECIPE:
+    'Une recette a un nom de 1 à 60 lettres, et au moins un aliment.',
+  RECIPE_NAME_TAKEN:
+    'Vous avez déjà une recette qui porte ce nom. Choisissez un autre nom, ou supprimez l’ancienne recette.',
+  RECIPE_NOT_FOUND: 'Cette recette n’existe plus.',
+  RECIPE_NOT_SAVED: 'La recette n’a pas pu être enregistrée. Réessayez.',
+  RECIPE_FOODS_MISSING:
+    'Les aliments de cette recette ne sont plus dans le catalogue. Le repas reste inchangé.',
   SHOPPING_ITEM_NOT_FOUND: 'Cet article n’est plus dans la liste. Quelqu’un l’a peut-être retiré.',
 }
 

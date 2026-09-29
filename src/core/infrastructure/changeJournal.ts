@@ -16,7 +16,7 @@ import { requestToPromise } from './idb'
  * Tant qu'aucun compte n'est connecté (`sync_state` absent), rien n'est
  * journalisé : l'usage sans compte ne laisse aucune trace.
  */
-export type SyncEntity = 'player' | 'meal' | 'food' | 'shopping'
+export type SyncEntity = 'player' | 'meal' | 'food' | 'shopping' | 'recipe'
 export type SyncOp = 'upsert' | 'delete'
 
 export interface OutboxEntry {

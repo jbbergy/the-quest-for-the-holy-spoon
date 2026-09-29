@@ -1,12 +1,13 @@
 import { type DayKey, dayKeyOf } from '@/core/day'
 import type { RepositoryError } from '@/core/errors'
-import type { FoodItemId, MealId, PlayerId } from '@/core/identity'
+import type { FoodItemId, MealId, PlayerId, RecipeId } from '@/core/identity'
 import { tokenize } from '@/core/infrastructure/text'
 import { ok, type Result } from '@/core/result'
 
 import type { FoodItem, FoodSource } from '../domain/FoodItem'
 import type { Meal } from '../domain/Meal'
-import type { IFoodRepository, IMealRepository } from '../domain/repositories'
+import type { Recipe } from '../domain/Recipe'
+import type { IFoodRepository, IMealRepository, IRecipeRepository } from '../domain/repositories'
 
 /**
  * Adaptateurs en mémoire.
@@ -127,6 +128,32 @@ export class InMemoryMealRepository implements IMealRepository {
 
   async delete(id: MealId): Promise<Result<void, RepositoryError>> {
     this.meals.delete(id)
+    return ok(undefined)
+  }
+}
+
+export class InMemoryRecipeRepository implements IRecipeRepository {
+  private readonly recipes = new Map<string, Recipe>()
+
+  async findById(id: RecipeId): Promise<Result<Recipe | null, RepositoryError>> {
+    return ok(this.recipes.get(id) ?? null)
+  }
+
+  async findByPlayer(playerId: PlayerId): Promise<Result<Recipe[], RepositoryError>> {
+    const found = [...this.recipes.values()]
+      .filter((recipe) => recipe.playerId === playerId)
+      .sort((a, b) => a.name.localeCompare(b.name, 'fr'))
+
+    return ok(found)
+  }
+
+  async save(recipe: Recipe): Promise<Result<void, RepositoryError>> {
+    this.recipes.set(recipe.id, recipe)
+    return ok(undefined)
+  }
+
+  async delete(id: RecipeId): Promise<Result<void, RepositoryError>> {
+    this.recipes.delete(id)
     return ok(undefined)
   }
 }

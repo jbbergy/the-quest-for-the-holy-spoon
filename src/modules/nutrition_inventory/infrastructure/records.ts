@@ -7,6 +7,7 @@ import { Quantity } from '@/core/nutrition/Quantity'
 
 import { FoodItem, type FoodSource, type FoodTag } from '../domain/FoodItem'
 import { Meal, type MealType } from '../domain/Meal'
+import { Recipe } from '../domain/Recipe'
 import { MealEntry } from '../domain/MealEntry'
 import { BaseUnit, GRAM, type Measure, type Serving } from '../domain/Measure'
 
@@ -261,5 +262,48 @@ export function recordToMeal(record: MealRecord): Meal {
         measure: measureOf(entry.measure),
       }),
     ),
+  })
+}
+
+export interface RecipeLineRecord {
+  readonly foodItemId: string
+  readonly foodName: string
+  readonly grams: number
+  readonly measure?: MeasureRecord
+}
+
+export interface RecipeRecord {
+  readonly id: string
+  readonly playerId: string
+  readonly name: string
+  readonly lines: readonly RecipeLineRecord[]
+}
+
+export function recipeToRecord(recipe: Recipe): RecipeRecord {
+  return {
+    id: recipe.id,
+    playerId: recipe.playerId,
+    name: recipe.name,
+    lines: recipe.lines.map((line) => ({
+      foodItemId: line.foodItemId,
+      foodName: line.foodName,
+      grams: line.quantity.grams,
+      // Le gramme reste implicite, comme pour les lignes d'un repas.
+      ...(line.measure.label === GRAM.label ? {} : { measure: { ...line.measure } }),
+    })),
+  }
+}
+
+export function recordToRecipe(record: RecipeRecord): Recipe {
+  return Recipe.reconstitute({
+    id: idFrom(record.id),
+    playerId: idFrom(record.playerId),
+    name: record.name,
+    lines: record.lines.map((line) => ({
+      foodItemId: idFrom(line.foodItemId),
+      foodName: line.foodName,
+      quantity: Quantity.reconstitute(line.grams),
+      measure: measureOf(line.measure),
+    })),
   })
 }

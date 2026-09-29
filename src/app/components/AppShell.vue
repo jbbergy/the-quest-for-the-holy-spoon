@@ -52,7 +52,7 @@ const SETTINGS: NavLink = {
   name: ROUTE.settings,
   label: 'Réglages',
   icon: '⚙',
-  also: [ROUTE.foods, ROUTE.foodDetail, ROUTE.foodEdit, ROUTE.customFood, ROUTE.profileEdit],
+  also: [ROUTE.foods, ROUTE.foodDetail, ROUTE.foodEdit, ROUTE.customFood, ROUTE.profileEdit, ROUTE.recipes, ROUTE.recipeDetail],
 }
 
 /** Le foyer n'existe qu'avec un compte : sans session, l'onglet n'aurait rien à montrer. */

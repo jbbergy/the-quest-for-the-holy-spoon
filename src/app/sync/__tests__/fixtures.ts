@@ -9,8 +9,11 @@ import { Quantity } from '@/core/nutrition/Quantity'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { Meal, MealType } from '@/modules/nutrition_inventory/domain/Meal'
 import { MealEntry } from '@/modules/nutrition_inventory/domain/MealEntry'
+import { GRAM } from '@/modules/nutrition_inventory/domain/Measure'
+import { Recipe } from '@/modules/nutrition_inventory/domain/Recipe'
 import { IndexedDbFoodRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbFoodRepository'
 import { IndexedDbMealRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbMealRepository'
+import { IndexedDbRecipeRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbRecipeRepository'
 import { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import { BiologicalSex, BodyMeasurements } from '@/modules/player_profile/domain/BodyMeasurements'
 import { DietaryPreferences } from '@/modules/player_profile/domain/DietaryPreferences'
@@ -40,6 +43,7 @@ export function createDevice() {
     databases,
     players: new IndexedDbPlayerRepository(databases),
     meals: new IndexedDbMealRepository(databases),
+    recipes: new IndexedDbRecipeRepository(databases),
     foods: new IndexedDbFoodRepository(databases),
     shopping: new IndexedDbShoppingRepository(databases),
     replica: new IndexedDbReplica(databases),
@@ -92,3 +96,19 @@ export const customFoodOf = (
     source,
     ownerId: source === FoodSource.USER ? idFrom(ownerId) : null,
   })
+
+export const recipeOf = (playerId: string, name = 'Poke bowl'): Recipe =>
+  unwrap(
+    Recipe.create({
+      playerId: idFrom(playerId),
+      name,
+      lines: [
+        {
+          foodItemId: idFrom('ciqual:1'),
+          foodName: 'Riz',
+          quantity: Quantity.reconstitute(150),
+          measure: GRAM,
+        },
+      ],
+    }),
+  )

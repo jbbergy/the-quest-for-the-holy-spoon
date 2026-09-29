@@ -134,7 +134,7 @@ onMounted(async () => {
     <EmptyState
       v-else-if="catalog.status === 'ready'"
       :title="query.trim() === '' ? 'Vous n’avez pas encore créé d’aliment.' : 'Aucun aliment ne porte ce nom.'"
-      description="Créez ici vos recettes, ou un produit que vous ne trouvez pas dans la recherche."
+      description="Créez ici un plat maison, ou un produit que vous ne trouvez pas dans la recherche."
     >
       <BaseButton
         size="sm"
