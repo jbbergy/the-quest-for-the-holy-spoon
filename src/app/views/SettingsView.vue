@@ -216,6 +216,18 @@ async function toggleSharing(event: Event): Promise<void> {
     </BaseCard>
 
     <BaseCard
+      title="Comment sont calculés mes repères ?"
+      subtitle="D’où viennent les chiffres des aliments et de votre journée."
+    >
+      <BaseButton
+        variant="secondary"
+        @click="router.push({ name: ROUTE.calculations })"
+      >
+        Comprendre les calculs
+      </BaseButton>
+    </BaseCard>
+
+    <BaseCard
       title="Début de la journée"
       subtitle="Ce réglage vaut pour cet appareil seulement."
     >

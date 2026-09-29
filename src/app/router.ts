@@ -28,6 +28,7 @@ export const ROUTE = {
   customFood: 'custom-food',
   recipes: 'recipes',
   recipeDetail: 'recipe-detail',
+  calculations: 'calculations',
   settings: 'settings',
   profileEdit: 'profile-edit',
   household: 'household',
@@ -162,6 +163,13 @@ export function createAppRouter(): Router {
         name: ROUTE.recipeDetail,
         meta: { title: 'Recette' },
         component: () => import('./views/RecipeDetailView.vue'),
+      },
+      {
+        // Comment les repères sont calculés, ouvert depuis les réglages.
+        path: '/reglages/calculs',
+        name: ROUTE.calculations,
+        meta: { title: 'Comment sont calculés mes repères' },
+        component: () => import('./views/CalculationsView.vue'),
       },
       {
         path: '/reglages/profil',
