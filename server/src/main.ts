@@ -4,13 +4,15 @@ import { buildApp } from './app'
 import { configFromEnv } from './shared/config'
 import { migrateToLatest, openDatabase } from './shared/db/database'
 import { ConsoleMailer } from './shared/mail/Mailer'
+import { SmtpMailer } from './shared/mail/SmtpMailer'
 
 /**
  * Point d'entrée du serveur.
  *
  * En développement (`npm run dev:all`), la base est un PGlite persistant dans
  * `server/.data/` et les e-mails s'affichent dans ce terminal : les liens de
- * confirmation s'y copient directement.
+ * confirmation s'y copient directement. En production, Postgres et un relais
+ * SMTP.
  */
 const config = configFromEnv()
 
@@ -20,12 +22,11 @@ const db = openDatabase(
 )
 await migrateToLatest(db)
 
-// Le fournisseur SMTP sera branché au déploiement ; d'ici là, la console.
 // En développement, seuls les avertissements s'affichent : le terminal reste
 // lisible, et les liens des e-mails ne s'y noient pas.
 const app = await buildApp({
   db,
-  mailer: new ConsoleMailer(),
+  mailer: config.smtp === undefined ? new ConsoleMailer() : new SmtpMailer(config.smtp),
   config,
   logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'warn',
 })

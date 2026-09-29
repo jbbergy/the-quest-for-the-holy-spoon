@@ -25,6 +25,7 @@ const INFRASTRUCTURE_PACKAGES = [
   'pg',
   '@electric-sql/',
   '@node-rs/',
+  'nodemailer',
   'zod',
   'node:',
 ]
