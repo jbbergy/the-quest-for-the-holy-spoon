@@ -113,6 +113,9 @@ Sécurité des comptes : mots de passe en argon2id ; session en cookie `HttpOnly
 une adresse a un compte ; mutations refusées depuis une origine inconnue ; limitation de débit
 sur la connexion et l'envoi d'e-mails.
 
+Production (VPS, Caddy, Postgres, e-mails, sauvegardes) et dépannage :
+[`documentation/maintenance.md`](documentation/maintenance.md).
+
 ## Données nutritionnelles
 
 Le catalogue hors-ligne est généré depuis la table de composition de l'ANSES :
