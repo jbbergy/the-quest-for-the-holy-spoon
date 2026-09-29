@@ -111,6 +111,25 @@ function conflictNote(item: FoodItem): string | null {
     : `Ne convient pas : ${conflicts.map((diet) => dietLabel(diet).toLocaleLowerCase('fr-FR')).join(', ')}`
 }
 
+/**
+ * Sans réponse d'Open Food Facts, « aucun aliment trouvé » serait faux : seul
+ * le catalogue public a été consulté. Le bandeau au-dessus dit pourquoi ; ce
+ * titre ne doit pas le contredire.
+ */
+const emptyTitle = computed(() => {
+  if (search.excluded.length > 0) return 'Aucun aliment trouvé qui convienne à votre régime.'
+  return search.onlineSearchUnavailable
+    ? 'Aucun aliment trouvé dans le catalogue public.'
+    : 'Aucun aliment trouvé.'
+})
+
+const emptyDescription = computed(() => {
+  if (search.unknownBarcode) return 'Ce code-barres n’est dans aucun catalogue.'
+  return search.onlineSearchUnavailable
+    ? 'Les produits de marque n’ont pas pu être cherchés. Réessayez dans un moment, ou créez cet aliment vous-même.'
+    : 'Vous pouvez créer cet aliment vous-même.'
+})
+
 function runSearch(text: string): void {
   showExcluded.value = false
   void search.find(text, diets.value)
@@ -206,12 +225,8 @@ async function createFood(): Promise<void> {
 
     <EmptyState
       v-if="shownResults.length === 0 && search.status === 'ready'"
-      :title="search.excluded.length > 0
-        ? 'Aucun aliment trouvé qui convienne à votre régime.'
-        : 'Aucun aliment trouvé.'"
-      :description="search.unknownBarcode
-        ? 'Ce code-barres n’est dans aucun catalogue.'
-        : 'Vous pouvez créer cet aliment vous-même.'"
+      :title="emptyTitle"
+      :description="emptyDescription"
     >
       <BaseButton
         size="sm"

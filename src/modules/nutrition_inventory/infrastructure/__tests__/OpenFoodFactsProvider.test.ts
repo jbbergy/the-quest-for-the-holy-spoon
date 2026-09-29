@@ -558,6 +558,29 @@ describe('OpenFoodFactsProvider', () => {
         expect(fetchImpl).toHaveBeenCalledTimes(1)
       })
 
+      it('échoue proprement quand le 503 puis la panne réseau se succèdent', async () => {
+        // Constat du 2026-09-29 : 503 sans CORS, vu par le navigateur comme une
+        // panne réseau, puis une seconde requête tout aussi refusée.
+        const fetchImpl = vi
+          .fn()
+          .mockResolvedValueOnce(jsonResponse({}, 503))
+          .mockRejectedValueOnce(new TypeError('NetworkError when attempting to fetch resource.')) as unknown as typeof fetch
+
+        const result = await providerWith(fetchImpl).searchByName('riz', 4)
+
+        expect(isErr(result) && result.error.code).toBe('REMOTE_UNAVAILABLE')
+        expect(fetchImpl).toHaveBeenCalledTimes(2)
+      })
+
+      it('ne retente pas un 429 : le service demande de ralentir', async () => {
+        const fetchImpl = vi.fn(async () => jsonResponse({}, 429)) as unknown as typeof fetch
+
+        const result = await providerWith(fetchImpl).searchByName('riz', 4)
+
+        expect(isErr(result) && result.error.code).toBe('REMOTE_UNAVAILABLE')
+        expect(fetchImpl).toHaveBeenCalledTimes(1)
+      })
+
       it('ne retente pas la lecture par code-barres, qui n’est pas bridée', async () => {
         const fetchImpl = vi.fn(async () => jsonResponse({}, 503)) as unknown as typeof fetch
 
@@ -565,6 +588,58 @@ describe('OpenFoodFactsProvider', () => {
 
         expect(fetchImpl).toHaveBeenCalledTimes(1)
       })
+    })
+  })
+
+  describe('plafond de recherches par minute', () => {
+    const budgeted = (fetchImpl: typeof fetch, clock: { t: number }) =>
+      new OpenFoodFactsProvider(new StaticNetworkStatus(true), {
+        fetchImpl,
+        searchRetryDelayMs: 0,
+        searchBudget: { requests: 3, perMs: 60_000 },
+        now: () => clock.t,
+      })
+
+    it('refuse sans appeler le réseau une fois le plafond atteint', async () => {
+      const fetchImpl = vi.fn(async () => jsonResponse(searchFixture)) as unknown as typeof fetch
+      const provider = budgeted(fetchImpl, { t: 0 })
+
+      for (let i = 0; i < 3; i++) expect(isOk(await provider.searchByName('riz', 4))).toBe(true)
+      const refused = await provider.searchByName('riz', 4)
+
+      expect(isErr(refused) && refused.error.code).toBe('REMOTE_UNAVAILABLE')
+      expect(fetchImpl).toHaveBeenCalledTimes(3)
+    })
+
+    it('compte les nouvelles tentatives, et n’en fait pas au-delà du plafond', async () => {
+      const fetchImpl = vi.fn(async () => jsonResponse({}, 503)) as unknown as typeof fetch
+      const provider = budgeted(fetchImpl, { t: 0 })
+
+      await provider.searchByName('riz', 4) // 2 requêtes
+      await provider.searchByName('riz', 4) // 1 requête, plus de place pour la seconde
+
+      expect(fetchImpl).toHaveBeenCalledTimes(3)
+    })
+
+    it('rouvre la recherche une fois la minute écoulée', async () => {
+      const fetchImpl = vi.fn(async () => jsonResponse(searchFixture)) as unknown as typeof fetch
+      const clock = { t: 0 }
+      const provider = budgeted(fetchImpl, clock)
+
+      for (let i = 0; i < 3; i++) await provider.searchByName('riz', 4)
+      clock.t = 60_001
+
+      expect(isOk(await provider.searchByName('riz', 4))).toBe(true)
+      expect(fetchImpl).toHaveBeenCalledTimes(4)
+    })
+
+    it('ne s’applique pas à la lecture par code-barres', async () => {
+      const fetchImpl = vi.fn(async () => jsonResponse(nutellaFixture)) as unknown as typeof fetch
+      const provider = budgeted(fetchImpl, { t: 0 })
+
+      for (let i = 0; i < 5; i++) {
+        expect(isOk(await provider.findByBarcode('3017620422003'))).toBe(true)
+      }
     })
   })
 

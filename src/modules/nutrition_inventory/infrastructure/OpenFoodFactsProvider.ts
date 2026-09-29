@@ -23,6 +23,17 @@ const DEFAULT_TIMEOUT_MS = 8000
 const DEFAULT_SEARCH_RETRY_DELAY_MS = 800
 
 /**
+ * Plafond de requêtes de recherche envoyées par minute, nouvelles tentatives
+ * comprises.
+ *
+ * Open Food Facts limite `/cgi/search.pl` à 10 requêtes par minute et par
+ * adresse IP. Rester en dessous laisse une marge aux autres appareils du foyer,
+ * qui partagent souvent la même adresse, et évite qu'une série de clics sur
+ * « Chercher de nouveau » ne charge un service déjà saturé.
+ */
+const DEFAULT_SEARCH_BUDGET = { requests: 8, perMs: 60_000 } as const
+
+/**
  * En-têtes envoyés : `Accept`, et rien d'autre.
  *
  * Pas de `User-Agent` personnalisé, bien que la politique d'usage d'Open Food
@@ -40,7 +51,10 @@ export interface OpenFoodFactsOptions {
   readonly baseUrl?: string
   readonly timeoutMs?: number
   readonly searchRetryDelayMs?: number
+  readonly searchBudget?: { readonly requests: number; readonly perMs: number }
   readonly fetchImpl?: typeof fetch
+  /** Horloge en millisecondes, remplaçable par les tests. */
+  readonly now?: () => number
 }
 
 /**
@@ -54,7 +68,11 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
   private readonly baseUrl: string
   private readonly timeoutMs: number
   private readonly searchRetryDelayMs: number
+  private readonly searchBudget: { readonly requests: number; readonly perMs: number }
   private readonly fetchImpl: typeof fetch
+  private readonly now: () => number
+  /** Instants d'envoi des recherches encore comptées dans la fenêtre glissante. */
+  private searchesSent: number[] = []
 
   constructor(
     private readonly network: INetworkStatus,
@@ -63,6 +81,8 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
     this.searchRetryDelayMs = options.searchRetryDelayMs ?? DEFAULT_SEARCH_RETRY_DELAY_MS
+    this.searchBudget = options.searchBudget ?? DEFAULT_SEARCH_BUDGET
+    this.now = options.now ?? Date.now
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
   }
 
@@ -150,16 +170,41 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
    * d'en-têtes CORS sur la page d'erreur, voit comme une panne réseau. Les
    * refus étant indépendants d'une requête à l'autre, une seconde chance
    * suffit à en rattraper une bonne part ; davantage chargerait un service
-   * déjà saturé, ce que sa politique d'usage demande d'éviter.
+   * déjà saturé, ce que sa politique d'usage demande d'éviter. Constat
+   * identique le 2026-09-29 en production : 503, 200, 503 sur trois essais.
    *
-   * Un délai dépassé n'est pas retenté : l'utilisateur a déjà attendu.
+   * Ne sont pas retentés : un délai dépassé (l'utilisateur a déjà attendu), un
+   * 429 (le service demande explicitement de ralentir), ni une requête qui
+   * dépasserait le plafond par minute.
    */
   private async getWithOneRetry(url: string): Promise<Result<unknown, ProviderError>> {
-    const first = await this.get(url)
-    if (first.ok || isTimeout(first.error)) return first
+    const first = await this.searchWithinBudget(url)
+    if (first.ok || isTimeout(first.error) || isRateLimited(first.error)) return first
+    if (!this.hasSearchBudget()) return first
 
     await new Promise((resolve) => setTimeout(resolve, this.searchRetryDelayMs))
+    return this.searchWithinBudget(url)
+  }
+
+  /**
+   * Une recherche n'est envoyée que si le plafond par minute le permet ;
+   * sinon elle échoue aussitôt, sans solliciter le réseau, comme une
+   * indisponibilité ordinaire — l'écran propose déjà de réessayer plus tard.
+   */
+  private async searchWithinBudget(url: string): Promise<Result<unknown, ProviderError>> {
+    if (!this.hasSearchBudget()) {
+      return err(
+        new RemoteUnavailableError('Recherche Open Food Facts suspendue : trop de requêtes en une minute.'),
+      )
+    }
+    this.searchesSent.push(this.now())
     return this.get(url)
+  }
+
+  private hasSearchBudget(): boolean {
+    const windowStart = this.now() - this.searchBudget.perMs
+    this.searchesSent = this.searchesSent.filter((sentAt) => sentAt > windowStart)
+    return this.searchesSent.length < this.searchBudget.requests
   }
 
   /** Requête JSON commune aux deux chemins : délai borné, aucune exception qui sorte. */
@@ -177,7 +222,9 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
       // le traiter comme une panne priverait l'utilisateur de cette information.
       if (!response.ok && response.status !== 404) {
         return err(
-          new RemoteUnavailableError(`Open Food Facts a répondu ${response.status}.`),
+          new RemoteUnavailableError(`Open Food Facts a répondu ${response.status}.`, {
+            cause: { status: response.status },
+          }),
         )
       }
 
@@ -200,6 +247,11 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
 
 function isTimeout(error: ProviderError): boolean {
   return error.cause instanceof Error && error.cause.name === 'AbortError'
+}
+
+function isRateLimited(error: ProviderError): boolean {
+  const cause = error.cause as { status?: unknown } | undefined
+  return cause?.status === 429
 }
 
 /**
