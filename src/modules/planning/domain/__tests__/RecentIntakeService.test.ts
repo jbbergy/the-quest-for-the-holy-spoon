@@ -74,6 +74,7 @@ describe('RecentIntakeService', () => {
     expect(recent.recentDays.find((day) => day.day === daysAgo(2))).toEqual({
       day: daysAgo(2),
       tracked: false,
+      intake: null,
       gap: null,
     })
   })
@@ -104,7 +105,11 @@ describe('RecentIntakeService', () => {
       const { recentDays } = summarize([intake(1, { calories: 1800 })])
 
       expect(recentDays.map((day) => day.day)).toEqual([7, 6, 5, 4, 3, 2, 1].map(daysAgo))
-      expect(recentDays.at(-1)).toMatchObject({ tracked: true, gap: { calories: -200 } })
+      expect(recentDays.at(-1)).toMatchObject({
+        tracked: true,
+        intake: { calories: 1800 },
+        gap: { calories: -200 },
+      })
     })
   })
 

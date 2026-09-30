@@ -2,12 +2,10 @@ import type { Messages } from '../schema'
 import type { dashboard as fr } from '../fr/dashboard'
 
 export const dashboard: Messages<typeof fr> = {
-  eyebrow: 'Today, {day}',
-  hello: 'Hello, {name}',
-  helloAnonymous: 'Hello',
+  title: 'Today',
   mealsTitle: 'Today’s meals',
-  plannedNotice:
-    '{n} planned meal, not eaten yet. Tick “Eaten” when you eat it. | {n} planned meals, not eaten yet. Tick “Eaten” when you eat them.',
+  mealMeta: '{meal} · {kcal} kcal',
+  planned: 'planned',
   emptyTitle: 'No meal planned today.',
   emptyDescription: 'Add the meal you are going to eat, or plan the ones for the week.',
   edit: ' — edit',
@@ -15,18 +13,35 @@ export const dashboard: Messages<typeof fr> = {
   viewWeek: 'See the week',
   adviceTitle: 'Tip of the day',
   overview: {
-    needForDay: 'Your target for the day: {kcal}.',
+    remaining: 'You have left',
+    reached: 'Target reached',
+    over: 'Above your target',
+    overAmount: '+{kcal} kcal',
+    stillPlanned: 'Still planned: {kcal} kcal ({meals}).',
     onlyEaten: 'Only meals marked as eaten count.',
-    limitsTitle: 'Not to exceed',
-    limitsSubtitle: 'It is better to stay under these limits.',
-    recentTitle: 'The last {n} days',
+    macrosLabel: 'Today’s nutrients',
+    ofTarget: '/ {target} {unit}',
+    limitsTitle: 'Today’s limits',
+    limitNear: 'almost reached',
+    limitOver: 'exceeded by {amount}',
+    recentTitle: 'Last {n} days',
+    averageKcal: 'Average: {kcal} kcal',
     noRecent:
       'No day to compare yet. Tick “Eaten” on your meals: the average will appear here from tomorrow.',
     averagePerDay:
       'Average per day, over {n} day with meals eaten. | Average per day, over {n} days with meals eaten.',
+    nutrientAverages: 'Averages by nutrient',
     dayByDay: 'See day by day',
     noMealEaten: 'No meal eaten: this day does not count in the average.',
     overLimits: '{list}: over the limit',
+    chart: {
+      label: 'Calories over the last {n} days, then today',
+      day: '{day}: {kcal} kcal',
+      dayEmpty: '{day}: no meal eaten',
+      today: 'Today, so far: {kcal} kcal',
+      todayShort: 'Today',
+      legend: 'Target: {kcal} kcal per day · dark bar: today, so far',
+    },
     gap: {
       aboveLimit: '{amount} over the limit',
       underLimit: 'under the limit',

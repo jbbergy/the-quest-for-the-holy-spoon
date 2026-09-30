@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { flushPromises, mount } from '@vue/test-utils'
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { type Component } from 'vue'
@@ -127,6 +127,12 @@ async function fill(wrapper: Wrapper, label: string, value: string) {
 beforeEach(() => {
   setActivePinia(createPinia())
 })
+
+/**
+ * Les écrans sont montés sur `document.body` : sans démontage, ceux d'un test
+ * restent vivants et réagissent aux stores du test suivant.
+ */
+enableAutoUnmount(afterEach)
 
 afterEach(() => {
   resetContainer()

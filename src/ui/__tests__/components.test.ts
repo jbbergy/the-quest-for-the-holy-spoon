@@ -245,7 +245,9 @@ describe('RingGauge', () => {
   it('ne divise pas par zéro sur une cible nulle', () => {
     const empty = ring({ value: 10, target: 0 })
 
-    expect(empty.find('.ring__fill').attributes('stroke-dasharray')).toMatch(/^0\.00 /)
+    // Rien à remplir : pas de trait du tout, plutôt qu'un point au sommet.
+    expect(empty.find('.ring__fill').exists()).toBe(false)
+    expect(empty.find('[role="progressbar"]').attributes('aria-valuemax')).toBe('0')
   })
 
   it('interpole vers la nouvelle valeur au lieu d’y sauter', async () => {

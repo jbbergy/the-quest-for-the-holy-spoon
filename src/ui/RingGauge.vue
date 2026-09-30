@@ -26,6 +26,10 @@
  * 23 g », « Limite dépassée » — pour que la couleur ne soit jamais le seul
  * indice (critère 1.4.1). Les traits ne sont que des repères visuels : tout ce
  * qu'ils montrent est aussi écrit.
+ *
+ * `compact` : l'anneau seul, avec au centre la valeur et le repère (« sur
+ * 2100 kcal »). Les phrases d'état ne sont plus dessous : l'écran qui l'emploie
+ * les écrit à côté, en plus grand. Le nom accessible, lui, reste complet.
  */
 import { computed } from 'vue'
 
@@ -44,6 +48,7 @@ const props = withDefaults(
     size?: 'md' | 'lg'
     /** Apport moyen par jour sur les jours précédents ; `null` : pas de trait. */
     average?: number | null
+    compact?: boolean
   }>(),
   {
     unit: 'g',
@@ -51,6 +56,7 @@ const props = withDefaults(
     mode: 'target',
     size: 'md',
     average: null,
+    compact: false,
   },
 )
 
@@ -149,7 +155,12 @@ const averageTick = computed(() => {
 <template>
   <div
     class="ring"
-    :class="[`ring--${tone}`, `ring--${mode}`, `ring--${size}`, { 'ring--exceeded': isExceeded }]"
+    :class="[
+      `ring--${tone}`,
+      `ring--${mode}`,
+      `ring--${size}`,
+      { 'ring--exceeded': isExceeded, 'ring--compact': compact },
+    ]"
   >
     <div
       class="ring__dial"
@@ -171,7 +182,9 @@ const averageTick = computed(() => {
           cy="50"
           r="42"
         />
+        <!-- Vide, l'arrondi du trait dessinerait quand même un point. -->
         <circle
+          v-if="animatedRatio > 0.001"
           class="ring__fill"
           cx="50"
           cy="50"
@@ -200,33 +213,35 @@ const averageTick = computed(() => {
         aria-hidden="true"
       >
         <strong class="ring__value">{{ amount(animatedValue) }}</strong>
-        <span class="ring__unit">{{ unit }}</span>
+        <span class="ring__unit">{{ compact ? reference : unit }}</span>
       </span>
     </div>
-    <p
-      class="ring__reference"
-      aria-hidden="true"
-    >
-      {{ reference }}
-    </p>
-    <p
-      class="ring__status"
-      aria-hidden="true"
-    >
-      <span
-        v-if="isExceeded"
-        class="ring__alert"
-      >!</span>
-      {{ status }}
-    </p>
-    <p
-      v-if="average !== null"
-      class="ring__legend"
-      aria-hidden="true"
-    >
-      <span class="ring__swatch" />
-      {{ t('ui.gauge.average', { value: amount(average), unit }) }}
-    </p>
+    <template v-if="!compact">
+      <p
+        class="ring__reference"
+        aria-hidden="true"
+      >
+        {{ reference }}
+      </p>
+      <p
+        class="ring__status"
+        aria-hidden="true"
+      >
+        <span
+          v-if="isExceeded"
+          class="ring__alert"
+        >!</span>
+        {{ status }}
+      </p>
+      <p
+        v-if="average !== null"
+        class="ring__legend"
+        aria-hidden="true"
+      >
+        <span class="ring__swatch" />
+        {{ t('ui.gauge.average', { value: amount(average), unit }) }}
+      </p>
+    </template>
   </div>
 </template>
 
@@ -342,6 +357,27 @@ const averageTick = computed(() => {
 
 .ring--lg .ring__value {
   font-size: var(--font-size-2xl);
+}
+
+/* Compact : un anneau plus épais, comme sur la maquette, et le repère au
+   centre, sous la valeur. */
+.ring--compact .ring__track,
+.ring--compact .ring__fill,
+.ring--compact .ring__overflow {
+  stroke-width: 11;
+}
+
+.ring--compact .ring__dial {
+  width: 8.5rem;
+}
+
+.ring--compact .ring__value {
+  font-size: var(--font-size-xl);
+}
+
+.ring--compact .ring__unit {
+  max-width: 6.5rem;
+  line-height: 1.2;
 }
 
 .ring__unit,

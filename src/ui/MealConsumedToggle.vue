@@ -14,13 +14,18 @@ import { dateFormat, t } from '@/i18n'
 
 import AppIcon from './AppIcon.vue'
 
-const props = defineProps<{
-  /** Date ISO de consommation, ou `null` si le repas n'est que prévu. */
-  consumedAt: string | null
-  /** Libellé du repas, pour distinguer les boutons d'une liste au lecteur d'écran. */
-  mealLabel: string
-  busy?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** Date ISO de consommation, ou `null` si le repas n'est que prévu. */
+    consumedAt: string | null
+    /** Libellé du repas, pour distinguer les boutons d'une liste au lecteur d'écran. */
+    mealLabel: string
+    busy?: boolean
+    /** `false` : sans l'heure à côté, quand la ligne du repas dit déjà « prévu ». */
+    showTime?: boolean
+  }>(),
+  { busy: false, showTime: true },
+)
 
 const emit = defineEmits<{ toggle: [boolean] }>()
 
@@ -59,18 +64,20 @@ const time = computed(() => {
       <span class="sr-only"> — {{ mealLabel }}</span>
     </button>
 
-    <p
-      v-if="time"
-      class="consumed__time"
-    >
-      {{ t('ui.consumed.at', { time }) }}
-    </p>
-    <p
-      v-else
-      class="consumed__time"
-    >
-      {{ t('ui.consumed.not') }}
-    </p>
+    <template v-if="showTime">
+      <p
+        v-if="time"
+        class="consumed__time"
+      >
+        {{ t('ui.consumed.at', { time }) }}
+      </p>
+      <p
+        v-else
+        class="consumed__time"
+      >
+        {{ t('ui.consumed.not') }}
+      </p>
+    </template>
   </div>
 </template>
 

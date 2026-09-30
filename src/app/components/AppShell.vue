@@ -230,6 +230,7 @@ watch(
     <header
       v-if="!isBare"
       class="shell__top"
+      :class="{ 'shell__top--wide': route.meta.wide === true }"
     >
       <SyncIndicator class="shell__sync" />
       <RouterLink
@@ -249,7 +250,7 @@ watch(
       id="contenu"
       ref="main"
       class="shell__main"
-      :class="{ 'shell__main--bare': isBare }"
+      :class="{ 'shell__main--bare': isBare, 'shell__main--wide': route.meta.wide === true }"
       tabindex="-1"
     >
       <slot />
@@ -517,6 +518,11 @@ $wide: 64rem;
 
   .shell__main {
     padding-bottom: var(--space-8);
+  }
+
+  .shell__top--wide,
+  .shell__main--wide {
+    max-width: 84rem;
   }
 }
 </style>

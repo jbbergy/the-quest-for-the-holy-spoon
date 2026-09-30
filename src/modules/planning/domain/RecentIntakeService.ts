@@ -80,6 +80,8 @@ export interface DayBalance {
   readonly day: DayKey
   /** `false` quand aucun repas n'a été pris ce jour-là : il n'entre pas dans la moyenne. */
   readonly tracked: boolean
+  /** Ce qui a été pris, nutriment par nutriment ; `null` pour un jour non renseigné. */
+  readonly intake: NutrientValues | null
   /** Écart « pris − repère » de chaque nutriment ; `null` pour un jour non renseigné. */
   readonly gap: NutrientValues | null
 }
@@ -143,8 +145,8 @@ export const RecentIntakeService = {
     const recentDays = days.map((recent) => {
       const intake = intakeByDay.get(recent)
       return intake === undefined
-        ? { day: recent, tracked: false, gap: null }
-        : { day: recent, tracked: true, gap: gapOf(intake, baseOn(recent)) }
+        ? { day: recent, tracked: false, intake: null, gap: null }
+        : { day: recent, tracked: true, intake, gap: gapOf(intake, baseOn(recent)) }
     })
 
     return ok({ day, trackedDays: tracked.length, nutrients, recentDays })

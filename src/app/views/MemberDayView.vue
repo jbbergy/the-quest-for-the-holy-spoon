@@ -21,7 +21,7 @@ import { addDays, type DayKey, parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
 import { type ErrorView, toErrorView } from '@/core/errors'
 import { idFrom } from '@/core/identity'
-import { t } from '@/i18n'
+import { lower, t } from '@/i18n'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import EmptyState from '@/ui/EmptyState.vue'
@@ -70,9 +70,10 @@ usePageTitle(() => t('week.member.pageTitle', nameParams(name.value)))
 const meals = computed(() =>
   [...(member.value?.journal.meals ?? [])].sort((a, b) => mealOrder(a.type) - mealOrder(b.type)),
 )
-const plannedCount = computed(
-  () => (member.value?.journal.meals.length ?? 0) - (member.value?.journal.consumedMeals.length ?? 0),
-)
+const planned = computed(() => meals.value.filter((meal) => meal.consumedAt === null))
+const plannedCount = computed(() => planned.value.length)
+const plannedCalories = computed(() => planned.value.reduce((sum, meal) => sum + meal.calories, 0))
+const plannedNames = computed(() => planned.value.map((meal) => lower(mealLabel(meal.type))))
 
 const goTo = (next: DayKey) =>
   router.replace({ name: ROUTE.memberDay, params: route.params, query: { jour: next } })
@@ -136,12 +137,15 @@ const goTo = (next: DayKey) =>
     <template v-if="member">
       <DayOverview
         v-if="member.needs"
+        :day="day"
         :needs="member.needs"
         :total-calories="member.journal.totalCalories"
         :total-macros="member.journal.totalMacros"
         :total-detail="member.journal.totalDetail"
         :recent="member.recent"
         :planned-count="plannedCount"
+        :planned-calories="plannedCalories"
+        :planned-meals="plannedNames"
         :consumed-count="member.journal.consumedMeals.length"
       />
       <p

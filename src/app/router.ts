@@ -92,7 +92,8 @@ export function createAppRouter(): Router {
       {
         path: '/tableau-de-bord',
         name: ROUTE.dashboard,
-        meta: { title: 'shell.titles.home' },
+        // `wide` : sur grand écran, l'écran prend toute la largeur (deux colonnes).
+        meta: { title: 'shell.titles.home', wide: true },
         component: () => import('./views/DashboardView.vue'),
       },
       {
