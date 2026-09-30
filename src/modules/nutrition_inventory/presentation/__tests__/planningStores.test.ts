@@ -6,7 +6,10 @@ import { provideContainer, resetContainer } from '@/app/container'
 import { type DayKey, parseDayKey } from '@/core/day'
 import { ApplicationError, InvalidMealError } from '@/core/errors'
 import { idFrom, type MealId, type PlayerId } from '@/core/identity'
+import { Macros } from '@/core/nutrition/Macros'
 import { MealType } from '@/modules/nutrition_inventory/application'
+import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
+import { GRAM } from '@/modules/nutrition_inventory/domain/Measure'
 import { useMealEditorStore } from '@/modules/nutrition_inventory/presentation/useMealEditorStore'
 import { useWeekPlanStore } from '@/modules/nutrition_inventory/presentation/useWeekPlanStore'
 
@@ -136,6 +139,29 @@ describe('useWeekPlanStore', () => {
 })
 
 describe('useMealEditorStore', () => {
+  const chicken = FoodItem.reconstitute({
+    id: idFrom('ciqual:36007'),
+    name: 'Blanc de poulet',
+    macrosPer100g: Macros.reconstitute({ proteinG: 20, carbsG: 0, fatG: 10 }),
+    source: FoodSource.CIQUAL,
+  })
+
+  const savedWithChicken = () =>
+    summaryOf({
+      entries: [
+        {
+          entryId: idFrom('entry-1'),
+          foodItemId: chicken.id,
+          foodName: 'Blanc de poulet',
+          grams: 100,
+          measure: GRAM,
+          amount: 100,
+          calories: 170,
+          macros: { proteinG: 20, carbsG: 0, fatG: 10 },
+        },
+      ],
+    })
+
   it('ne crée rien en base pour un brouillon', () => {
     provideContainer(createFakeContainer())
     const store = useMealEditorStore()
@@ -144,139 +170,131 @@ describe('useMealEditorStore', () => {
 
     expect(store.meal).toBeNull()
     expect(store.schedule).toEqual({ plannedFor: '2026-09-24', type: MealType.DINNER })
+    expect(store.isDirty).toBe(false)
   })
 
-  it('crée le repas au premier aliment, au jour et au type du brouillon', async () => {
-    const addFood = vi.fn(async () => ({ ok: true as const, value: { id: mealId } }))
-    provideContainer(
-      createFakeContainer({
-        inventory: { addFood: { execute: addFood }, getMeal: succeedsWith(summaryOf()) } as never,
-      }),
-    )
+  it('compose sans rien écrire, et recalcule les totaux à chaque geste', () => {
+    const saveDraft = vi.fn()
+    provideContainer(createFakeContainer({ inventory: { saveDraft: { execute: saveDraft } } as never }))
     const store = useMealEditorStore()
     store.startNew({ plannedFor: day('2026-09-24'), type: MealType.DINNER })
 
-    expect(await store.addFood(playerId, idFrom('food-1'), 150)).toBe(true)
+    store.addFood(chicken, 150, GRAM)
+    expect(store.totals.calories).toBeCloseTo(255)
+    expect(store.isDirty).toBe(true)
 
-    expect(addFood).toHaveBeenCalledWith({
-      playerId,
-      foodItemId: 'food-1',
-      grams: 150,
-      mealType: MealType.DINNER,
-      plannedFor: '2026-09-24',
-    })
-    // Le repas créé devient celui qu'on édite : le suivant le complétera.
-    expect(store.mealId).toBe(mealId)
-  })
+    store.changeGrams(store.draft.lines[0]!.key, 200)
+    expect(store.totals.macros.proteinG).toBeCloseTo(40)
 
-  it('complète le repas ouvert plutôt que d’en créer un second', async () => {
-    const addFood = vi.fn(async () => ({ ok: true as const, value: { id: mealId } }))
-    provideContainer(
-      createFakeContainer({
-        inventory: { addFood: { execute: addFood }, getMeal: succeedsWith(summaryOf()) } as never,
-      }),
-    )
-    const store = useMealEditorStore()
-    await store.open(mealId)
-
-    await store.addFood(playerId, idFrom('food-2'), 80)
-
-    expect(addFood).toHaveBeenCalledWith(expect.objectContaining({ mealId }))
-  })
-
-  it('change le jour d’un brouillon sans rien écrire', async () => {
-    const reschedule = vi.fn()
-    provideContainer(createFakeContainer({ inventory: { reschedule: { execute: reschedule } } as never }))
-    const store = useMealEditorStore()
-    store.startNew({ plannedFor: day('2026-09-24'), type: MealType.DINNER })
-
-    await store.reschedule({ plannedFor: day('2026-09-25'), type: MealType.LUNCH })
-
-    expect(reschedule).not.toHaveBeenCalled()
+    store.reschedule({ plannedFor: day('2026-09-25'), type: MealType.LUNCH })
     expect(store.schedule).toEqual({ plannedFor: '2026-09-25', type: MealType.LUNCH })
+    expect(saveDraft).not.toHaveBeenCalled()
   })
 
-  it('revient au jour enregistré quand le déplacement est refusé', async () => {
+  it('enregistre le brouillon en une fois, puis relit le repas', async () => {
+    const saveDraft = vi.fn(async () => ({ ok: true as const, value: { id: mealId } }))
     provideContainer(
       createFakeContainer({
-        inventory: {
-          getMeal: succeedsWith(summaryOf({ consumedAt: '2026-09-24T20:00:00.000Z' })),
-          reschedule: failsWith(new InvalidMealError('Un repas déjà pris…')),
-        } as never,
+        inventory: { saveDraft: { execute: saveDraft }, getMeal: succeedsWith(savedWithChicken()) } as never,
+      }),
+    )
+    const store = useMealEditorStore()
+    store.startNew({ plannedFor: day('2026-09-24'), type: MealType.DINNER })
+    store.addFood(chicken, 150, GRAM)
+
+    expect(await store.save(playerId)).toBe(true)
+
+    expect(saveDraft).toHaveBeenCalledWith({
+      playerId,
+      schedule: { plannedFor: '2026-09-24', type: MealType.DINNER },
+      lines: [{ foodItemId: chicken.id, grams: 150, measure: 'g' }],
+    })
+    expect(store.mealId).toBe(mealId)
+    expect(store.isDirty).toBe(false)
+  })
+
+  it('désigne les lignes déjà enregistrées d’un repas ouvert', async () => {
+    const saveDraft = vi.fn(async () => ({ ok: true as const, value: { id: mealId } }))
+    provideContainer(
+      createFakeContainer({
+        inventory: { saveDraft: { execute: saveDraft }, getMeal: succeedsWith(savedWithChicken()) } as never,
       }),
     )
     const store = useMealEditorStore()
     await store.open(mealId)
+    store.changeGrams('entry-1', 120)
 
-    const moved = await store.reschedule({ plannedFor: day('2026-09-25'), type: MealType.DINNER })
+    await store.save(playerId)
 
-    expect(moved).toBe(false)
-    expect(store.schedule.plannedFor).toBe('2026-09-24')
-    expect(store.error?.code).toBe('INVALID_MEAL')
+    expect(saveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mealId,
+        lines: [{ entryId: 'entry-1', foodItemId: chicken.id, grams: 120, measure: 'g' }],
+      }),
+    )
   })
 
-  it('signale un repas pris comme verrouillé', async () => {
+  it('garde le brouillon et dit l’erreur quand l’enregistrement échoue', async () => {
     provideContainer(
       createFakeContainer({
         inventory: {
-          getMeal: succeedsWith(summaryOf({ consumedAt: '2026-09-24T20:00:00.000Z' })),
+          saveDraft: failsWith(new ApplicationError('FOOD_NOT_FOUND', 'disparu')),
         } as never,
       }),
     )
     const store = useMealEditorStore()
+    store.startNew({ plannedFor: day('2026-09-24'), type: MealType.DINNER })
+    store.addFood(chicken, 150, GRAM)
 
-    await store.open(mealId)
-
-    expect(store.isLocked).toBe(true)
+    expect(await store.save(playerId)).toBe(false)
+    expect(store.error?.code).toBe('FOOD_NOT_FOUND')
+    expect(store.draft.lines).toHaveLength(1)
+    expect(store.isDirty).toBe(true)
   })
 
-  it.each([
-    ['removeEntry', (s: ReturnType<typeof useMealEditorStore>) => s.removeEntry(idFrom('e'))],
-    [
-      'changeQuantity',
-      (s: ReturnType<typeof useMealEditorStore>) => s.changeQuantity(idFrom('e'), 200),
-    ],
-    ['setConsumed', (s: ReturnType<typeof useMealEditorStore>) => s.setConsumed(true)],
-  ])('%s relit le repas après succès', async (_label, action) => {
-    const getMeal = vi.fn(async () => ({ ok: true as const, value: summaryOf() }))
-    provideContainer(
-      createFakeContainer({
-        inventory: {
-          getMeal: { execute: getMeal },
-          removeEntry: succeedsWith(null),
-          changeQuantity: succeedsWith(null),
-          markConsumed: succeedsWith(null),
-        } as never,
-      }),
-    )
+  it('reprend le brouillon mis de côté pendant un détour', async () => {
+    provideContainer(createFakeContainer({ inventory: { getMeal: succeedsWith(savedWithChicken()) } as never }))
     const store = useMealEditorStore()
     await store.open(mealId)
+    store.removeLine('entry-1')
 
-    expect(await action(store)).toBe(true)
-    expect(getMeal).toHaveBeenCalledTimes(2)
+    store.keepForDetour()
+    await store.open(mealId)
+    expect(store.draft.lines).toHaveLength(0)
+
+    // Sans détour annoncé, rouvrir le repas repart de ce qui est enregistré.
+    await store.open(mealId)
+    expect(store.draft.lines).toHaveLength(1)
   })
 
-  it('ne touche à rien tant que le repas n’existe pas', async () => {
-    provideContainer(createFakeContainer())
+  it('oublie les changements sur demande', async () => {
+    provideContainer(createFakeContainer({ inventory: { getMeal: succeedsWith(savedWithChicken()) } as never }))
+    const store = useMealEditorStore()
+    await store.open(mealId)
+    store.changeGrams('entry-1', 300)
+
+    store.discard()
+
+    expect(store.draft.lines[0]!.grams).toBe(100)
+    expect(store.isDirty).toBe(false)
+  })
+
+  it('ajoute une recette en nommant ce qui manque au catalogue', async () => {
+    const getFood = vi.fn(async (id: string) => ({ ok: true as const, value: id === chicken.id ? chicken : null }))
+    provideContainer(createFakeContainer({ inventory: { getFood: { execute: getFood } } as never }))
     const store = useMealEditorStore()
     store.startNew({ plannedFor: day('2026-09-24'), type: MealType.DINNER })
 
-    expect(await store.removeEntry(idFrom('e'))).toBe(false)
-    expect(await store.setConsumed(true)).toBe(false)
-    // Supprimer un brouillon, c'est simplement y renoncer.
-    expect(await store.deleteMeal()).toBe(true)
-  })
+    const result = await store.addRecipe({
+      recipeId: idFrom('recipe-1'),
+      name: 'Poke bowl',
+      lines: [
+        { foodItemId: chicken.id, foodName: 'Blanc de poulet', grams: 100, measure: GRAM, amount: 100 },
+        { foodItemId: idFrom('ciqual:disparu'), foodName: 'Saumon cru', grams: 80, measure: GRAM, amount: 80 },
+      ],
+    })
 
-  it('oublie le repas supprimé', async () => {
-    provideContainer(
-      createFakeContainer({
-        inventory: { getMeal: succeedsWith(summaryOf()), deleteMeal: succeedsWith(undefined) } as never,
-      }),
-    )
-    const store = useMealEditorStore()
-    await store.open(mealId)
-
-    expect(await store.deleteMeal()).toBe(true)
-    expect(store.meal).toBeNull()
+    expect(result).toEqual({ added: 1, missing: ['Saumon cru'] })
+    expect(store.draft.lines.map((line) => line.foodName)).toEqual(['Blanc de poulet'])
   })
 })

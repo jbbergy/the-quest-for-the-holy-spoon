@@ -2,11 +2,15 @@
 /**
  * Composer, corriger ou supprimer un repas, pour n'importe quel jour.
  *
- * Deux états, une seule vue :
- * - **nouveau** (`/semaine/repas?jour=…&type=…`) : un brouillon, rien en base.
- *   Le repas naît au premier aliment ajouté, et l'adresse prend alors son
- *   identifiant — un rechargement retrouve le repas plutôt qu'un brouillon vide ;
- * - **existant** (`/semaine/repas/:mealId`) : chaque geste passe par un Use Case.
+ * On compose un **brouillon** : ajouter un aliment, corriger une quantité,
+ * changer le jour ou le type ne change que l'écran, dont les totaux suivent.
+ * « Enregistrer le repas », en bas, écrit tout d'un coup puis ramène là d'où
+ * l'on vient. Partir avant, c'est se voir demander « Quitter sans
+ * enregistrer ? » — dans l'application comme en fermant l'onglet. Seul le
+ * détour pour créer un aliment manquant garde le brouillon sans rien demander.
+ *
+ * « Mangé » et la suppression agissent sur le repas enregistré : ils attendent
+ * donc qu'il n'y ait plus rien à enregistrer.
  *
  * Un repas mangé est verrouillé par le domaine. L'écran le montre tel quel, avec
  * le bouton « Mangé » pour le déverrouiller, plutôt que de laisser buter sur un
@@ -16,8 +20,8 @@
  * retour (`?retour=`) ramène là d'où l'on vient. La recherche respecte le
  * régime du profil ; ce qu'elle masque est compté, et peut être affiché.
  */
-import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import FoodPicker, { type FoodChoice } from '@/app/components/FoodPicker.vue'
 import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
@@ -30,18 +34,19 @@ import { useBackLink } from '@/app/useBackLink'
 import { parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
 import type { FoodItemId, MealId } from '@/core/identity'
-import { t } from '@/i18n'
-import {
-  type MealEntrySummary,
-  MealType,
-  type RecipeSummary,
-} from '@/modules/nutrition_inventory/application'
+import { numberFormat, t } from '@/i18n'
+import { MealType, type RecipeSummary } from '@/modules/nutrition_inventory/application'
+import { stepOf } from '@/modules/nutrition_inventory/domain/Measure'
+import { type DraftLine, lineCalories } from '@/modules/nutrition_inventory/presentation/mealDraft'
 import { useMealEditorStore } from '@/modules/nutrition_inventory/presentation/useMealEditorStore'
 import { useRecipeStore } from '@/modules/nutrition_inventory/presentation/useRecipeStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
-import BaseCard from '@/ui/BaseCard.vue'
+import ConfirmButton from '@/ui/ConfirmButton.vue'
+import ConfirmDialog from '@/ui/ConfirmDialog.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import FoodSourceTag from '@/ui/FoodSourceTag.vue'
 import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
 
 const route = useRoute()
@@ -56,14 +61,18 @@ const today = computed(() => clock.today)
 const feedback = ref('')
 /** Aliment à présélectionner : celui qu'on vient de créer (`?aliment=`). */
 const preselect = ref<FoodItemId | null>(null)
+const leaveDialog = ref<InstanceType<typeof ConfirmDialog> | null>(null)
+const saving = ref(false)
 
 const back = useBackLink({ to: { name: ROUTE.weekPlan }, label: t('week.title') })
 
 const meal = computed(() => editor.meal)
 const isNew = computed(() => meal.value === null)
+const lines = computed(() => editor.draft.lines)
 /** « Pris » n'a de sens qu'aujourd'hui et avant : le domaine refuse un jour à venir. */
-const canBeConsumed = computed(() => meal.value !== null && editor.schedule.plannedFor <= today.value)
+const canBeConsumed = computed(() => meal.value !== null && meal.value.plannedFor <= today.value)
 
+const heading = computed(() => (isNew.value ? t('meal.editor.newMeal') : mealLabel(editor.schedule.type)))
 const title = computed(() =>
   isNew.value
     ? t('meal.editor.newMeal')
@@ -90,7 +99,15 @@ function mealTypeAt(date: Date): MealType {
   return MealType.DINNER
 }
 
+/** Fermer l'onglet ou recharger avec des changements : le navigateur demande. */
+function warnBeforeUnload(event: BeforeUnloadEvent): void {
+  if (!editor.isDirty) return
+  event.preventDefault()
+  event.returnValue = ''
+}
+
 onMounted(async () => {
+  window.addEventListener('beforeunload', warnBeforeUnload)
   feedback.value = ''
   const id = route.params.mealId
   if (typeof id === 'string' && id !== '') {
@@ -116,6 +133,23 @@ onMounted(async () => {
   }
 })
 
+onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))
+
+/**
+ * Partir avec des changements non enregistrés : on demande d'abord. Le détour
+ * par la création d'un aliment garde le brouillon, et n'a rien à demander.
+ */
+onBeforeRouteLeave(async (to) => {
+  if (!editor.isDirty || saving.value) return true
+  if (to.name === ROUTE.customFood) {
+    editor.keepForDetour()
+    return true
+  }
+  const leave = (await leaveDialog.value?.ask()) ?? true
+  if (leave) editor.discard()
+  return leave
+})
+
 /**
  * Garde l'adresse d'un brouillon en phase avec ses choix : sans cela, un détour
  * par la création d'un aliment ramènerait au jour et au type d'origine.
@@ -131,56 +165,31 @@ async function syncDraftQuery(): Promise<void> {
 async function changeDay(raw: string): Promise<void> {
   const plannedFor = parseDayKey(raw)
   if (plannedFor === null) return
-  await editor.reschedule({ plannedFor, type: editor.schedule.type })
+  editor.reschedule({ plannedFor, type: editor.schedule.type })
   await syncDraftQuery()
 }
 
 async function changeType(type: MealType): Promise<void> {
-  await editor.reschedule({ plannedFor: editor.schedule.plannedFor, type })
+  editor.reschedule({ plannedFor: editor.schedule.plannedFor, type })
   await syncDraftQuery()
 }
 
 async function add(choice: FoodChoice): Promise<boolean> {
-  const playerId = players.playerId
-  if (playerId === null) return false
-
-  const wasNew = isNew.value
-  const added = await editor.addFood(playerId, choice.food.id, choice.grams, choice.measure.label)
-  if (!added) return false
-
+  editor.addFood(choice.food, choice.grams, choice.measure)
   feedback.value = t('meal.editor.foodAdded', {
     food: choice.food.name,
     portion: formatPortion(choice.grams / choice.measure.grams, choice.measure),
   })
-
-  await followNewMeal(wasNew)
   return true
 }
 
-/** Le repas existe désormais : l'adresse le désigne, un rechargement le retrouve. */
-async function followNewMeal(wasNew: boolean): Promise<void> {
-  if (wasNew && editor.mealId !== null) {
-    await router.replace({ name: ROUTE.mealEditor, params: { mealId: editor.mealId } })
-  }
-}
-
 async function addRecipe(recipe: RecipeSummary): Promise<void> {
-  const playerId = players.playerId
-  if (playerId === null) return
-
-  const wasNew = isNew.value
-  const result = await editor.addRecipe(playerId, recipe.recipeId)
-  if (result === null) {
-    feedback.value = ''
-    return
-  }
-
+  const result = await editor.addRecipe(recipe)
   const added = t('meal.editor.recipeAdded', { recipe: recipe.name, n: result.added })
   feedback.value =
     result.missing.length === 0
       ? added
       : t('meal.editor.recipeMissing', { added, list: result.missing.join(', ') })
-  await followNewMeal(wasNew)
 }
 
 async function saveRecipe(name: string): Promise<boolean> {
@@ -201,57 +210,106 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
   }
 }
 
+/** Quantité d'une ligne dans sa mesure : entière en grammes, au centième en portions. */
+function amountOf(line: DraftLine): number {
+  const amount = line.grams / line.measure.grams
+  return line.measure.countable ? Math.round(amount * 100) / 100 : Math.round(amount)
+}
+
+function unitOf(line: DraftLine): string {
+  return measureWord(line.measure, line.grams / line.measure.grams)
+}
+
 /**
- * Corrige une portion, saisie dans la mesure de la ligne : « 3 » tranches,
- * converties en grammes.
- *
- * Déclenché sur `change` et non sur `input` : à chaque frappe, « 150 » passerait
- * par « 1 » puis « 15 », soit deux écritures inutiles en base. Une valeur vide
- * ou nulle est ignorée plutôt que refusée — l'usager est en train de retaper son
- * nombre, pas de saisir une erreur.
+ * Corrige une quantité saisie dans la mesure de la ligne : « 3 » tranches,
+ * converties en grammes. Sur `change`, pas à chaque frappe ; une valeur vide
+ * ou nulle est ignorée — la personne est en train de retaper son nombre.
  */
-async function changeAmount(entry: MealEntrySummary, raw: string): Promise<void> {
+function typeAmount(line: DraftLine, raw: string): void {
   const value = Number.parseFloat(raw)
   if (!Number.isFinite(value) || value <= 0) return
-  await editor.changeQuantity(entry.entryId, value * entry.measure.grams)
+  editor.changeGrams(line.key, value * line.measure.grams)
 }
 
-/** Quantité d'une ligne dans son champ : entière en grammes, au centième en portions. */
-function amountValue(entry: MealEntrySummary): number {
-  return entry.measure.countable
-    ? Math.round(entry.amount * 100) / 100
-    : Math.round(entry.amount)
+/** On descend d'un pas tant qu'il reste au moins un pas : jamais à zéro. */
+function canDecrease(line: DraftLine): boolean {
+  const size = stepOf(line.measure)
+  return amountOf(line) - size >= size
 }
 
-function entryUnit(entry: MealEntrySummary): string {
-  return measureWord(entry.measure, entry.amount)
+/** Un pas de plus ou de moins : la demi-portion, ou 5 g. */
+function step(line: DraftLine, direction: 1 | -1): void {
+  if (direction === -1 && !canDecrease(line)) return
+  const next = amountOf(line) + direction * stepOf(line.measure)
+  editor.changeGrams(line.key, next * line.measure.grams)
+}
+
+function removeLine(line: DraftLine): void {
+  editor.removeLine(line.key)
+  feedback.value = t('meal.editor.foodRemoved', { food: line.foodName })
+}
+
+const kcal = (value: number): string => numberFormat({ maximumFractionDigits: 0 }).format(value)
+const grams = (value: number): string => numberFormat({ maximumFractionDigits: 0 }).format(value)
+
+const macros = computed(() => ({
+  protein: grams(editor.totals.macros.proteinG),
+  carbs: grams(editor.totals.macros.carbsG),
+  fat: grams(editor.totals.macros.fatG),
+}))
+
+const canSave = computed(() => lines.value.length > 0)
+
+/** Enregistre le brouillon, puis ramène là d'où l'on vient. */
+async function save(): Promise<void> {
+  const playerId = players.playerId
+  if (playerId === null || !canSave.value) return
+  if (!editor.isDirty) {
+    await router.push(back.value.to)
+    return
+  }
+  saving.value = true
+  const saved = await editor.save(playerId)
+  if (saved) await router.push(back.value.to)
+  saving.value = false
 }
 
 async function remove(): Promise<void> {
   if (await editor.deleteMeal()) await router.push(back.value.to)
 }
-
 </script>
 
 <template>
   <div class="editor">
-    <RouterLink
-      class="editor__back"
-      :to="back.to"
-    >
-      <span aria-hidden="true">←</span> {{ back.label }}
-    </RouterLink>
-
-    <h1 class="editor__title">
-      {{ title }}
-    </h1>
+    <header class="editor__header">
+      <RouterLink
+        class="editor__back"
+        :to="back.to"
+      >
+        <AppIcon name="chevron-left" />
+        <span class="sr-only">{{ t('meal.editor.backTo', { label: back.label }) }}</span>
+      </RouterLink>
+      <h1 class="editor__title">
+        {{ heading }}
+      </h1>
+    </header>
 
     <ErrorNotice :error="editor.error" />
     <ErrorNotice :error="recipeStore.error" />
 
-    <BaseCard :title="t('meal.editor.when')">
-      <label class="editor__date">
-        <span class="editor__label">{{ t('meal.editor.day') }}</span>
+    <section
+      class="editor__when"
+      aria-labelledby="quand"
+    >
+      <h2
+        id="quand"
+        class="eyebrow"
+      >
+        {{ t('meal.editor.when') }}
+      </h2>
+
+      <label class="editor__day">
+        <span class="editor__day-label">{{ t('meal.editor.day') }}</span>
         <input
           type="date"
           :value="editor.schedule.plannedFor"
@@ -260,90 +318,123 @@ async function remove(): Promise<void> {
         >
       </label>
 
-      <fieldset class="editor__fieldset">
-        <legend class="editor__label">
+      <fieldset class="editor__types">
+        <legend class="sr-only">
           {{ t('meal.editor.meal') }}
         </legend>
-        <div class="editor__choices">
-          <label
-            v-for="option in MEAL_OPTIONS"
-            :key="option.value"
-            class="choice"
+        <label
+          v-for="option in MEAL_OPTIONS"
+          :key="option.value"
+          class="editor__type"
+        >
+          <input
+            type="radio"
+            name="mealType"
+            :value="option.value"
+            :checked="editor.schedule.type === option.value"
+            @change="changeType(option.value)"
           >
-            <input
-              type="radio"
-              name="mealType"
-              :value="option.value"
-              :checked="editor.schedule.type === option.value"
-              @change="changeType(option.value)"
-            >
-            <span>{{ option.label }}</span>
-          </label>
-        </div>
+          <span>{{ option.label }}</span>
+        </label>
       </fieldset>
-    </BaseCard>
+    </section>
 
-    <BaseCard
-      v-if="meal"
-      :title="t('meal.editor.inMeal')"
-      :subtitle="`${Math.round(meal.calories)} kcal`"
+    <section
+      class="editor__plate"
+      aria-labelledby="assiette"
     >
-      <ul class="editor__entries">
+      <div class="editor__plate-head">
+        <h2 id="assiette">
+          {{ t('meal.editor.inMeal') }}
+        </h2>
+        <p
+          v-if="lines.length > 0"
+          class="editor__count"
+        >
+          {{ t('meal.editor.foodCount', { n: lines.length }) }}
+        </p>
+      </div>
+
+      <p
+        v-if="lines.length === 0"
+        class="editor__empty"
+      >
+        {{ t('meal.editor.emptyPlate') }}
+      </p>
+
+      <ul
+        v-else
+        class="editor__entries"
+      >
         <li
-          v-for="entry in meal.entries"
-          :key="entry.entryId"
+          v-for="line in lines"
+          :key="line.key"
           class="editor__entry"
         >
-          <span class="editor__entry-name">{{ entry.foodName }}</span>
+          <div class="editor__entry-head">
+            <span class="editor__entry-name">{{ line.foodName }}</span>
+            <span class="editor__entry-kcal">{{ kcal(lineCalories(line)) }} kcal</span>
+          </div>
+          <FoodSourceTag
+            v-if="line.source"
+            :source="line.source"
+          />
 
-          <template v-if="!editor.isLocked">
-            <label class="editor__grams">
-              <span class="sr-only">{{ t('meal.editor.portionOf', { food: entry.foodName, unit: entry.measure.label }) }}</span>
-              <input
-                type="number"
-                inputmode="decimal"
-                :min="entry.measure.countable ? 0.25 : 1"
-                :step="entry.measure.countable ? 0.25 : 1"
-                :value="amountValue(entry)"
-                @change="changeAmount(entry, ($event.target as HTMLInputElement).value)"
+          <div
+            v-if="!editor.isLocked"
+            class="editor__entry-controls"
+          >
+            <div class="stepper">
+              <button
+                type="button"
+                class="stepper__button"
+                :disabled="!canDecrease(line)"
+                @click="step(line, -1)"
               >
-              <span
-                class="editor__unit"
-                aria-hidden="true"
-              >{{ entryUnit(entry) }}</span>
-            </label>
+                <AppIcon name="minus" />
+                <span class="sr-only">{{ t('meal.portion.decrease') }} : {{ line.foodName }}</span>
+              </button>
+              <label class="stepper__field">
+                <span class="sr-only">{{ t('meal.editor.portionOf', { food: line.foodName, unit: line.measure.label }) }}</span>
+                <input
+                  type="number"
+                  inputmode="decimal"
+                  :min="line.measure.countable ? 0.25 : 1"
+                  :step="line.measure.countable ? 0.25 : 1"
+                  :value="amountOf(line)"
+                  @change="typeAmount(line, ($event.target as HTMLInputElement).value)"
+                >
+                <span
+                  class="stepper__unit"
+                  aria-hidden="true"
+                >{{ unitOf(line) }}</span>
+              </label>
+              <button
+                type="button"
+                class="stepper__button"
+                @click="step(line, 1)"
+              >
+                <AppIcon name="plus" />
+                <span class="sr-only">{{ t('meal.portion.increase') }} : {{ line.foodName }}</span>
+              </button>
+            </div>
 
-            <BaseButton
-              variant="ghost"
-              size="sm"
-              @click="editor.removeEntry(entry.entryId)"
+            <button
+              type="button"
+              class="editor__remove"
+              @click="removeLine(line)"
             >
-              <span aria-hidden="true">×</span>
-              <span class="sr-only">{{ t('meal.editor.remove', { food: entry.foodName }) }}</span>
-            </BaseButton>
-          </template>
+              <AppIcon name="close" />
+              <span class="sr-only">{{ t('meal.editor.remove', { food: line.foodName }) }}</span>
+            </button>
+          </div>
 
           <span
             v-else
-            class="editor__entry-grams"
-          >{{ formatPortion(entry.amount, entry.measure) }}</span>
+            class="editor__entry-amount"
+          >{{ formatPortion(line.grams / line.measure.grams, line.measure) }}</span>
         </li>
       </ul>
-
-      <dl class="editor__macros">
-        <div>
-          <dt>{{ t('labels.nutrient.protein') }}</dt>
-          <dd>{{ meal.macros.proteinG.toFixed(1) }} g</dd>
-        </div>
-        <div>
-          <dt>{{ t('labels.nutrient.carbs') }}</dt>
-          <dd>{{ meal.macros.carbsG.toFixed(1) }} g</dd>
-        </div>
-        <div>
-          <dt>{{ t('labels.nutrient.fat') }}</dt>
-          <dd>{{ meal.macros.fatG.toFixed(1) }} g</dd>
-        </div>
-      </dl>
 
       <p
         v-if="editor.isLocked"
@@ -352,18 +443,30 @@ async function remove(): Promise<void> {
         {{ t('meal.editor.locked') }}
       </p>
 
-      <MealConsumedToggle
-        v-if="canBeConsumed"
-        :consumed-at="meal.consumedAt"
-        :meal-label="title"
-        @toggle="(next) => editor.setConsumed(next)"
-      />
-    </BaseCard>
+      <template v-if="canBeConsumed">
+        <MealConsumedToggle
+          v-if="!editor.isDirty"
+          :consumed-at="meal!.consumedAt"
+          :meal-label="title"
+          @toggle="(next) => editor.setConsumed(next)"
+        />
+        <p
+          v-else
+          class="editor__note"
+        >
+          {{ t('meal.editor.saveFirst') }}
+        </p>
+      </template>
+    </section>
 
-    <BaseCard
+    <section
       v-if="!editor.isLocked"
-      :title="t('meal.editor.addFood')"
+      class="editor__add"
+      aria-labelledby="ajouter"
     >
+      <h2 id="ajouter">
+        {{ t('meal.editor.addFood') }}
+      </h2>
       <FoodPicker
         :add="add"
         :recent="editor.recentPortions"
@@ -374,18 +477,43 @@ async function remove(): Promise<void> {
         :remove-recipe="removeRecipe"
         preview
       />
-    </BaseCard>
+    </section>
 
-    <RecipesCard
-      v-if="meal && meal.entries.length > 0"
-      :busy="editor.status === 'loading' || recipeStore.status === 'loading'"
-      :save="saveRecipe"
-    />
+    <section
+      v-if="meal"
+      class="editor__options"
+      aria-labelledby="autres-actions"
+    >
+      <h2
+        id="autres-actions"
+        class="sr-only"
+      >
+        {{ t('meal.editor.options') }}
+      </h2>
 
-    <PlanForMembersCard
-      v-if="meal && meal.entries.length > 0"
-      :meal-id="meal.mealId"
-    />
+      <template v-if="!editor.isDirty">
+        <RecipesCard
+          :busy="editor.status === 'loading' || recipeStore.status === 'loading'"
+          :save="saveRecipe"
+        />
+        <PlanForMembersCard :meal-id="meal.mealId" />
+      </template>
+      <p
+        v-else
+        class="editor__note"
+      >
+        {{ t('meal.editor.saveFirst') }}
+      </p>
+
+      <ConfirmButton
+        :question="t('meal.editor.deleteQuestion')"
+        :confirm-label="t('meal.editor.deleteMeal')"
+        @confirm="remove"
+      >
+        <AppIcon name="trash" />
+        {{ t('meal.editor.deleteMeal') }}
+      </ConfirmButton>
+    </section>
 
     <p
       class="editor__feedback"
@@ -395,18 +523,57 @@ async function remove(): Promise<void> {
       {{ feedback }}
     </p>
 
-    <div class="editor__actions">
-      <BaseButton @click="$router.push(back.to)">
-        {{ t('meal.editor.done') }}
+    <footer class="editor__footer">
+      <div class="editor__totals">
+        <p class="editor__total">
+          <span class="figure editor__total-kcal">{{ kcal(editor.totals.calories) }}</span> kcal
+          <span class="sr-only">— {{ t('meal.editor.total') }}</span>
+        </p>
+        <p class="editor__macros">
+          <span aria-hidden="true">{{ t('meal.editor.macrosLine', macros) }}</span>
+          <span class="sr-only">{{ t('meal.editor.macrosSpoken', macros) }}</span>
+        </p>
+      </div>
+      <p
+        v-if="editor.isDirty"
+        class="editor__unsaved"
+      >
+        {{ t('meal.editor.unsaved') }}
+      </p>
+      <BaseButton
+        v-if="!editor.isLocked"
+        block
+        :disabled="!canSave"
+        :loading="saving"
+        :aria-describedby="canSave ? undefined : 'raison-enregistrer'"
+        @click="save"
+      >
+        {{ saving ? t('meal.editor.saving') : t('meal.editor.save') }}
       </BaseButton>
       <BaseButton
-        v-if="meal"
-        variant="danger"
-        @click="remove"
+        v-else
+        block
+        variant="secondary"
+        @click="router.push(back.to)"
       >
-        {{ t('meal.editor.deleteMeal') }}
+        {{ t('meal.editor.done') }}
       </BaseButton>
-    </div>
+      <p
+        v-if="!canSave && !editor.isLocked"
+        id="raison-enregistrer"
+        class="editor__reason"
+      >
+        {{ t('meal.editor.saveNeedsFood') }}
+      </p>
+    </footer>
+
+    <ConfirmDialog
+      ref="leaveDialog"
+      :title="t('meal.editor.leave.title')"
+      :message="t('meal.editor.leave.message')"
+      :confirm-label="t('meal.editor.leave.confirm')"
+      :cancel-label="t('meal.editor.leave.stay')"
+    />
   </div>
 </template>
 
@@ -414,195 +581,349 @@ async function remove(): Promise<void> {
 .editor {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-6);
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.editor__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .editor__back {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 44px;
-  color: var(--color-text-muted);
-  text-decoration: none;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-left: calc(-1 * var(--space-2));
+  border-radius: 50%;
+  color: var(--color-text);
 
   &:hover {
+    background: var(--color-surface);
     color: var(--color-text);
   }
 }
 
 .editor__title {
   margin: 0;
-
-  /* « Dîner du jeudi 24 septembre » peut être long : il passe à la ligne
-     plutôt que d'élargir la page. */
   overflow-wrap: anywhere;
 }
 
-.editor__label {
-  display: block;
-  margin-bottom: var(--space-2);
-  padding: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+/* Quand : le jour, puis le type en contrôle segmenté. */
+.editor__when {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
 }
 
-.editor__date {
-  display: block;
-  margin-bottom: var(--space-4);
-}
-
-.editor__date input {
-  min-height: 44px;
-  padding: var(--space-2) var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+.editor__day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 3.25rem;
+  padding: 0 var(--space-4);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  color: var(--color-text);
-  font: inherit;
-  color-scheme: light dark;
 
-  &:disabled {
-    opacity: 0.6;
+  &:has(input:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  input {
+    min-height: 44px;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-weight: 700;
+    text-align: right;
+
+    &:focus-visible {
+      outline: none;
+    }
   }
 }
 
-.editor__fieldset {
-  margin: 0;
-  padding: 0;
-  border: none;
-}
-
-.editor__choices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.editor__entries {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0 0 var(--space-4);
-  padding: 0;
-  list-style: none;
-}
-
-.editor__entry {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--font-size-sm);
-}
-
-.editor__entry-name {
-  flex: 1;
-  min-width: 0;
-}
-
-.editor__entry-grams {
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.editor__grams {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
+.editor__day-label {
   color: var(--color-text-muted);
 }
 
-.editor__unit {
-  /* « c. à soupe » ou « petits-suisses » : le nom de la mesure passe à la ligne
-     plutôt que d'élargir la ligne du repas. */
-  max-width: 6rem;
-  overflow-wrap: anywhere;
-}
-
-.editor__grams input {
-  /* Assez large pour « 1000 » sans que la ligne ne se casse sur un petit écran. */
-  width: 4.5rem;
-  min-height: 44px;
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text);
-  font: inherit;
-  font-variant-numeric: tabular-nums;
-}
-
-.editor__macros {
+.editor__types {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
-  gap: var(--space-3);
-  margin: 0 0 var(--space-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin: 0;
+  padding: var(--space-1);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-track);
 }
 
-.editor__macros div {
+/* Un vrai bouton radio, masqué, sous une étiquette : clavier et annonce natifs. */
+.editor__type {
+  position: relative;
+  display: flex;
+
+  input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  span {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 var(--space-2);
+    border-radius: calc(var(--radius-md) - 4px);
+    font-size: var(--font-size-sm);
+    text-align: center;
+  }
+
+  input:checked + span {
+    background: var(--color-surface-raised);
+    box-shadow: inset 0 0 0 1px var(--color-border-strong);
+    font-weight: 700;
+  }
+
+  input:focus-visible + span {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Dans l'assiette. */
+.editor__plate,
+.editor__add,
+.editor__options {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
 }
 
-.editor__macros dt {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.editor__macros dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.editor__note {
-  margin: 0 0 var(--space-3);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.editor__feedback {
-  margin: 0;
-  min-height: 1.5rem;
-  color: var(--color-success);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  text-align: center;
-}
-
-.editor__actions {
+.editor__plate-head {
   display: flex;
-  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
   gap: var(--space-3);
 }
 
-.choice {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-pill);
-  cursor: pointer;
+.editor__count,
+.editor__empty,
+.editor__note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
 }
 
-.choice span {
+.editor__entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.editor__entry {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+
+  & + & {
+    border-top: 1px solid var(--color-divider);
+  }
 }
 
-.choice input {
-  accent-color: var(--color-accent);
-  width: 1.15rem;
-  height: 1.15rem;
+.editor__entry-head {
+  display: flex;
+  align-self: stretch;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.editor__entry-name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.editor__entry-kcal {
   flex-shrink: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.choice:has(input:checked) {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent);
+.editor__entry-amount {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.editor__entry-controls {
+  display: flex;
+  align-self: stretch;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* − quantité + : les boutons ronds de 44 px encadrent le champ. */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+}
+
+.stepper__button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--color-surface);
+  }
+
+  &:disabled {
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
+}
+
+.stepper__field {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+
+  input {
+    width: 3.5rem;
+    min-height: 44px;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-weight: 700;
+    text-align: right;
+  }
+}
+
+.stepper__unit {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.editor__remove {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-danger-soft);
+    color: var(--color-danger-strong);
+  }
+}
+
+.editor__feedback {
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+/**
+ * Le pied de page reste visible au-dessus de la barre d'onglets : le total et
+ * « Enregistrer » sont toujours à portée de pouce. `scroll-padding-bottom`
+ * (plus bas) empêche qu'il recouvre l'élément qui a le focus — critère 2.4.11.
+ */
+.editor__footer {
+  position: sticky;
+  bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0 calc(-1 * var(--space-4));
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-raised);
+  border-top: 1px solid var(--color-border);
+}
+
+.editor__totals {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+
+  p {
+    margin: 0;
+  }
+}
+
+.editor__total {
+  color: var(--color-text-muted);
+}
+
+.editor__total-kcal {
+  color: var(--color-text);
+  font-size: var(--font-size-xl);
+}
+
+.editor__macros {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.editor__unsaved,
+.editor__reason {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+:global(html:has(.editor__footer)) {
+  scroll-padding-bottom: 13rem;
+}
+
+@media (min-width: 64rem) {
+  .editor__footer {
+    bottom: 0;
+    margin-inline: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+
+  :global(html:has(.editor__footer)) {
+    scroll-padding-bottom: 9rem;
+  }
 }
 </style>

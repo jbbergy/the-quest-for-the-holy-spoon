@@ -14,6 +14,7 @@ export const errors: Messages<typeof fr> = {
   INVALID_MEAL: 'This change is not possible on this meal.',
   FOOD_NOT_FOUND: 'This food no longer exists.',
   FOOD_READ_ONLY: 'This food comes from a catalogue. You cannot change it.',
+  EMPTY_MEAL: 'Add at least one food to save the meal.',
   MEAL_NOT_FOUND: 'This meal no longer exists.',
   NO_CURRENT_PROFILE: 'There is no profile yet. Create your profile first.',
   STORAGE_QUOTA_EXCEEDED: 'The device is out of space. Free up some space, then try again.',

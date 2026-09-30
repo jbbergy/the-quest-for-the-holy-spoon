@@ -88,6 +88,7 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       removeEntry: stub(ok(null)),
       changeQuantity: stub(ok(null)),
       reschedule: stub(ok(null)),
+      saveDraft: stub(ok(null)),
       deleteMeal: stub(ok(undefined)),
       getMeal: stub(ok(null)),
       recentPortions: stub(ok(new Map())),

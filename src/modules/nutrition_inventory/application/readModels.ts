@@ -32,6 +32,8 @@ export interface MealEntrySummary {
   readonly measure: Measure
   readonly amount: number
   readonly calories: number
+  /** Macronutriments de la ligne, pour les totaux d'un repas en cours de composition. */
+  readonly macros: MacrosProps
 }
 
 /** Read model consommé par `planning` et par la présentation. */
@@ -83,6 +85,7 @@ export function toMealSummary(meal: Meal): MealSummary {
       measure: entry.measure,
       amount: entry.amount,
       calories: entry.calories(),
+      macros: entry.macros.toJSON(),
     })),
   }
 }

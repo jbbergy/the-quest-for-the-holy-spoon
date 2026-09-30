@@ -636,6 +636,124 @@ export class RescheduleMealUseCase {
   }
 }
 
+/** Une ligne du repas tel qu'on veut l'enregistrer. */
+export interface MealDraftLine {
+  /** Ligne déjà enregistrée ; absente pour un aliment ajouté dans le brouillon. */
+  readonly entryId?: MealEntryId
+  readonly foodItemId: FoodItemId
+  readonly grams: number
+  /** Nom de la mesure de saisie, comme pour `AddFoodInput`. */
+  readonly measure?: string
+}
+
+export interface SaveMealDraftInput {
+  readonly playerId: PlayerId
+  /** Repas à mettre à jour ; un nouveau repas est créé si absent. */
+  readonly mealId?: MealId
+  readonly schedule: MealSchedule
+  readonly lines: readonly MealDraftLine[]
+}
+
+/**
+ * Enregistre en une fois un repas composé à l'écran : jour, type, aliments
+ * ajoutés, quantités changées, lignes retirées.
+ *
+ * Tout est appliqué sur l'agrégat en mémoire, puis le repas est sauvegardé
+ * **une seule fois** : un refus en cours de route (aliment disparu, jour
+ * interdit pour un repas pris) laisse le repas enregistré tel qu'il était,
+ * sans état à moitié écrit. Les ajouts passent avant les retraits, pour qu'un
+ * repas ne soit jamais vide, même un instant.
+ *
+ * Un brouillon identique au repas enregistré n'écrit rien.
+ */
+export class SaveMealDraftUseCase {
+  constructor(
+    private readonly foods: IFoodRepository,
+    private readonly meals: IMealRepository,
+  ) {}
+
+  async execute(input: SaveMealDraftInput): Promise<Result<Meal, InventoryError>> {
+    if (input.lines.length === 0) {
+      return err(new ApplicationError('EMPTY_MEAL', 'Un repas enregistré a au moins un aliment.'))
+    }
+
+    const loaded =
+      input.mealId === undefined
+        ? Meal.create({
+            playerId: input.playerId,
+            type: input.schedule.type,
+            plannedFor: input.schedule.plannedFor,
+          })
+        : await loadMeal(this.meals, input.mealId)
+    if (!loaded.ok) return loaded
+
+    const original = loaded.value
+    let meal = original
+
+    if (input.mealId !== undefined) {
+      if (meal.plannedFor !== input.schedule.plannedFor) {
+        const moved = meal.reschedule(input.schedule.plannedFor)
+        if (!moved.ok) return moved
+        meal = moved.value
+      }
+      if (meal.type !== input.schedule.type) meal = meal.retype(input.schedule.type)
+    }
+
+    for (const line of input.lines.filter((candidate) => candidate.entryId === undefined)) {
+      const entry = await this.entryFor(line)
+      if (!entry.ok) return entry
+      const added = meal.addEntry(entry.value)
+      if (!added.ok) return added
+      meal = added.value
+    }
+
+    for (const line of input.lines) {
+      if (line.entryId === undefined) continue
+      const current = meal.entries.find((entry) => entry.id === line.entryId)
+      if (current === undefined) {
+        return err(new ApplicationError('MEAL_NOT_FOUND', `La ligne ${line.entryId} n’existe plus.`))
+      }
+      if (current.quantity.grams === line.grams) continue
+      const quantity = Quantity.create(line.grams)
+      if (!quantity.ok) return quantity
+      const changed = meal.changeEntryQuantity(line.entryId, quantity.value)
+      if (!changed.ok) return changed
+      meal = changed.value
+    }
+
+    const kept = new Set(input.lines.map((line) => line.entryId).filter((id) => id !== undefined))
+    for (const entry of original.entries) {
+      if (kept.has(entry.id)) continue
+      const removed = meal.removeEntry(entry.id)
+      if (!removed.ok) return removed
+      meal = removed.value
+    }
+
+    if (input.mealId !== undefined && meal === original) return ok(meal)
+    return saveMeal(this.meals, meal)
+  }
+
+  private async entryFor(line: MealDraftLine): Promise<Result<MealEntry, InventoryError>> {
+    const quantity = Quantity.create(line.grams)
+    if (!quantity.ok) return quantity
+
+    const food = await this.foods.findById(line.foodItemId)
+    if (!food.ok) {
+      return err(
+        new ApplicationError('CATALOG_UNREADABLE', 'Le catalogue local est illisible.', {
+          cause: food.error,
+        }),
+      )
+    }
+    if (food.value === null) {
+      return err(
+        new ApplicationError('FOOD_NOT_FOUND', `Aucun aliment ne correspond à l’identifiant ${line.foodItemId}.`),
+      )
+    }
+    return MealEntry.fromFoodItem(food.value, quantity.value, undefined, food.value.measureNamed(line.measure))
+  }
+}
+
 /** Membre du foyer pour qui l'on prévoit aussi un repas. */
 export interface MealGuest {
   readonly playerId: PlayerId

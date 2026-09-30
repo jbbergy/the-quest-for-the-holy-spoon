@@ -40,6 +40,7 @@ import { SyncEngine } from './sync/SyncEngine'
 
 import {
   AddFoodToMealUseCase,
+  SaveMealDraftUseCase,
   ChangeMealEntryQuantityUseCase,
   BrowseCustomFoodsUseCase,
   CreateCustomFoodUseCase,
@@ -155,6 +156,7 @@ export interface AppContainer {
     readonly removeEntry: RemoveMealEntryUseCase
     readonly changeQuantity: ChangeMealEntryQuantityUseCase
     readonly reschedule: RescheduleMealUseCase
+    readonly saveDraft: SaveMealDraftUseCase
     readonly markConsumed: MarkMealConsumedUseCase
     readonly planForMembers: PlanMealForMembersUseCase
     readonly deleteMeal: DeleteMealUseCase
@@ -257,6 +259,7 @@ export function createContainer(
       removeEntry: new RemoveMealEntryUseCase(mealRepository),
       changeQuantity: new ChangeMealEntryQuantityUseCase(mealRepository),
       reschedule: new RescheduleMealUseCase(mealRepository),
+      saveDraft: new SaveMealDraftUseCase(foodRepository, mealRepository),
       markConsumed: new MarkMealConsumedUseCase(mealRepository),
       planForMembers: new PlanMealForMembersUseCase(mealRepository, new OutboxMealOffers(databases)),
       deleteMeal: new DeleteMealUseCase(mealRepository),

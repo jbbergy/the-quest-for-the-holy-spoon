@@ -20,6 +20,8 @@ export const errors = {
     'Cet aliment n’existe plus.',
   FOOD_READ_ONLY:
     'Cet aliment vient d’un catalogue. Vous ne pouvez pas le modifier.',
+  EMPTY_MEAL:
+    'Ajoutez au moins un aliment pour enregistrer le repas.',
   MEAL_NOT_FOUND:
     'Ce repas n’existe plus.',
   NO_CURRENT_PROFILE:

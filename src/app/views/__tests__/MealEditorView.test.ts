@@ -75,14 +75,13 @@ const mealOf = (overrides: Record<string, unknown> = {}) => ({
       measure: GRAM,
       amount: 100,
       calories: 170,
+      macros: { proteinG: 20, carbsG: 0, fatG: 10 },
     },
   ],
   ...overrides,
 })
 
-let changeQuantity: ReturnType<typeof vi.fn>
-let removeEntry: ReturnType<typeof vi.fn>
-let addFood: ReturnType<typeof vi.fn>
+let saveDraft: ReturnType<typeof vi.fn>
 let router: Router
 
 async function mountAt(
@@ -91,18 +90,15 @@ async function mountAt(
   recent: ReadonlyMap<string, { grams: number; measure: string }> = new Map(),
   inventory: Record<string, unknown> = {},
 ): Promise<VueWrapper> {
-  changeQuantity = vi.fn(async () => ok(null))
-  removeEntry = vi.fn(async () => ok(null))
-  addFood = vi.fn(async () => ok({ id: meal.mealId }))
+  saveDraft = vi.fn(async () => ok({ id: meal.mealId }))
 
   provideContainer(
     createFakeContainer({
       profile: { getCurrent: succeedsWith(player) } as never,
       inventory: {
         getMeal: succeedsWith(meal),
-        changeQuantity: { execute: changeQuantity },
-        removeEntry: { execute: removeEntry },
-        addFood: { execute: addFood },
+        getFood: { execute: async (id: string) => ok([chicken, bread].find((food) => food.id === id) ?? null) },
+        saveDraft: { execute: saveDraft },
         find: succeedsWith({ kind: 'by_name', items: [chicken, bread], excluded: [], onlineSearched: true }),
         recentPortions: succeedsWith(recent),
         ...inventory,
@@ -119,13 +115,13 @@ async function mountAt(
     routes: [
       { path: '/semaine', name: ROUTE.weekPlan, component: blank },
       { path: '/semaine/repas/:mealId?', name: ROUTE.mealEditor, component: MealEditorView },
-      { path: '/aliments/nouveau', name: ROUTE.customFood, component: blank },
+      { path: '/garde-manger/aliments/nouveau', name: ROUTE.customFood, component: blank },
     ],
   })
   await router.push(path)
   await router.isReady()
 
-  const wrapper = mount(MealEditorView, { global: { plugins: [router] } })
+  const wrapper = mount({ template: '<RouterView />' }, { global: { plugins: [router] }, attachTo: document.body })
   await flushPromises()
   return wrapper
 }
@@ -137,40 +133,59 @@ beforeEach(() => {
 afterEach(() => {
   resetContainer()
   vi.restoreAllMocks()
+  document.body.innerHTML = ''
 })
 
+/** Enregistre le brouillon avec le bouton du pied de page. */
+async function save(wrapper: VueWrapper): Promise<void> {
+  const button = wrapper.findAll('.editor__footer button').find((candidate) => candidate.text().includes('Enregistrer'))
+  await button!.trigger('click')
+  await flushPromises()
+}
+
 describe('MealEditorView — repas existant', () => {
+  const field = (wrapper: VueWrapper) => wrapper.find('.stepper__field input')
+
   it('expose la portion de chaque ligne en saisie', async () => {
     const wrapper = await mountAt('/semaine/repas/meal-1')
 
-    const input = wrapper.find('.editor__grams input')
-    expect((input.element as HTMLInputElement).value).toBe('100')
+    expect((field(wrapper).element as HTMLInputElement).value).toBe('100')
   })
 
-  it('corrige la portion sur `change`, pas à chaque frappe', async () => {
+  it('corrige la portion sur `change`, sans rien écrire avant l’enregistrement', async () => {
     const wrapper = await mountAt('/semaine/repas/meal-1')
-    const input = wrapper.find('.editor__grams input')
 
     // `setValue` de test-utils émet `input` **et** `change` : on pilote donc
     // l'élément directement pour distinguer les deux moments.
-    ;(input.element as HTMLInputElement).value = '250'
-    await input.trigger('input')
-    expect(changeQuantity).not.toHaveBeenCalled()
+    ;(field(wrapper).element as HTMLInputElement).value = '250'
+    await field(wrapper).trigger('input')
+    expect(wrapper.find('.editor__entry-kcal').text()).toBe('170 kcal')
 
-    await input.trigger('change')
-    expect(changeQuantity).toHaveBeenCalledWith(idFrom('meal-1'), idFrom('entry-1'), 250)
+    await field(wrapper).trigger('change')
+    expect(wrapper.find('.editor__entry-kcal').text()).toBe('425 kcal')
+    expect(wrapper.find('.editor__total-kcal').text()).toBe('425')
+    expect(wrapper.text()).toContain('Changements pas encore enregistrés.')
+    expect(saveDraft).not.toHaveBeenCalled()
+
+    await save(wrapper)
+    expect(saveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mealId: idFrom('meal-1'),
+        lines: [{ entryId: idFrom('entry-1'), foodItemId: chicken.id, grams: 250, measure: 'g' }],
+      }),
+    )
+    expect(router.currentRoute.value.name).toBe(ROUTE.weekPlan)
   })
 
   it.each(['', '0', '-5', 'abc'])('ignore une saisie inexploitable (%p)', async (value) => {
     const wrapper = await mountAt('/semaine/repas/meal-1')
-    const input = wrapper.find('.editor__grams input')
 
-    ;(input.element as HTMLInputElement).value = value
-    await input.trigger('change')
+    ;(field(wrapper).element as HTMLInputElement).value = value
+    await field(wrapper).trigger('change')
 
-    // L'usager est en train de retaper son nombre : refuser bruyamment serait
-    // pire que ne rien faire.
-    expect(changeQuantity).not.toHaveBeenCalled()
+    // La personne est en train de retaper son nombre : refuser bruyamment
+    // serait pire que ne rien faire.
+    expect(wrapper.text()).not.toContain('Changements pas encore enregistrés.')
   })
 
   it('saisit une ligne en portions dans sa mesure, et la convertit en grammes', async () => {
@@ -182,16 +197,22 @@ describe('MealEditorView — repas existant', () => {
       measure: slice,
       amount: 2,
       calories: 140,
+      macros: { proteinG: 4, carbsG: 25, fatG: 2 },
     }
     const wrapper = await mountAt('/semaine/repas/meal-1', mealOf({ entries: [toast] }))
-    const input = wrapper.find('.editor__grams input')
 
-    expect((input.element as HTMLInputElement).value).toBe('2')
-    expect(wrapper.find('.editor__unit').text()).toBe('tranches')
+    expect((field(wrapper).element as HTMLInputElement).value).toBe('2')
+    expect(wrapper.find('.stepper__unit').text()).toBe('tranches')
 
-    ;(input.element as HTMLInputElement).value = '3'
-    await input.trigger('change')
-    expect(changeQuantity).toHaveBeenCalledWith(idFrom('meal-1'), idFrom('entry-1'), 75)
+    await wrapper.findAll('.stepper__button')[1]!.trigger('click')
+    expect((field(wrapper).element as HTMLInputElement).value).toBe('2.5')
+
+    ;(field(wrapper).element as HTMLInputElement).value = '3'
+    await field(wrapper).trigger('change')
+    await save(wrapper)
+    expect(saveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ lines: [expect.objectContaining({ grams: 75, measure: 'tranche' })] }),
+    )
   })
 
   it('permet de retirer une ligne, sous un nom accessible distinct', async () => {
@@ -200,15 +221,26 @@ describe('MealEditorView — repas existant', () => {
     const remove = wrapper
       .findAll('button')
       .find((button) => button.text().includes('Retirer Blanc de poulet'))
-
     await remove!.trigger('click')
-    expect(removeEntry).toHaveBeenCalledWith(idFrom('meal-1'), idFrom('entry-1'))
+
+    expect(wrapper.findAll('.editor__entry')).toHaveLength(0)
+    expect(wrapper.find('.editor__feedback').text()).toBe('Blanc de poulet retiré.')
   })
 
   it('propose « Mangé » pour un repas du jour', async () => {
     const wrapper = await mountAt('/semaine/repas/meal-1')
 
     expect(wrapper.find('[aria-pressed]').exists()).toBe(true)
+  })
+
+  it('ne propose « Mangé » qu’une fois les changements enregistrés', async () => {
+    const wrapper = await mountAt('/semaine/repas/meal-1')
+
+    ;(field(wrapper).element as HTMLInputElement).value = '250'
+    await field(wrapper).trigger('change')
+
+    expect(wrapper.find('[aria-pressed]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Enregistrez d’abord le repas.')
   })
 
   it('ne propose pas « Mangé » pour un repas à venir', async () => {
@@ -219,13 +251,71 @@ describe('MealEditorView — repas existant', () => {
   })
 })
 
+describe('MealEditorView — quitter sans enregistrer', () => {
+  async function changed(): Promise<VueWrapper> {
+    const wrapper = await mountAt('/semaine/repas/meal-1')
+    const input = wrapper.find('.stepper__field input')
+    ;(input.element as HTMLInputElement).value = '250'
+    await input.trigger('change')
+    return wrapper
+  }
+
+  const dialogButton = (label: string) =>
+    [...document.querySelectorAll<HTMLButtonElement>('dialog button')].find((button) => button.textContent?.trim() === label)!
+
+  it('demande avant de partir, et reste si on le choisit', async () => {
+    await changed()
+
+    const leaving = router.push('/semaine')
+    await flushPromises()
+    expect(document.querySelector('dialog')?.open).toBe(true)
+    expect(document.activeElement?.textContent?.trim()).toBe('Rester')
+
+    dialogButton('Rester').click()
+    await leaving
+    expect(router.currentRoute.value.name).toBe(ROUTE.mealEditor)
+  })
+
+  it('part et oublie les changements si on le confirme', async () => {
+    await changed()
+
+    const leaving = router.push('/semaine')
+    await flushPromises()
+    dialogButton('Quitter sans enregistrer').click()
+    await leaving
+
+    expect(router.currentRoute.value.name).toBe(ROUTE.weekPlan)
+    expect(saveDraft).not.toHaveBeenCalled()
+  })
+
+  it('part sans rien demander quand il n’y a rien à enregistrer', async () => {
+    await mountAt('/semaine/repas/meal-1')
+
+    await router.push('/semaine')
+
+    expect(router.currentRoute.value.name).toBe(ROUTE.weekPlan)
+    expect(document.querySelector('dialog')?.open).toBeFalsy()
+  })
+
+  it('garde le brouillon pendant le détour pour créer un aliment', async () => {
+    await changed()
+
+    await router.push('/garde-manger/aliments/nouveau')
+    expect(router.currentRoute.value.name).toBe(ROUTE.customFood)
+    await router.push('/semaine/repas/meal-1?aliment=ciqual:7200')
+    await flushPromises()
+
+    expect((document.querySelector('.stepper__field input') as HTMLInputElement).value).toBe('250')
+  })
+})
+
 describe('MealEditorView — repas pris', () => {
   const eaten = () => mealOf({ consumedAt: `${today}T12:45:00.000Z` })
 
   it('retire toute commande de modification', async () => {
     const wrapper = await mountAt('/semaine/repas/meal-1', eaten())
 
-    expect(wrapper.find('.editor__grams input').exists()).toBe(false)
+    expect(wrapper.find('.stepper__field input').exists()).toBe(false)
     expect(wrapper.findAll('button').some((button) => button.text().includes('Retirer'))).toBe(
       false,
     )
@@ -251,11 +341,23 @@ describe('MealEditorView — nouveau repas', () => {
     expect(
       (wrapper.find('input[name="mealType"][value="DINNER"]').element as HTMLInputElement).checked,
     ).toBe(true)
-    expect(wrapper.text()).not.toContain('Dans ce repas')
-    expect(addFood).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('Rien dans l’assiette pour l’instant.')
+    expect(saveDraft).not.toHaveBeenCalled()
   })
 
-  it('crée le repas au premier aliment et prend son adresse', async () => {
+  it('n’enregistre pas un repas vide, et dit pourquoi', async () => {
+    const wrapper = await mountAt(`/semaine/repas?jour=${tomorrow}&type=DINNER`)
+    const button = wrapper.findAll('.editor__footer button').find((candidate) => candidate.text().includes('Enregistrer'))!
+
+    expect(button.attributes('aria-disabled')).toBe('true')
+    expect(button.attributes('aria-describedby')).toBe('raison-enregistrer')
+    expect(wrapper.find('#raison-enregistrer').text()).toBe('Ajoutez au moins un aliment pour enregistrer.')
+
+    await button.trigger('click')
+    expect(saveDraft).not.toHaveBeenCalled()
+  })
+
+  it('crée le repas à l’enregistrement, au jour et au type choisis', async () => {
     const wrapper = await mountAt(`/semaine/repas?jour=${tomorrow}&type=DINNER`)
 
     await wrapper.find('input[type="search"], .picker__search input').setValue('poulet')
@@ -265,17 +367,16 @@ describe('MealEditorView — nouveau repas', () => {
     const add = wrapper.findAll('button').find((button) => button.text().startsWith('Ajouter Blanc'))
     await add!.trigger('click')
     await flushPromises()
+    expect(saveDraft).not.toHaveBeenCalled()
+    expect(wrapper.find('.editor__total-kcal').text()).toBe('170')
 
-    expect(addFood).toHaveBeenCalledWith(
-      expect.objectContaining({
-        plannedFor: tomorrow,
-        mealType: MealType.DINNER,
-        grams: 100,
-        measure: 'g',
-      }),
-    )
-    // Un rechargement doit retrouver le repas, pas un brouillon vide.
-    expect(router.currentRoute.value.params.mealId).toBe('meal-1')
+    await save(wrapper)
+    expect(saveDraft).toHaveBeenCalledWith({
+      playerId,
+      schedule: { plannedFor: tomorrow, type: MealType.DINNER },
+      lines: [{ foodItemId: chicken.id, grams: 100, measure: 'g' }],
+    })
+    expect(router.currentRoute.value.name).toBe(ROUTE.weekPlan)
   })
 
   async function select(wrapper: VueWrapper, food: FoodItem): Promise<void> {
@@ -305,10 +406,9 @@ describe('MealEditorView — nouveau repas', () => {
     expect(wrapper.find('.portion__unit').text()).toBe('tranches')
 
     await addSelected(wrapper)
-    expect(addFood).toHaveBeenCalledWith(
-      expect.objectContaining({ foodItemId: bread.id, grams: 50, measure: 'tranche' }),
-    )
     expect(wrapper.find('.editor__feedback').text()).toContain('(2 tranches)')
+    expect((wrapper.find('.stepper__field input').element as HTMLInputElement).value).toBe('2')
+    expect(wrapper.find('.stepper__unit').text()).toBe('tranches')
   })
 
   it('reprend la dernière portion saisie pour l’aliment', async () => {
@@ -329,8 +429,9 @@ describe('MealEditorView — nouveau repas', () => {
 
     await wrapper.find('.portion__recent').trigger('click')
     await addSelected(wrapper)
-    expect(addFood).toHaveBeenCalledWith(
-      expect.objectContaining({ grams: 75, measure: 'tranche' }),
+    await save(wrapper)
+    expect(saveDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ lines: [expect.objectContaining({ grams: 75, measure: 'tranche' })] }),
     )
   })
 
@@ -398,28 +499,22 @@ describe('MealEditorView — recettes', () => {
   })
 
   it('ajoute une recette au repas en cours, puis le dit', async () => {
-    const addRecipe = vi.fn(async () => ok({ meal: { id: idFrom('meal-1') }, added: 3, missing: [] }))
     const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
       listRecipes: succeedsWith([pokeBowl]),
-      addRecipe: { execute: addRecipe },
     })
 
     await search(wrapper, 'poke')
     await recipeButton(wrapper, 'Ajouter').trigger('click')
     await flushPromises()
 
-    expect(addRecipe).toHaveBeenCalledWith(
-      expect.objectContaining({ playerId, recipeId: idFrom('recipe-1'), mealId: idFrom('meal-1') }),
-    )
-    expect(wrapper.find('.editor__feedback').text()).toBe('Poke bowl ajoutée (3 aliments).')
+    expect(wrapper.findAll('.editor__entry')).toHaveLength(2)
+    expect(wrapper.find('.editor__feedback').text()).toBe('Poke bowl ajoutée (1 aliment).')
   })
 
   it('nomme les aliments qui manquent au catalogue', async () => {
+    const salmon = { foodItemId: idFrom('ciqual:disparu'), foodName: 'Saumon cru', grams: 80, measure: GRAM, amount: 80 }
     const wrapper = await mountAt('/semaine/repas/meal-1', mealOf(), new Map(), {
-      listRecipes: succeedsWith([pokeBowl]),
-      addRecipe: {
-        execute: async () => ok({ meal: { id: idFrom('meal-1') }, added: 1, missing: ['Saumon cru'] }),
-      },
+      listRecipes: succeedsWith([{ ...pokeBowl, lines: [...pokeBowl.lines, salmon] }]),
     })
 
     await search(wrapper, 'poke')

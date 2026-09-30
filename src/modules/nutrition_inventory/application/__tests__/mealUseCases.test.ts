@@ -24,6 +24,7 @@ import {
   RemoveMealEntryUseCase,
   RescalePlannedMealsUseCase,
   RescheduleMealUseCase,
+  SaveMealDraftUseCase,
 } from '@/modules/nutrition_inventory/application/useCases'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { type Meal, MealType } from '@/modules/nutrition_inventory/domain/Meal'
@@ -1330,5 +1331,122 @@ describe('RescalePlannedMealsUseCase', () => {
     )
 
     expect(isErr(result) && result.error.code).toBe('MEALS_UNREADABLE')
+  })
+})
+
+describe('SaveMealDraftUseCase', () => {
+  const save = (): SaveMealDraftUseCase => new SaveMealDraftUseCase(foods, meals)
+  const lunch = { plannedFor: dayOf('2026-09-30'), type: MealType.LUNCH }
+
+  it('crée le repas d’un brouillon, avec tous ses aliments, en une écriture', async () => {
+    const write = vi.spyOn(meals, 'save')
+
+    const meal = unwrap(
+      await save().execute({
+        playerId,
+        schedule: lunch,
+        lines: [
+          { foodItemId: chicken.id, grams: 120 },
+          { foodItemId: rice.id, grams: 180 },
+        ],
+      }),
+    )
+
+    expect(write).toHaveBeenCalledTimes(1)
+    expect(meal.type).toBe(MealType.LUNCH)
+    expect(meal.plannedFor).toBe('2026-09-30')
+    expect(meal.entries.map((entry) => [entry.foodName, entry.quantity.grams])).toEqual([
+      ['Blanc de poulet', 120],
+      ['Riz cuit', 180],
+    ])
+  })
+
+  it('applique ajouts, quantités, retraits et changement de jour ensemble', async () => {
+    const meal = await planMeal(dayOf('2026-09-22'))
+    const chickenLine = meal.entries[0]!
+
+    const saved = unwrap(
+      await save().execute({
+        playerId,
+        mealId: meal.id,
+        schedule: { plannedFor: dayOf('2026-09-23'), type: MealType.LUNCH },
+        lines: [{ foodItemId: rice.id, grams: 150 }],
+      }),
+    )
+
+    expect(saved.plannedFor).toBe('2026-09-23')
+    expect(saved.type).toBe(MealType.LUNCH)
+    expect(saved.entries.map((entry) => entry.foodName)).toEqual(['Riz cuit'])
+    expect(saved.entries.some((entry) => entry.id === chickenLine.id)).toBe(false)
+
+    const changed = unwrap(
+      await save().execute({
+        playerId,
+        mealId: meal.id,
+        schedule: { plannedFor: dayOf('2026-09-23'), type: MealType.LUNCH },
+        lines: [{ entryId: saved.entries[0]!.id, foodItemId: rice.id, grams: 200 }],
+      }),
+    )
+    expect(changed.entries[0]!.quantity.grams).toBe(200)
+  })
+
+  it('n’écrit rien quand le brouillon ne change rien', async () => {
+    const meal = await planMeal(dayOf('2026-09-22'))
+    const write = vi.spyOn(meals, 'save')
+
+    unwrap(
+      await save().execute({
+        playerId,
+        mealId: meal.id,
+        schedule: { plannedFor: meal.plannedFor, type: meal.type },
+        lines: meal.entries.map((entry) => ({
+          entryId: entry.id,
+          foodItemId: entry.foodItemId,
+          grams: entry.quantity.grams,
+        })),
+      }),
+    )
+
+    expect(write).not.toHaveBeenCalled()
+  })
+
+  it('refuse un repas vide', async () => {
+    const result = await save().execute({ playerId, schedule: lunch, lines: [] })
+
+    expect(isErr(result)).toBe(true)
+    if (isErr(result)) expect(result.error.code).toBe('EMPTY_MEAL')
+  })
+
+  it('laisse le repas intact si un aliment a disparu', async () => {
+    const meal = await planMeal(dayOf('2026-09-22'))
+    const before = unwrap(await meals.findById(meal.id))
+
+    const result = await save().execute({
+      playerId,
+      mealId: meal.id,
+      schedule: { plannedFor: meal.plannedFor, type: meal.type },
+      lines: [{ foodItemId: idFrom('ciqual:disparu'), grams: 50 }],
+    })
+
+    expect(isErr(result)).toBe(true)
+    if (isErr(result)) expect(result.error.code).toBe('FOOD_NOT_FOUND')
+    const after = unwrap(await meals.findById(meal.id))
+    expect(after?.entries.map((entry) => entry.id)).toEqual(before?.entries.map((entry) => entry.id))
+  })
+
+  it('refuse de déplacer un repas déjà pris, sans rien écrire', async () => {
+    const meal = await planMeal(dayKeyOf(new Date()))
+    unwrap(await new MarkMealConsumedUseCase(meals).execute(meal.id, true))
+    const write = vi.spyOn(meals, 'save')
+
+    const result = await save().execute({
+      playerId,
+      mealId: meal.id,
+      schedule: { plannedFor: addDays(meal.plannedFor, 1), type: meal.type },
+      lines: meal.entries.map((entry) => ({ entryId: entry.id, foodItemId: entry.foodItemId, grams: 100 })),
+    })
+
+    expect(isErr(result)).toBe(true)
+    expect(write).not.toHaveBeenCalled()
   })
 })
