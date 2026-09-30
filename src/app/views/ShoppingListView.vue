@@ -12,7 +12,7 @@
  * journées.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import FoodPicker, { type FoodChoice } from '@/app/components/FoodPicker.vue'
 import { useContainer } from '@/app/container'
@@ -43,6 +43,7 @@ import ErrorNotice from '@/ui/ErrorNotice.vue'
 const SHOPPING_SYNC_INTERVAL_MS = 20_000
 
 const route = useRoute()
+const router = useRouter()
 const container = useContainer()
 const players = usePlayerStore()
 const account = useAccountStore()
@@ -79,6 +80,25 @@ async function open(): Promise<void> {
   householdId.value = await resolveHousehold()
   resolved.value = true
   await shopping.load({ householdId: householdId.value, playerId, week: week.value })
+  await fillIfAsked()
+}
+
+/**
+ * `?remplir=1` : venu du bouton « Remplir la liste » de la semaine. La liste
+ * se remplit une fois ouverte, ici, où le résultat s'affiche ; le paramètre
+ * est retiré aussitôt, pour qu'un rechargement ne la remplisse pas de nouveau.
+ */
+let fillAsked = route.query.remplir === '1'
+
+async function fillIfAsked(): Promise<void> {
+  // La liste s'ouvre parfois deux fois de suite (le foyer arrive après) : le
+  // drapeau tombe avant toute attente, pour qu'un seul passage remplisse.
+  if (!fillAsked) return
+  fillAsked = false
+  const query = { ...route.query }
+  delete query.remplir
+  await router.replace({ query })
+  await fill()
 }
 
 watch(

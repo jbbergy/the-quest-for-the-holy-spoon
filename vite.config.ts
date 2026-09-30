@@ -143,7 +143,6 @@ export default defineConfig({
         'src/app/useDailyTracking.ts',
         'src/app/useAccountSync.ts',
         'src/app/useHousehold.ts',
-        'src/app/useOpenDays.ts',
         'src/app/views/householdFormat.ts',
         'src/app/household/**/*.ts',
         'src/app/day/**/*.ts',

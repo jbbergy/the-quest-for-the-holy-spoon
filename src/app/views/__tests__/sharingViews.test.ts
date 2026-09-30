@@ -18,7 +18,7 @@ import { householdKey } from '@/app/useHousehold'
 import HouseholdView from '@/app/views/HouseholdView.vue'
 import MemberDayView from '@/app/views/MemberDayView.vue'
 import WeekPlanView from '@/app/views/WeekPlanView.vue'
-import { dayKeyOf } from '@/core/day'
+import { addDays, dayKeyOf, startOfWeek } from '@/core/day'
 import { idFrom } from '@/core/identity'
 import { ok } from '@/core/result'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
@@ -269,6 +269,43 @@ describe('Libellés du partage', () => {
     expect(mount(FoodSourceTag, { props: { source: 'USER', author: 'Alex' } }).text()).toBe('Ajouté par Alex')
     expect(mount(FoodSourceTag, { props: { source: 'USER', author: null } }).text()).toBe('Mon aliment')
     expect(mount(FoodSourceTag, { props: { source: 'CIQUAL', author: 'Alex' } }).text()).toBe('Catalogue public')
+  })
+})
+
+describe('Bande des jours de la semaine', () => {
+  const monday = startOfWeek(today)
+  const week = {
+    days: Array.from({ length: 7 }, (_, index) => {
+      const day = addDays(monday, index)
+      return day === today
+        ? { day, meals: [summary(true), summary(false)], plannedCalories: 740 }
+        : { day, meals: [], plannedCalories: 0 }
+    }),
+  }
+  const strip = (wrapper: Awaited<ReturnType<typeof mountAt>>) => wrapper.findAll('.week__strip button')
+
+  it('choisit aujourd’hui, et dit l’état de chaque jour en toutes lettres', async () => {
+    const wrapper = await mountAt(WeekPlanView, '/semaine', { inventory: { week: succeedsWith(week) } })
+    const days = strip(wrapper)
+    const index = week.days.findIndex((day) => day.day === today)
+
+    expect(days).toHaveLength(7)
+    expect(days[index]!.attributes('aria-pressed')).toBe('true')
+    expect(days[index]!.text()).toContain('aujourd’hui, 1 repas mangé, 1 repas prévu')
+    expect(days[(index + 1) % 7]!.text()).toContain('rien de prévu')
+    expect(wrapper.find('.week__card').text()).toContain('Mangé')
+  })
+
+  it('garde le jour choisi dans l’adresse, et montre ce jour-là', async () => {
+    const wrapper = await mountAt(WeekPlanView, '/semaine', { inventory: { week: succeedsWith(week) } })
+    const other = week.days.findIndex((day) => day.day !== today)
+
+    await strip(wrapper)[other]!.trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query.jour).toBe(week.days[other]!.day)
+    expect(strip(wrapper)[other]!.attributes('aria-pressed')).toBe('true')
+    expect(wrapper.find('.week__card').text()).toContain('Aucun repas ce jour-là.')
   })
 })
 

@@ -207,12 +207,22 @@ describe('Accès depuis la semaine', () => {
   it('ouvre la liste de la semaine affichée', async () => {
     const wrapper = await mountAt(WeekPlanView, '/semaine')
 
-    await button(wrapper, 'Liste de courses').trigger('click')
+    await button(wrapper, 'Ouvrir la liste').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.name).toBe(ROUTE.shoppingList)
     expect(router.currentRoute.value.query.semaine).toBe(startOfWeek(router.currentRoute.value.query.semaine as DayKey))
     expect(router.currentRoute.value.query.retour).toBe('/semaine')
+  })
+
+  it('demande à la liste de se remplir en l’ouvrant', async () => {
+    const wrapper = await mountAt(WeekPlanView, '/semaine')
+
+    await button(wrapper, 'Remplir la liste').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.name).toBe(ROUTE.shoppingList)
+    expect(router.currentRoute.value.query.remplir).toBe('1')
   })
 })
 
@@ -243,6 +253,18 @@ describe('Liste de courses du foyer', () => {
     await button(wrapper, 'Remplir la liste').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('La liste était déjà à jour.')
+  })
+
+  it('se remplit dès l’ouverture quand on vient de « Remplir la liste », une seule fois', async () => {
+    const wrapper = await mountAt(ShoppingListView, `/semaine/courses?semaine=${WEEK}&remplir=1`, {
+      memberDays: { meals: alexMeals },
+    })
+    await flushPromises()
+
+    expect(rows(wrapper)).toEqual(['Lait, 250 g', 'Œuf, 2 œufs', 'Riz, 180 g'])
+    expect(wrapper.text()).toContain('La liste est à jour : 3 articles ajoutés.')
+    // Retiré de l'adresse : un rechargement ne remplirait pas de nouveau.
+    expect(router.currentRoute.value.query).toEqual({ semaine: WEEK })
   })
 
   it('garde les parts d’un membre qu’on ne peut pas lire, et le dit', async () => {
