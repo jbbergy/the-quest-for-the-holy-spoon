@@ -315,7 +315,7 @@ onMounted(async () => {
 
 .catalog__name {
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .catalog__meta {

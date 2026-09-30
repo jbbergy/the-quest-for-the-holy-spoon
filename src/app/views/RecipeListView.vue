@@ -126,7 +126,7 @@ function ingredients(recipe: RecipeSummary): string {
   color: var(--color-text);
   font-weight: 400;
   text-decoration: none;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 
   &:hover {
     background: var(--color-surface);

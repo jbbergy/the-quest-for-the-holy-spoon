@@ -131,7 +131,7 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .recipes__lines {

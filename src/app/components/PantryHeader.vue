@@ -60,7 +60,10 @@ function count(name: string): number | null {
       >
         {{ t(tab.label) }}
         <template v-if="count(tab.name) !== null">
-          <span aria-hidden="true">· {{ count(tab.name) }}</span>
+          <span
+            class="pantry-header__count"
+            aria-hidden="true"
+          >· {{ count(tab.name) }}</span>
           <span class="sr-only">, {{ t('foods.pantry.count', { n: count(tab.name) }) }}</span>
         </template>
       </RouterLink>
@@ -101,6 +104,14 @@ function count(name: string): number | null {
   font-weight: 500;
   text-align: center;
   text-decoration: none;
+}
+
+.pantry-header__tab {
+  flex-wrap: wrap;
+}
+
+.pantry-header__count {
+  white-space: nowrap;
 }
 
 .pantry-header__tab:hover {

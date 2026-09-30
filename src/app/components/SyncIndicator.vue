@@ -84,6 +84,7 @@ function retry(): void {
 <style scoped lang="scss">
 .sync {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-2);

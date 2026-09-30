@@ -92,7 +92,7 @@ const bodyId = useId()
 
 <style scoped lang="scss">
 .card {
-  padding: var(--space-5);
+  padding: var(--card-padding);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);

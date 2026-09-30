@@ -592,7 +592,7 @@ async function setConsumed(mealId: MealId, consumed: boolean): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-5);
+  padding: var(--card-padding);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
@@ -608,6 +608,7 @@ async function setConsumed(mealId: MealId, consumed: boolean): Promise<void> {
 
 .week__card-today {
   color: var(--color-text-muted);
+  white-space: nowrap;
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
   letter-spacing: normal;
@@ -679,7 +680,7 @@ async function setConsumed(mealId: MealId, consumed: boolean): Promise<void> {
 }
 
 .week__meal-foods {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .week__meal-by {
@@ -710,7 +711,7 @@ async function setConsumed(mealId: MealId, consumed: boolean): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-5);
+  padding: var(--card-padding);
   background: var(--color-inverse);
   border-radius: var(--radius-xl);
   color: var(--color-on-inverse);

@@ -339,15 +339,17 @@ const summary = computed(() => {
               :checked="item.checked"
               @change="toggle(item, ($event.target as HTMLInputElement).checked)"
             >
-            <span class="shopping__name">{{ item.name }}</span>
-            <template v-if="formatShoppingQuantity(item)">
-              <span class="sr-only">, </span>
-              <span class="shopping__quantity">{{ formatShoppingQuantity(item) }}</span>
-            </template>
-            <template v-else-if="item.foodItemId !== null">
-              <span class="sr-only">, </span>
-              <span class="shopping__quantity">{{ t('shopping.noLongerInMeals') }}</span>
-            </template>
+            <span class="shopping__text">
+              <span class="shopping__name">{{ item.name }}</span>
+              <template v-if="formatShoppingQuantity(item)">
+                <span class="sr-only">, </span>
+                <span class="shopping__quantity">{{ formatShoppingQuantity(item) }}</span>
+              </template>
+              <template v-else-if="item.foodItemId !== null">
+                <span class="sr-only">, </span>
+                <span class="shopping__quantity">{{ t('shopping.noLongerInMeals') }}</span>
+              </template>
+            </span>
           </label>
           <BaseButton
             variant="ghost"
@@ -488,17 +490,23 @@ const summary = computed(() => {
   accent-color: var(--color-accent);
 }
 
-.shopping__name {
+/* Le nom, puis la quantité dessous : sur un écran étroit, le nom garde
+   toute la largeur au lieu d'être comprimé par la quantité. */
+.shopping__text {
+  display: flex;
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  flex-direction: column;
+}
+
+.shopping__name {
+  overflow-wrap: break-word;
 }
 
 .shopping__quantity {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .shopping__item--done .shopping__name {

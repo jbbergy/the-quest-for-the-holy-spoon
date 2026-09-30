@@ -426,7 +426,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .household__who small,

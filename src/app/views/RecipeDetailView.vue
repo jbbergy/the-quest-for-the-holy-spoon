@@ -220,7 +220,7 @@ function unit(line: RecipeLineSummary): string {
 
 .recipe__title {
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .recipe__rename {
@@ -269,7 +269,7 @@ function unit(line: RecipeLineSummary): string {
 .recipe__line-name {
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .recipe__amount {
@@ -281,7 +281,7 @@ function unit(line: RecipeLineSummary): string {
 
 .recipe__unit {
   max-width: 6rem;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .recipe__amount input {

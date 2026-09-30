@@ -612,7 +612,7 @@ async function remove(): Promise<void> {
 
 .editor__title {
   margin: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 /* Quand : le jour, puis le type en contrôle segmenté. */
@@ -760,7 +760,7 @@ async function remove(): Promise<void> {
 
 .editor__entry-name {
   font-weight: 700;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .editor__entry-kcal {

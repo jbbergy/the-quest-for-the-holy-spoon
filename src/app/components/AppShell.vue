@@ -272,9 +272,10 @@ $wide: 64rem;
 
 .shell__top {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
   width: 100%;
   max-width: var(--layout-max-width);
   margin: 0 auto;
@@ -282,7 +283,9 @@ $wide: 64rem;
 }
 
 .shell__top .shell__sync {
-  margin-right: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: flex-start;
   padding: 0;
 }
 
@@ -356,6 +359,15 @@ $wide: 64rem;
   text-decoration: none;
 }
 
+/* Quatre onglets sur un écran étroit : un libellé trop long se coupe selon
+   les règles de la langue (« Aujour-d’hui »), sans rétrécir le texte ni
+   déborder sur l'onglet voisin. */
+.shell__label {
+  max-width: 100%;
+  hyphens: auto;
+  overflow-wrap: break-word;
+}
+
 .shell__link:hover {
   color: var(--color-text);
 }
@@ -366,7 +378,7 @@ $wide: 64rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 3.5rem;
+  width: min(3.5rem, 100%);
   height: 2rem;
   border-radius: var(--radius-pill);
 }

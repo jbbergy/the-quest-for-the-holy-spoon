@@ -329,7 +329,7 @@ const split = {
   background: var(--color-accent-soft);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .calculations .calculations__example {
@@ -354,7 +354,7 @@ const split = {
 
   dd {
     margin: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 }
 

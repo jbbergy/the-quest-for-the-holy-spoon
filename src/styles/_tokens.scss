@@ -123,4 +123,15 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 
   --layout-max-width: 44rem;
+
+  /* Marge intérieure des cartes. Resserrée sur un écran très étroit — un
+     téléphone dont l'affichage est agrandi n'offre parfois que 280 px : chaque
+     pixel rendu au texte lui évite une coupure (critère 1.4.10). */
+  --card-padding: var(--space-5);
+}
+
+@media (width < 22.5rem) {
+  :root {
+    --card-padding: var(--space-4);
+  }
 }

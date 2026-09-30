@@ -291,7 +291,7 @@ watch(
 .portion__unit {
   flex: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 .portion__weight {

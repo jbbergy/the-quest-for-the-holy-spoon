@@ -240,7 +240,7 @@ const NUTRIENTS = [
 
   h1 {
     margin: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 }
 
