@@ -11,6 +11,8 @@ import { computed } from 'vue'
 import type { ErrorView } from '@/core/errors'
 import { t, te } from '@/i18n'
 
+import AppIcon from './AppIcon.vue'
+
 const props = defineProps<{ error: ErrorView | null }>()
 
 /**
@@ -31,7 +33,10 @@ const text = computed(() => {
     class="notice"
     role="alert"
   >
-    <span aria-hidden="true">⚠</span>
+    <AppIcon
+      name="alert"
+      :size="1.15"
+    />
     <span>{{ text }}</span>
   </p>
 </template>
@@ -43,11 +48,15 @@ const text = computed(() => {
   gap: var(--space-2);
   margin: 0 0 var(--space-3);
   padding: var(--space-3) var(--space-4);
-  background: var(--color-danger-soft);
-  border: 1px solid var(--color-danger);
+  background: var(--color-surface-raised);
+  border: 2px solid var(--color-danger);
   border-radius: var(--radius-md);
-  color: var(--color-danger);
+  color: var(--color-danger-strong);
   font-size: var(--font-size-sm);
   font-weight: 600;
+}
+
+.notice :deep(.icon) {
+  color: var(--color-danger);
 }
 </style>

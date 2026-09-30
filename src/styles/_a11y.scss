@@ -13,11 +13,20 @@
  * clavier, jamais au clic souris. `outline-offset` garantit que l'anneau ne soit
  * pas rogné par un `overflow: hidden` voisin, ce qui est exactement le cas que
  * le critère 2.4.11 vise.
+ *
+ * Anneau Encre (clair en Crépuscule), le même pour tous les éléments : il
+ * contraste avec le fond comme avec le vert des boutons pleins. L'anneau suit
+ * l'arrondi de l'élément ; on ne lui impose pas de rayon, qui changerait la
+ * forme d'un bouton en pilule au moment du focus.
  */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 2px;
-  border-radius: var(--radius-sm);
+}
+
+/* Un lien dans le texte n'a pas d'arrondi : l'anneau en prend un léger. */
+:where(a):focus-visible {
+  border-radius: 2px;
 }
 
 /** Lien d'évitement — critère 2.4.1 : atteindre le contenu sans traverser la navigation. */

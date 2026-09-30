@@ -6,7 +6,7 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 /** Teinte de la barre système : le fond du thème clair par défaut (« Aube »). */
-const THEME_COLOR = '#fbfaf7'
+const THEME_COLOR = '#f5f1e8'
 
 /**
  * Configuration de la PWA.
@@ -50,8 +50,9 @@ const pwa = VitePWA({
      * Le précacher coûte un téléchargement à l'installation, mais c'est ce qui
      * rend vraie la promesse hors-ligne : sans lui, un premier lancement sans
      * réseau afficherait une application vide, faute de catalogue à amorcer.
+     * Le `.woff2` vise les polices (`src/assets/fonts`), pour le même motif.
      */
-    globPatterns: ['**/*.{js,css,html,svg,png,ico,json,webmanifest}'],
+    globPatterns: ['**/*.{js,css,html,svg,png,ico,json,webmanifest,woff2}'],
     /*
      * Pas d'`includeAssets` : le favicon, l'icône SVG et l'icône Apple sont déjà
      * couverts par les motifs ci-dessus, et les y répéter dupliquait leur entrée

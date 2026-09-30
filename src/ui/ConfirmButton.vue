@@ -78,7 +78,7 @@ function confirm(): void {
       <div class="confirm__actions">
         <BaseButton
           data-confirm
-          variant="danger"
+          variant="danger-filled"
           :size="size"
           @click="confirm"
         >

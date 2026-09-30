@@ -1,28 +1,48 @@
 /**
- * Aube — thème clair par défaut.
+ * Aube — thème clair par défaut : papier chaud, vert feuille, safran.
  *
  * Le sélecteur porte sur `[data-theme]` posé sur `:root` : changer de thème se
  * réduit donc à changer un attribut, sans qu'aucune valeur de couleur ne
- * transite par JavaScript. Le double sélecteur applique aussi ce thème quand le
- * système préfère le clair et qu'aucun choix explicite n'a été fait.
+ * transite par JavaScript.
+ *
+ * Contrastes : texte 13,7:1, texte secondaire 7,0:1, action 6,8:1, limite
+ * 4,9:1 sur le fond ; repère graphique 3,9:1 et bordure active 4,5:1 sur les
+ * surfaces ; Encre sur safran 7,5:1.
  */
 :root[data-theme='aube'] {
-  --color-bg: #fbfaf7;
-  --color-surface: #f3f0e9;
-  --color-surface-raised: #ffffff;
-  --color-border: #ded8c9;
-  --color-text: #22201b;
-  --color-text-muted: #5f5a4e;
-  --color-accent: #8a5a19;
-  --color-accent-contrast: #ffffff;
-  --color-accent-soft: #f2e5d0;
-  --color-danger: #9f2c22;
-  --color-danger-soft: #fbe6e3;
-  --color-success: #2a6340;
-  --color-focus: #8a5a19;
+  --color-bg: #f5f1e8;
+  --color-surface: #efe9dc;
+  --color-surface-raised: #fffdf8;
 
-  --color-protein: #a83a12;
-  --color-carbs: #1f5d86;
-  --color-fat: #8a6410;
-  --color-fiber: #3f6b2c;
+  --color-border: #e3dbc9;
+  --color-divider: #ece5d6;
+  --color-border-strong: #7d7462;
+  --color-track: #e9e2d2;
+
+  --color-text: #1f2620;
+  --color-text-muted: #4a544c;
+
+  --color-accent: #2c6446;
+  --color-accent-contrast: #fffdf8;
+  --color-accent-soft: #dce9df;
+  --color-accent-strong: #1e4a33;
+
+  --color-marker: #5e8a6f;
+
+  --color-saffron: #e9a93b;
+  --color-saffron-soft: #fbebc8;
+  --color-on-saffron: #1f2620;
+  --color-on-saffron-soft: #3b2a08;
+
+  --color-danger: #b4432a;
+  --color-danger-soft: #f4ddd6;
+  --color-danger-strong: #8e3520;
+
+  --color-success: #2c6446;
+
+  --color-inverse: #1f2620;
+  --color-on-inverse: #fffdf8;
+  --color-on-inverse-muted: #d6d0c2;
+
+  --color-focus: #1f2620;
 }

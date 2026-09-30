@@ -11,6 +11,8 @@ import { computed, useId } from 'vue'
 
 import { t } from '@/i18n'
 
+import AppIcon from './AppIcon.vue'
+
 const props = withDefaults(
   defineProps<{
     label: string
@@ -121,7 +123,11 @@ const onInput = (event: Event): string | number => {
       class="field__error"
       role="alert"
     >
-      {{ error }}
+      <AppIcon
+        name="alert"
+        :size="1.15"
+      />
+      <span>{{ error }}</span>
     </p>
   </div>
 </template>
@@ -130,12 +136,11 @@ const onInput = (event: Event): string | number => {
 .field {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .field__label {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--color-text);
 }
 
@@ -143,46 +148,67 @@ const onInput = (event: Event): string | number => {
   color: var(--color-danger);
 }
 
+/* La bordure délimite ce qu'on remplit : `border-strong`, au moins 3:1 sur
+   le fond (critère 1.4.11), là où une nuance pâle rendrait le champ invisible. */
 .field__control {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   transition: border-color var(--duration-fast) var(--ease-out);
 }
 
-.field__control:focus-within {
-  border-color: var(--color-accent);
-}
-
+/* L'erreur épaissit la bordure en plus de la colorer : la couleur seule ne
+   suffit pas (critère 1.4.1), l'icône et le message font le reste. */
 .field__control--invalid {
   border-color: var(--color-danger);
+  box-shadow: inset 0 0 0 1px var(--color-danger);
+}
+
+/**
+ * L'anneau de focus entoure **tout le champ**, suffixe et bouton compris,
+ * comme sur les autres commandes : 3 px Encre, décalé de 2 px.
+ *
+ * Il est porté par le conteneur plutôt que par l'`<input>`, dont le contour
+ * serait rogné par les bords arrondis. Le simple changement de couleur de la
+ * bordure ne suffirait pas (critère 2.4.13 de WCAG 2.2), et disparaîtrait là
+ * où la bordure est déjà colorée par une erreur.
+ */
+.field__control:has(.field__input:focus-visible) {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
 }
 
 .field__input {
   flex: 1;
   min-width: 0;
-  min-height: 44px;
+  min-height: 3.125rem;
   padding: 0;
   border: none;
   background: transparent;
   color: var(--color-text);
   font: inherit;
+  font-size: 1.0625rem;
 }
 
-/**
- * L'anneau est dessiné **à l'intérieur** du champ plutôt que supprimé.
- *
- * Le masquer au profit de la seule bordure du conteneur reviendrait à faire
- * reposer l'indicateur de focus sur un changement de couleur de 1px — insuffisant
- * au regard du critère 2.4.13 de WCAG 2.2 — et supprimerait l'indicateur partout
- * où la bordure est déjà colorée par une erreur.
- */
 .field__input:focus-visible {
-  outline-offset: -2px;
+  outline: none;
+}
+
+/* Navigateur sans `:has()` : l'anneau revient sur l'`<input>`, à l'intérieur. */
+@supports not selector(:has(a)) {
+  .field__input:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: -2px;
+  }
+}
+
+.field__input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
 }
 
 .field__suffix {
@@ -197,8 +223,11 @@ const onInput = (event: Event): string | number => {
 }
 
 .field__error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
   margin: 0;
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--color-danger);
 }

@@ -58,26 +58,34 @@ const tone = computed(() => TONE[props.source] ?? '')
 </template>
 
 <style scoped lang="scss">
+/* Fond teinté et texte foncé de la même famille, au moins 6:1 : la teinte
+   aide à repérer la source, le libellé la dit. */
 .tag {
   display: inline-block;
-  padding: 0.1em 0.5em;
-  border: 1px solid currentcolor;
+  padding: 0.1em 0.55em;
   border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.4;
   white-space: nowrap;
 }
 
 .tag--ciqual {
-  color: var(--color-protein);
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
 }
 
 .tag--off {
-  color: var(--color-carbs);
+  background: var(--color-saffron-soft);
+  color: var(--color-on-saffron-soft);
 }
 
-.tag--user {
-  color: var(--color-fiber);
+/* Contraste renforcé : le fond teinté ne suffit plus à détacher l'étiquette. */
+@media (forced-colors: active) {
+  .tag {
+    border: 1px solid CanvasText;
+  }
 }
 </style>

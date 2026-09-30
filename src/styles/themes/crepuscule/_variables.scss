@@ -1,30 +1,51 @@
 /**
- * Crépuscule — thème sombre.
+ * Crépuscule — thème sombre : les mêmes rôles qu'« Aube », éclaircis.
  *
- * Les surfaces s'éclaircissent avec l'élévation (`surface` < `surface-raised`),
+ * Les surfaces s'éclaircissent avec l'élévation (`bg` < `surface-raised`),
  * convention inverse du thème clair : sur fond sombre, c'est la lumière qui
- * fait avancer un élément, pas l'ombre.
+ * fait avancer un élément, pas l'ombre. Le texte des boutons pleins est foncé,
+ * posé sur un vert clair.
+ *
+ * Contrastes : texte 14,4:1, texte secondaire 8,7:1, action 7,6:1 sur les
+ * surfaces, limite 7,2:1 ; repère graphique 4,8:1, bordure active 3,9:1.
  */
 :root[data-theme='crepuscule'] {
-  --color-bg: #14151a;
-  --color-surface: #1c1e25;
-  --color-surface-raised: #252832;
-  --color-border: #343845;
-  --color-text: #eceef4;
-  --color-text-muted: #a3a8b8;
-  --color-accent: #d9a441;
-  --color-accent-contrast: #1a1508;
-  --color-accent-soft: #3a2f16;
-  --color-danger: #f0908a;
-  --color-danger-soft: #3d1f1d;
-  --color-success: #79d39e;
-  --color-focus: #d9a441;
+  --color-bg: #161b18;
+  --color-surface: #1b211d;
+  --color-surface-raised: #202722;
 
-  --color-protein: #f2a07a;
-  --color-carbs: #7cc0ee;
-  --color-fat: #e8c471;
-  --color-fiber: #a9cf7e;
+  --color-border: #343c36;
+  --color-divider: #2e3530;
+  --color-border-strong: #7a8277;
+  --color-track: #2e3530;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-md: 0 4px 16px rgb(0 0 0 / 45%);
+  --color-text: #eee9dd;
+  --color-text-muted: #b3b9af;
+
+  --color-accent: #8cc3a2;
+  --color-accent-contrast: #161b18;
+  --color-accent-soft: #243a2d;
+  --color-accent-strong: #b5dcc4;
+
+  --color-marker: #6f9a80;
+
+  --color-saffron: #f0bc5e;
+  --color-saffron-soft: #3a2f17;
+  --color-on-saffron: #161b18;
+  --color-on-saffron-soft: #e9dfc6;
+
+  --color-danger: #f08c6e;
+  --color-danger-soft: #3d231c;
+  --color-danger-strong: #f5b09b;
+
+  --color-success: #8cc3a2;
+
+  /* Sur fond sombre, l'encart « inversé » devient clair. */
+  --color-inverse: #eee9dd;
+  --color-on-inverse: #161b18;
+  --color-on-inverse-muted: #3a423c;
+
+  --color-focus: #eee9dd;
+
+  --shadow-md: 0 6px 24px rgb(0 0 0 / 45%);
 }

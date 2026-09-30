@@ -162,7 +162,9 @@ describe('Journée d’un membre', () => {
     const wrapper = await mountAt(MemberDayView, '/foyer/membres/player-alex', { memberDays: { read } })
 
     const next = wrapper.findAll('button').find((button) => button.text().includes('Jour suivant'))
-    expect(next?.attributes('disabled')).toBeDefined()
+    expect(next?.attributes('aria-disabled')).toBe('true')
+    await next!.trigger('click')
+    expect(read).toHaveBeenCalledTimes(1)
 
     const previous = wrapper.findAll('button').find((button) => button.text().includes('Jour précédent'))
     await previous!.trigger('click')

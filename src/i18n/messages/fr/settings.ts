@@ -60,7 +60,7 @@ export const settings = {
     subtitle: 'Le changement se voit tout de suite. Il vaut pour cet appareil seulement.',
     legend: 'Couleurs de l’application',
     aube: { name: 'Aube', description: 'Fond clair, texte foncé.' },
-    contraste: { name: 'Contraste renforcé', description: 'Noir et blanc, le plus lisible.' },
+    contraste: { name: 'Contraste renforcé', description: 'Fond blanc, texte noir, le plus lisible.' },
     crepuscule: { name: 'Crépuscule', description: 'Fond sombre, texte clair.' },
   },
   account: {

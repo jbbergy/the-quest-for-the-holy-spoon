@@ -53,8 +53,8 @@ withDefaults(
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: var(--space-2);
-  padding: var(--space-4);
+  gap: var(--space-3);
+  padding: var(--space-5);
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -67,7 +67,7 @@ withDefaults(
 
 .tile__title {
   margin: 0;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-lg);
 }
 
 .tile__subtitle {

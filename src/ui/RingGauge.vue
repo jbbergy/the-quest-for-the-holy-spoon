@@ -313,7 +313,7 @@ const averageTick = computed(() => {
 }
 
 .ring__track {
-  stroke: var(--color-surface);
+  stroke: var(--color-track);
 }
 
 .ring__fill {
@@ -335,7 +335,9 @@ const averageTick = computed(() => {
 }
 
 .ring__value {
+  font-family: var(--font-display);
   font-size: var(--font-size-lg);
+  font-weight: 400;
 }
 
 .ring--lg .ring__value {

@@ -1,58 +1,106 @@
 /**
- * Contrat de jetons de design.
+ * Contrat de jetons de design — direction « Marché ».
  *
  * Ce fichier déclare les **noms** de variables que tout thème doit fournir, avec
- * des valeurs de repli neutres. Les thèmes ne redéfinissent que les couleurs :
- * espacements, rayons et durées restent communs, sans quoi chaque thème pourrait
- * casser la mise en page au lieu de se contenter de l'habiller.
+ * des valeurs de repli (celles d'« Aube »). Les thèmes ne redéfinissent que les
+ * couleurs et les ombres : espacements, rayons, typographie et durées restent
+ * communs, sans quoi chaque thème pourrait casser la mise en page au lieu de se
+ * contenter de l'habiller.
  *
  * Aucune valeur de couleur n'existe en JavaScript : c'est le sélecteur
  * `[data-theme]` qui redéfinit ces variables sur `:root`.
+ *
+ * Contrastes exigés de chaque thème (WCAG 2.2 AA) : 4,5:1 pour tout texte sur
+ * `bg`, `surface` et `surface-raised` ; 3:1 pour `marker`, `border-strong` et
+ * `focus`, qui portent une information graphique (critère 1.4.11). `border`,
+ * `divider` et `track` sont décoratifs : ils n'ont pas de minimum, et rien ne
+ * doit reposer sur eux seuls.
  */
 :root {
-  /* Couleurs — repli neutre, systématiquement écrasé par un thème. */
-  --color-bg: #ffffff;
-  --color-surface: #f6f6f7;
-  --color-surface-raised: #ffffff;
-  --color-border: #d9d9de;
-  --color-text: #17171b;
-  --color-text-muted: #5b5b66;
-  --color-accent: #4c4ce0;
-  --color-accent-contrast: #ffffff;
-  --color-accent-soft: #e8e8fb;
-  --color-danger: #b3261e;
-  --color-danger-soft: #fbe9e7;
-  --color-success: #1d6b3f;
-  --color-focus: #4c4ce0;
+  /* Fonds et surfaces. `surface-raised` : cartes et champs. `surface` : blocs
+     en retrait (onglets segmentés, encarts, survol). */
+  --color-bg: #f5f1e8;
+  --color-surface: #efe9dc;
+  --color-surface-raised: #fffdf8;
 
-  /* Macronutriments — une teinte par macro, stable d'un thème à l'autre pour
-     que l'utilisateur n'ait pas à réapprendre le code couleur. */
-  --color-protein: #c2410c;
-  --color-carbs: #0369a1;
-  --color-fat: #a16207;
-  --color-fiber: #3f6b2c;
+  /* Bordures. `border` entoure les cartes, `divider` sépare les lignes d'une
+     liste, `border-strong` délimite ce qu'on manipule (champs, boutons au
+     trait) et `track` est le rail vide des jauges. */
+  --color-border: #e3dbc9;
+  --color-divider: #ece5d6;
+  --color-border-strong: #7d7462;
+  --color-track: #e9e2d2;
+
+  --color-text: #1f2620;
+  --color-text-muted: #4a544c;
+
+  /* Action (Feuille). `accent-strong` : texte sur `accent-soft`, survol des liens. */
+  --color-accent: #2c6446;
+  --color-accent-contrast: #fffdf8;
+  --color-accent-soft: #dce9df;
+  --color-accent-strong: #1e4a33;
+
+  /* Repère graphique : barres et points qui ne sont pas l'action. */
+  --color-marker: #5e8a6f;
+
+  /* Safran : jamais un texte, jamais une information seule ; un fond, sous
+     `on-saffron`. Les encarts « conseil » prennent `saffron-soft`, sous
+     `on-saffron-soft` — deux textes distincts, car en thème sombre l'un est
+     foncé et l'autre clair. */
+  --color-saffron: #e9a93b;
+  --color-saffron-soft: #fbebc8;
+  --color-on-saffron: #1f2620;
+  --color-on-saffron-soft: #3b2a08;
+
+  /* Limite (Tomate). `danger-strong` : texte sur `danger-soft`. */
+  --color-danger: #b4432a;
+  --color-danger-soft: #f4ddd6;
+  --color-danger-strong: #8e3520;
+
+  --color-success: #2c6446;
+
+  /* Encarts foncés (profil, liste de courses, invitation reçue). */
+  --color-inverse: #1f2620;
+  --color-on-inverse: #fffdf8;
+  --color-on-inverse-muted: #d6d0c2;
+
+  /* Anneau de focus : Encre, 3 px, décalé de 2 px (`_a11y.scss`). */
+  --color-focus: #1f2620;
+
+  /* Macronutriments. La direction « Marché » les dessine d'une seule teinte :
+     le nom écrit à côté de chaque barre suffit à les distinguer. */
+  --color-protein: var(--color-accent);
+  --color-carbs: var(--color-accent);
+  --color-fat: var(--color-accent);
+  --color-fiber: var(--color-accent);
 
   /* Échelle d'espacement, base 4px. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
-  --space-5: 1.5rem;
+  --space-5: 1.25rem;
   --space-6: 2rem;
   --space-8: 3rem;
 
   --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-lg: 24px;
+  --radius-xl: 28px;
   --radius-pill: 999px;
 
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 8%);
-  --shadow-md: 0 4px 16px rgb(0 0 0 / 10%);
+  /* Les surfaces se détachent par leur bordure, pas par une ombre. Seuls les
+     éléments flottants (info-bulles) gardent une ombre. */
+  --shadow-sm: none;
+  --shadow-md: 0 6px 24px rgb(31 38 32 / 14%);
 
-  /* Typographie — police système : aucun téléchargement, donc aucun saut de
-     rendu au premier affichage, ce qui compte pour une PWA hors-ligne. */
+  /* Typographie. Les polices sont servies par l'application (`_fonts.scss`) ;
+     la pile de repli garde un rendu proche le temps du chargement. */
   --font-sans:
-    system-ui, -apple-system, 'Segoe UI', roboto, 'Helvetica Neue', arial, sans-serif;
+    'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', system-ui, -apple-system, 'Segoe UI',
+    roboto, arial, sans-serif;
+  --font-display: 'Young Serif', georgia, 'Times New Roman', serif;
+
   /* Tout est en `rem` : la taille de base est celle que la personne a choisie
      (navigateur ou système, voir `main.scss`), jamais une valeur imposée ici.
      Le plus petit texte ne descend pas sous 14 px à la taille par défaut —
@@ -61,11 +109,12 @@
   --font-size-sm: 0.9375rem;
   --font-size-md: 1rem;
   --font-size-lg: 1.25rem;
-  --font-size-xl: 1.75rem;
+  --font-size-xl: 1.5rem;
   --font-size-2xl: 2.25rem;
+  --font-size-display: 2.125rem;
 
-  --line-height-tight: 1.2;
-  --line-height-normal: 1.55;
+  --line-height-tight: 1.15;
+  --line-height-normal: 1.45;
 
   /* Durées d'animation, lues par GSAP comme par les transitions CSS. */
   --duration-fast: 0.18s;

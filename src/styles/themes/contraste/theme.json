@@ -2,6 +2,6 @@
   "id": "contraste",
   "name": "Contraste renforcé",
   "author": "The Quest for the Holy Spoon",
-  "description": "Noir et blanc, le plus lisible.",
-  "colorScheme": "dark"
+  "description": "Fond blanc, texte noir, le plus lisible.",
+  "colorScheme": "light"
 }

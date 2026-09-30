@@ -62,7 +62,7 @@ export const settings: Messages<typeof fr> = {
     subtitle: 'The change shows straight away. It applies to this device only.',
     legend: 'App colours',
     aube: { name: 'Dawn', description: 'Light background, dark text.' },
-    contraste: { name: 'High contrast', description: 'Black and white, the most legible.' },
+    contraste: { name: 'High contrast', description: 'White background, black text, the most legible.' },
     crepuscule: { name: 'Dusk', description: 'Dark background, light text.' },
   },
   account: {

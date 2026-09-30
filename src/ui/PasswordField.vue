@@ -71,7 +71,7 @@ const visible = ref(false)
   color: var(--color-accent);
   font: inherit;
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
 }
 

@@ -18,6 +18,8 @@
  */
 import { useId } from 'vue'
 
+import AppIcon from './AppIcon.vue'
+
 const props = defineProps<{
   title?: string
   subtitle?: string
@@ -49,9 +51,9 @@ const bodyId = useId()
           @click="emit('update:open', !props.open)"
         >
           <span>{{ title }}</span>
-          <span
+          <AppIcon
+            name="chevron-down"
             class="card__chevron"
-            aria-hidden="true"
           />
         </button>
         <template v-else>
@@ -97,6 +99,11 @@ const bodyId = useId()
   box-shadow: var(--shadow-sm);
 }
 
+/* Titre de carte : la serif des titres, un cran sous celle des sections. */
+.card__title {
+  font-size: var(--font-size-lg);
+}
+
 .card__header {
   margin-bottom: var(--space-4);
 }
@@ -130,17 +137,12 @@ const bodyId = useId()
 }
 
 .card__chevron {
-  flex-shrink: 0;
-  width: 0.6em;
-  height: 0.6em;
-  border-right: 2px solid currentcolor;
-  border-bottom: 2px solid currentcolor;
-  transform: rotate(45deg);
+  color: var(--color-text-muted);
   transition: transform var(--duration-fast) var(--ease-out);
 }
 
 .card__toggle[aria-expanded='true'] .card__chevron {
-  transform: rotate(-135deg);
+  transform: rotate(180deg);
 }
 
 .card__meta {

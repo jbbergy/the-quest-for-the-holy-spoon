@@ -5,6 +5,7 @@
  * et éléments de base (qui les consomment). Inverser ferait référencer des
  * variables encore indéfinies.
  */
+@use 'fonts';
 @use 'tokens';
 
 @use 'themes/aube/variables' as aube;
@@ -55,25 +56,52 @@ body {
     color var(--duration-normal) var(--ease-out);
 }
 
+/* Titres de page et de section : Young Serif, qui n'existe qu'en une graisse.
+   `font-weight: 400` explicite, sinon le navigateur en fabriquerait un gras
+   déformé. Les titres plus petits (`h3`) restent dans la police du texte, en
+   gras : une serif de caractère se lit mal en petit. */
 h1,
 h2,
 h3 {
   margin: 0 0 var(--space-3);
   line-height: var(--line-height-tight);
-  font-weight: 650;
-  letter-spacing: -0.015em;
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 h1 {
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-2xl);
 }
 
 h2 {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-xl);
 }
 
 h3 {
   font-size: var(--font-size-md);
+  font-weight: 700;
+}
+
+/* Étiquette de groupe : petites capitales espacées (« MES BESOINS »). */
+.eyebrow {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Chiffres clés (kcal restantes, totaux) : dans la police des titres. */
+.figure {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
 p {
@@ -82,7 +110,13 @@ p {
 
 a {
   color: var(--color-accent);
+  font-weight: 700;
+  text-decoration-thickness: 0.08em;
   text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--color-accent-strong);
 }
 
 ul {

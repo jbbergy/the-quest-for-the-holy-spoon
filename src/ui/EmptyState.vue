@@ -32,7 +32,8 @@ defineProps<{ title: string; description?: string }>()
 .empty__title {
   margin: 0;
   color: var(--color-text);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
 }
 
 .empty__description {

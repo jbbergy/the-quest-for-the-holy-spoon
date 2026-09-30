@@ -2,6 +2,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
@@ -68,6 +69,45 @@ describe('BaseButton', () => {
     await wrapper.trigger('click')
 
     expect(wrapper.emitted('click')).toHaveLength(1)
+  })
+
+  it('reste focalisable quand il est désactivé, sans rien émettre', async () => {
+    // Le bouton désactivé garde sa place dans la tabulation : la raison écrite
+    // à côté (« Ajoutez au moins un aliment ») doit pouvoir être atteinte.
+    const wrapper = mount(BaseButton, { props: { disabled: true } })
+
+    await wrapper.trigger('click')
+
+    expect(wrapper.attributes('disabled')).toBeUndefined()
+    expect(wrapper.attributes('aria-disabled')).toBe('true')
+    expect(wrapper.attributes('aria-busy')).toBeUndefined()
+    expect(wrapper.emitted('click')).toBeUndefined()
+  })
+
+  it('n’envoie pas le formulaire quand il est désactivé', () => {
+    // Un `submit` inerte doit bloquer l'envoi par défaut, pas seulement son
+    // propre événement : sinon le formulaire partirait quand même.
+    const wrapper = mount(BaseButton, { props: { type: 'submit', disabled: true } })
+    const event = new MouseEvent('click', { cancelable: true })
+
+    wrapper.element.dispatchEvent(event)
+
+    expect(event.defaultPrevented).toBe(true)
+  })
+})
+
+describe('AppIcon', () => {
+  it('reste décorative : masquée aux lecteurs d’écran et hors du focus', () => {
+    const wrapper = mount(AppIcon, { props: { name: 'check' } })
+
+    expect(wrapper.attributes('aria-hidden')).toBe('true')
+    expect(wrapper.attributes('focusable')).toBe('false')
+    expect(wrapper.html()).toContain('M5 12.5l4.5 4.5L19 7.5')
+  })
+
+  it('suit la taille du texte, sauf taille explicite', () => {
+    expect(mount(AppIcon, { props: { name: 'plus' } }).attributes('width')).toBe('1.25em')
+    expect(mount(AppIcon, { props: { name: 'plus', size: 2 } }).attributes('height')).toBe('2em')
   })
 })
 
