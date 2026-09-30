@@ -270,12 +270,13 @@ $wide: 64rem;
   flex-direction: column;
 }
 
+/* L'état de la synchronisation et le bouton des réglages restent côte à côte :
+   c'est la pastille qui cède (son mot se tronque), jamais le bouton. */
 .shell__top {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
-  gap: var(--space-2) var(--space-3);
+  gap: var(--space-2);
   width: 100%;
   max-width: var(--layout-max-width);
   margin: 0 auto;
@@ -287,6 +288,24 @@ $wide: 64rem;
   min-width: 0;
   justify-content: flex-start;
   padding: 0;
+}
+
+.shell__top .shell__settings {
+  flex-shrink: 0;
+}
+
+/* Écran très étroit : le bouton des réglages se resserre, sans rien perdre
+   de son mot ni de sa hauteur. */
+@media (width < 22.5rem) {
+  .shell__top .shell__settings {
+    gap: var(--space-1);
+    padding-right: var(--space-3);
+  }
+
+  .shell__top .shell__avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
 }
 
 .shell__main {

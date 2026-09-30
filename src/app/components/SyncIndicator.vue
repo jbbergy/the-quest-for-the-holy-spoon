@@ -116,6 +116,7 @@ function retry(): void {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
   max-width: 100%;
   margin: 0;
   color: var(--color-text-muted);
@@ -161,6 +162,13 @@ function retry(): void {
 
   &:hover {
     background: var(--color-surface);
+  }
+}
+
+@media (width < 22.5rem) {
+  .sync__chip--action {
+    gap: var(--space-1);
+    padding: 0 var(--space-2);
   }
 }
 
