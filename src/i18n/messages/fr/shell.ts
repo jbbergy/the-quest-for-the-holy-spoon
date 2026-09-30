@@ -5,7 +5,9 @@ export const shell = {
   pageShown: '{title}, page affichée',
   nav: {
     label: 'Navigation principale',
-    home: 'Aujourd’hui',
+    // Césure conditionnelle (U+00AD) : la césure automatique de Firefox ne
+    // sait pas couper ce mot, qui déborde de son onglet sur un écran étroit.
+    home: 'Aujour\u00ADd’hui',
     week: 'Semaine',
     pantry: 'Garde-manger',
     household: 'Foyer',
@@ -39,12 +41,13 @@ export const shell = {
     resetPassword: 'Nouveau mot de passe',
   },
   sync: {
-    syncing: 'Envoi en cours…',
-    offline: 'Pas d’Internet',
-    offlineWithPending: 'Pas d’Internet : {pending}',
-    error: 'Envoi impossible',
-    saved: 'Tout est enregistré',
+    syncing: 'Envoi…',
+    offline: 'Hors ligne',
+    error: 'Non envoyé',
+    saved: 'À jour',
+    pendingShort: '{n} à envoyer',
     pending: '{n} changement à envoyer | {n} changements à envoyer',
+    retrySpoken: 'réessayer l’envoi',
     offlineAnnouncement: 'Pas d’Internet. Vos changements partiront quand la connexion reviendra.',
     errorAnnouncement: 'L’envoi de vos changements n’a pas marché.',
     backOnline: 'Vos changements sont de nouveau envoyés.',

@@ -76,6 +76,7 @@ export const ICONS = {
   plus: { elements: [path('M12 5v14M5 12h14')], strokeWidth: 2.2 },
   minus: { elements: [path('M5 12h14')], strokeWidth: 2.2 },
   close: { elements: [path('M6 6l12 12M18 6L6 18')], strokeWidth: 2 },
+  retry: { elements: [path('M4.5 12a7.5 7.5 0 0 1 13.2-4.9L20 9.5'), path('M20 4.5v5h-5'), path('M19.5 12a7.5 7.5 0 0 1-13.2 4.9L4 14.5'), path('M4 19.5v-5h5')], strokeWidth: 2 },
   search: { elements: [circle(11, 11, 6.5), path('M20 20l-4.2-4.2')], strokeWidth: 2 },
   alert: { elements: [circle(12, 12, 9), path('M12 7.5v5.5M12 16.5v.01')], strokeWidth: 2 },
   'chevron-left': { elements: [path('M15 6l-6 6 6 6')], strokeWidth: 2 },

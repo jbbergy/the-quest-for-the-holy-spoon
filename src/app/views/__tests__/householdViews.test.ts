@@ -351,7 +351,8 @@ describe('Réglages du foyer', () => {
 describe('Navigation', () => {
   const mountShell = async (signedIn: boolean, overrides: FakeContainerOverrides = {}) => {
     const wrapper = await mountAt(AppShell, '/tableau-de-bord', overrides, signedIn)
-    return wrapper.findAll('nav a').map((link) => link.text())
+    // Sans la césure conditionnelle de « Aujour­d’hui », invisible à l'écran.
+    return wrapper.findAll('nav a').map((link) => link.text().replaceAll('\u00ad', ''))
   }
 
   it('n’offre l’onglet Foyer qu’avec un compte', async () => {

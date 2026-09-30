@@ -66,17 +66,32 @@ describe('SyncIndicator', () => {
   })
 
   it.each([
-    [{ phase: 'idle', pending: 0 }, 'Tout est enregistré'],
-    [{ phase: 'idle', pending: 1 }, '1 changement à envoyer'],
-    [{ phase: 'syncing', pending: 0 }, 'Envoi en cours…'],
-    [{ phase: 'offline', pending: 3 }, 'Pas d’Internet : 3 changements à envoyer'],
-    [{ phase: 'offline', pending: 0 }, 'Pas d’Internet'],
-    [{ phase: 'error', pending: 0 }, 'Envoi impossible'],
-  ] as const)('dit l’état %o : « %s »', async (state, label) => {
+    [{ phase: 'idle', pending: 0 }, 'À jour'],
+    [{ phase: 'idle', pending: 1 }, '1 à envoyer'],
+    [{ phase: 'syncing', pending: 0 }, 'Envoi…'],
+    [{ phase: 'offline', pending: 0 }, 'Hors ligne'],
+    [{ phase: 'error', pending: 0 }, 'Non envoyé'],
+  ] as const)('dit l’état %o d’un mot : « %s »', async (state, label) => {
     const wrapper = mount(SyncIndicator)
     control.set(state)
     await flushPromises()
     expect(wrapper.find('.sync__label').text()).toBe(label)
+  })
+
+  it('relance par la pastille elle-même, nommée d’abord par son mot visible', async () => {
+    const wrapper = mount(SyncIndicator)
+    control.set({ phase: 'offline', pending: 3 })
+    await flushPromises()
+
+    // Critère 2.5.3 : le nom accessible commence par le texte affiché.
+    expect(wrapper.find('button').text()).toBe('Hors ligne, 3 changements à envoyer, réessayer l’envoi')
+  })
+
+  it('n’offre pas de bouton quand tout va bien', async () => {
+    const wrapper = mount(SyncIndicator)
+    control.set({ phase: 'idle', pending: 0 })
+    await flushPromises()
+    expect(wrapper.find('button').exists()).toBe(false)
   })
 
   it('n’annonce que les moments qui comptent', async () => {

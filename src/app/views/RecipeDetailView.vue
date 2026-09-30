@@ -253,29 +253,44 @@ function unit(line: RecipeLineSummary): string {
 .recipe__lines {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
   margin: 0 0 var(--space-4);
   padding: 0;
   list-style: none;
 }
 
+/* Le nom sur toute la largeur, puis la quantité et le retrait dessous : un
+   nom de produit long (« Pesto Verde au basilic (Bio Organica Italia) »)
+   garde sa ligne au lieu d'être comprimé par le champ. */
 .recipe__line {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name name'
+    'amount remove';
   align-items: center;
   gap: var(--space-2);
-  font-size: var(--font-size-sm);
+  padding: var(--space-3) 0;
+
+  & + & {
+    border-top: 1px solid var(--color-divider);
+  }
+
+  > :last-child {
+    grid-area: remove;
+  }
 }
 
 .recipe__line-name {
-  flex: 1;
-  min-width: 0;
+  grid-area: name;
+  font-weight: 700;
   overflow-wrap: break-word;
 }
 
 .recipe__amount {
   display: flex;
+  grid-area: amount;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   color: var(--color-text-muted);
 }
 
@@ -288,9 +303,9 @@ function unit(line: RecipeLineSummary): string {
   width: 4.5rem;
   min-height: 44px;
   padding: var(--space-1) var(--space-2);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
   color: var(--color-text);
   font: inherit;
   font-variant-numeric: tabular-nums;
