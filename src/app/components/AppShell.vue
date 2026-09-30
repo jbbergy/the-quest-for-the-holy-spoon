@@ -13,14 +13,19 @@ import { useRoute } from 'vue-router'
 
 import ServiceWorkerNotice from '@/app/components/ServiceWorkerNotice.vue'
 import SyncIndicator from '@/app/components/SyncIndicator.vue'
+import { initials } from '@/app/initials'
 import { ACCOUNT_ROUTES, ROUTE } from '@/app/router'
 import { pageTitle } from '@/app/pageTitle'
 import { useHousehold } from '@/app/useHousehold'
 import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
+import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
+import type { IconName } from '@/ui/icons'
 
 const route = useRoute()
 const account = useAccountStore()
+const players = usePlayerStore()
 /**
  * Les invitations sont lues dès l'ouverture de session : une personne qui
  * vient de créer son compte depuis un e-mail d'invitation doit la voir
@@ -37,29 +42,50 @@ const main = ref<HTMLElement | null>(null)
  * Plus d'entrée « Journal » : la semaine montre aussi les jours passés, et deux
  * écrans qui modifient les mêmes repas compliquaient l'usage plus qu'ils ne
  * l'aidaient.
+ *
+ * Les réglages ne sont plus un onglet : on y va rarement, et leur place
+ * servait mieux au garde-manger, où l'on retourne souvent. Ils s'ouvrent
+ * depuis le bouton à l'avatar, en haut de chaque écran.
  */
-interface NavLink {
+interface Destination {
   readonly name: string
-  readonly label: string
-  readonly icon: string
-  /** Écrans qui dépendent de cet onglet : il reste allumé quand on y est. */
+  /** Écrans qui en dépendent : le lien reste allumé quand on y est. */
   readonly also: readonly string[]
 }
 
-const HOME: NavLink = { name: ROUTE.dashboard, label: 'shell.nav.home', icon: '◎', also: [] }
-const WEEK: NavLink = { name: ROUTE.weekPlan, label: 'shell.nav.week', icon: '▦', also: [ROUTE.mealEditor] }
-const HOUSEHOLD: NavLink = { name: ROUTE.household, label: 'shell.nav.household', icon: '⌂', also: [ROUTE.invitation, ROUTE.memberDay] }
-const SETTINGS: NavLink = {
-  name: ROUTE.settings,
-  label: 'shell.nav.settings',
-  icon: '⚙',
-  also: [ROUTE.foods, ROUTE.foodDetail, ROUTE.foodEdit, ROUTE.customFood, ROUTE.profileEdit, ROUTE.recipes, ROUTE.recipeDetail],
+interface NavLink extends Destination {
+  readonly label: string
+  readonly icon: IconName
 }
+
+const HOME: NavLink = { name: ROUTE.dashboard, label: 'shell.nav.home', icon: 'today', also: [] }
+const WEEK: NavLink = {
+  name: ROUTE.weekPlan,
+  label: 'shell.nav.week',
+  icon: 'week',
+  also: [ROUTE.mealEditor, ROUTE.shoppingList],
+}
+const PANTRY: NavLink = {
+  name: ROUTE.foods,
+  label: 'shell.nav.pantry',
+  icon: 'pantry',
+  also: [ROUTE.foodDetail, ROUTE.foodEdit, ROUTE.customFood, ROUTE.recipes, ROUTE.recipeDetail],
+}
+const HOUSEHOLD: NavLink = {
+  name: ROUTE.household,
+  label: 'shell.nav.household',
+  icon: 'household',
+  also: [ROUTE.invitation, ROUTE.memberDay],
+}
+const SETTINGS: Destination = { name: ROUTE.settings, also: [ROUTE.profileEdit, ROUTE.calculations] }
 
 /** Le foyer n'existe qu'avec un compte : sans session, l'onglet n'aurait rien à montrer. */
 const links = computed<readonly NavLink[]>(() =>
-  account.isSignedIn ? [HOME, WEEK, HOUSEHOLD, SETTINGS] : [HOME, WEEK, SETTINGS],
+  account.isSignedIn ? [HOME, WEEK, PANTRY, HOUSEHOLD] : [HOME, WEEK, PANTRY],
 )
+
+/** Pastille du bouton des réglages : les initiales de la personne. */
+const avatar = computed(() => initials(players.player?.name ?? ''))
 
 const pendingInvitations = computed(() =>
   household.household === null ? household.invitations.length : 0,
@@ -70,7 +96,7 @@ const pendingInvitations = computed(() =>
  * d'un repas appartient à la semaine, et l'onglet doit rester allumé sans
  * prétendre au lecteur d'écran que c'est la même page.
  */
-function currentness(link: NavLink): 'page' | 'true' | undefined {
+function currentness(link: Destination): 'page' | 'true' | undefined {
   if (route.name === link.name) return 'page'
   return link.also.includes(String(route.name)) ? 'true' : undefined
 }
@@ -123,7 +149,10 @@ watch(
 </script>
 
 <template>
-  <div class="shell">
+  <div
+    class="shell"
+    :class="{ 'shell--bare': isBare }"
+  >
     <a
       class="skip-link"
       href="#contenu"
@@ -137,7 +166,84 @@ watch(
       {{ announcement }}
     </p>
 
-    <SyncIndicator v-if="!isBare" />
+    <!-- Téléphone : barre d'onglets en bas. Grand écran : colonne à gauche,
+         avec le nom de l'application et le bouton des réglages. -->
+    <div
+      v-if="!isBare"
+      class="shell__side"
+    >
+      <p
+        class="shell__brand"
+        aria-hidden="true"
+      >
+        {{ t('shell.brand') }}
+      </p>
+
+      <nav
+        class="shell__nav"
+        :aria-label="t('shell.nav.label')"
+      >
+        <ul class="shell__links">
+          <li
+            v-for="link in links"
+            :key="link.name"
+          >
+            <RouterLink
+              class="shell__link"
+              :to="{ name: link.name }"
+              :aria-current="currentness(link)"
+            >
+              <span class="shell__icon">
+                <AppIcon
+                  :name="link.icon"
+                  :size="1.375"
+                />
+              </span>
+              <span class="shell__label">{{ t(link.label) }}</span>
+              <span
+                v-if="link === HOUSEHOLD && pendingInvitations > 0"
+                class="shell__badge"
+              >
+                <span aria-hidden="true">{{ pendingInvitations }}</span>
+                <span class="sr-only">
+                  {{ t('shell.nav.pendingInvitations', { n: pendingInvitations }) }}
+                </span>
+              </span>
+            </RouterLink>
+          </li>
+        </ul>
+      </nav>
+
+      <RouterLink
+        class="shell__settings shell__settings--side"
+        :to="{ name: ROUTE.settings }"
+        :aria-current="currentness(SETTINGS)"
+      >
+        <span
+          class="shell__avatar"
+          aria-hidden="true"
+        >{{ avatar }}</span>
+        {{ t('shell.nav.settings') }}
+      </RouterLink>
+    </div>
+
+    <header
+      v-if="!isBare"
+      class="shell__top"
+    >
+      <SyncIndicator class="shell__sync" />
+      <RouterLink
+        class="shell__settings shell__settings--top"
+        :to="{ name: ROUTE.settings }"
+        :aria-current="currentness(SETTINGS)"
+      >
+        <span
+          class="shell__avatar"
+          aria-hidden="true"
+        >{{ avatar }}</span>
+        {{ t('shell.nav.settings') }}
+      </RouterLink>
+    </header>
 
     <main
       id="contenu"
@@ -150,43 +256,33 @@ watch(
     </main>
 
     <ServiceWorkerNotice />
-
-    <nav
-      v-if="!isBare"
-      class="shell__nav"
-      :aria-label="t('shell.nav.label')"
-    >
-      <RouterLink
-        v-for="link in links"
-        :key="link.name"
-        class="shell__link touch-target"
-        :to="{ name: link.name }"
-        :aria-current="currentness(link)"
-      >
-        <span
-          class="shell__icon"
-          aria-hidden="true"
-        >{{ link.icon }}</span>
-        <span class="shell__label">{{ t(link.label) }}</span>
-        <span
-          v-if="link === HOUSEHOLD && pendingInvitations > 0"
-          class="shell__badge"
-        >
-          <span aria-hidden="true">{{ pendingInvitations }}</span>
-          <span class="sr-only">
-            {{ t('shell.nav.pendingInvitations', { n: pendingInvitations }) }}
-          </span>
-        </span>
-      </RouterLink>
-    </nav>
   </div>
 </template>
 
 <style scoped lang="scss">
+/* Au-delà de cette largeur, la barre d'onglets devient une colonne. */
+$wide: 64rem;
+
 .shell {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+}
+
+.shell__top {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  width: 100%;
+  max-width: var(--layout-max-width);
+  margin: 0 auto;
+  padding: var(--space-4) var(--space-4) 0;
+}
+
+.shell__top .shell__sync {
+  margin-right: auto;
+  padding: 0;
 }
 
 .shell__main {
@@ -197,11 +293,12 @@ watch(
   /* La marge basse réserve la place de la barre de navigation, y compris la zone
      sûre des téléphones à encoche. */
   margin: 0 auto;
-  padding: var(--space-5) var(--space-4)
-    calc(var(--space-8) + env(safe-area-inset-bottom, 0px) + 3.5rem);
+  padding: var(--space-3) var(--space-4)
+    calc(var(--space-8) + env(safe-area-inset-bottom, 0px) + 4rem);
 }
 
 .shell__main--bare {
+  padding-top: var(--space-5);
   padding-bottom: var(--space-5);
 }
 
@@ -211,60 +308,215 @@ watch(
   outline: none;
 }
 
+/* Sur téléphone, la colonne n'existe pas : ses enfants se placent seuls. */
+.shell__side {
+  display: contents;
+}
+
+.shell__brand,
+.shell__side .shell__settings--side {
+  display: none;
+}
+
 .shell__nav {
   position: fixed;
   right: 0;
   bottom: 0;
   left: 0;
   z-index: 10;
-  display: flex;
-  justify-content: center;
-  gap: var(--space-1);
   padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
-  background: color-mix(in srgb, var(--color-surface-raised) 92%, transparent);
+  background: var(--color-surface-raised);
   border-top: 1px solid var(--color-border);
-  backdrop-filter: blur(12px);
+}
+
+.shell__links {
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  gap: var(--space-1);
+  max-width: 32rem;
+  margin: 0 auto;
 }
 
 .shell__link {
   position: relative;
   display: flex;
-  flex: 1;
-  max-width: 7rem;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: var(--space-1);
+  gap: var(--space-1);
+  min-height: 3.5rem;
+  padding: var(--space-1) 0;
   border-radius: var(--radius-md);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
-  white-space: nowrap;
+}
+
+.shell__link:hover {
+  color: var(--color-text);
+}
+
+/* La pastille de l'onglet actif : fond teinté **et** texte en gras, pour que
+   l'état ne repose pas sur la seule couleur (critère 1.4.1). */
+.shell__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 2rem;
+  border-radius: var(--radius-pill);
+}
+
+.shell__link[aria-current] {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.shell__link[aria-current] .shell__icon {
+  background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
 }
 
 .shell__badge {
   position: absolute;
-  top: 2px;
-  left: calc(50% + 0.5rem);
-  min-width: 1.1rem;
-  padding: 0 0.3rem;
+  top: 0;
+  left: calc(50% + 0.6rem);
+  min-width: 1.25rem;
+  padding: 0 0.35rem;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
   font-size: var(--font-size-xs);
   font-weight: 700;
-  line-height: 1.1rem;
+  line-height: 1.25rem;
   text-align: center;
 }
 
-.shell__link[aria-current] {
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
+/* Bouton des réglages : pastille d'initiales et mot écrit, jamais l'avatar
+   seul — une photo ou des lettres ne disent pas où mène le bouton. */
+.shell__settings {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4) 0 6px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
   font-weight: 700;
+  text-decoration: none;
 }
 
-.shell__icon {
-  font-size: var(--font-size-lg);
+.shell__settings:hover {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.shell__settings[aria-current] {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+}
+
+.shell__avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-inverse);
+  color: var(--color-on-inverse);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
   line-height: 1;
+}
+
+@media (min-width: $wide) {
+  .shell:not(.shell--bare) {
+    display: grid;
+    grid-template-columns: 15.5rem minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+  }
+
+  .shell__side {
+    position: sticky;
+    top: 0;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    height: 100dvh;
+    padding: var(--space-6) var(--space-4);
+    background: var(--color-surface-raised);
+    border-right: 1px solid var(--color-border);
+  }
+
+  .shell__brand {
+    display: block;
+    margin: 0 var(--space-3);
+    font-family: var(--font-display);
+    font-size: var(--font-size-xl);
+    line-height: 1.1;
+  }
+
+  .shell__nav {
+    position: static;
+    padding: 0;
+    background: none;
+    border: none;
+  }
+
+  .shell__links {
+    grid-auto-flow: row;
+    max-width: none;
+  }
+
+  .shell__link {
+    flex-direction: row;
+    gap: var(--space-3);
+    min-height: 3.25rem;
+    padding: 0 var(--space-3);
+    font-size: var(--font-size-md);
+    text-align: left;
+  }
+
+  .shell__icon {
+    width: 2rem;
+  }
+
+  .shell__badge {
+    position: static;
+    margin-left: auto;
+  }
+
+  .shell__side .shell__settings--side {
+    display: inline-flex;
+    margin-top: auto;
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-md);
+  }
+
+  .shell__top .shell__settings--top {
+    display: none;
+  }
+
+  .shell__top,
+  .shell__main {
+    max-width: calc(var(--layout-max-width) + 2 * var(--space-8));
+    padding-inline: var(--space-8);
+  }
+
+  .shell__top {
+    padding-top: var(--space-5);
+  }
+
+  .shell__main {
+    padding-bottom: var(--space-8);
+  }
 }
 </style>

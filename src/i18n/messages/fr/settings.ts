@@ -22,16 +22,6 @@ export const settings = {
     perDay: '{kcal} kcal par jour',
     note: 'Votre besoin, c’est l’énergie au repos, plus celle de vos activités. C’est une estimation{tip}.',
   },
-  foods: {
-    title: 'Mes aliments',
-    subtitle: 'Les aliments que vous avez créés vous-même.',
-    open: 'Voir mes aliments',
-  },
-  recipes: {
-    title: 'Mes recettes',
-    subtitle: 'Les repas que vous avez gardés, pour les ajouter d’un geste.',
-    open: 'Voir mes recettes',
-  },
   calculations: {
     title: 'Comment sont calculés mes repères ?',
     subtitle: 'D’où viennent les chiffres des aliments et de votre journée.',

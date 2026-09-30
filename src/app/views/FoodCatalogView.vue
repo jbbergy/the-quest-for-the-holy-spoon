@@ -9,16 +9,21 @@
  * La recherche part à la frappe : IndexedDB répond en quelques millisecondes,
  * rien ne justifie un bouton. Le terme est reporté dans l'adresse, et gardé
  * par le store, pour retrouver la même liste en revenant d'une fiche.
+ *
+ * C'est l'onglet « Mes aliments » du garde-manger. Avec un foyer, un filtre
+ * sépare ses propres aliments de ceux des autres membres.
  */
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import PantryHeader from '@/app/components/PantryHeader.vue'
 import { per100Label } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import { t } from '@/i18n'
 import { useFoodCatalogStore } from '@/modules/nutrition_inventory/presentation/useFoodCatalogStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseField from '@/ui/BaseField.vue'
 import EmptyState from '@/ui/EmptyState.vue'
@@ -35,6 +40,28 @@ const household = useHousehold()
 const TYPING_DELAY_MS = 200
 
 const query = ref('')
+
+type Filter = 'all' | 'mine' | 'household'
+const filter = ref<Filter>('all')
+const FILTERS: readonly { value: Filter; label: string }[] = [
+  { value: 'all', label: 'foods.pantry.filterAll' },
+  { value: 'mine', label: 'foods.pantry.filterMine' },
+  { value: 'household', label: 'foods.pantry.filterHousehold' },
+]
+
+/** Sans foyer, tous les aliments sont les siens : le filtre n'aurait rien à trier. */
+const canFilter = computed(() => household.household !== null)
+
+function isMine(ownerId: string | null | undefined): boolean {
+  return ownerId == null || ownerId === players.playerId
+}
+
+const shown = computed(() => {
+  if (!canFilter.value || filter.value === 'all') return catalog.items
+  const mine = filter.value === 'mine'
+  return catalog.items.filter((item) => isMine(item.ownerId) === mine)
+})
+
 let typing: ReturnType<typeof setTimeout> | undefined
 
 async function refresh(): Promise<void> {
@@ -66,22 +93,7 @@ onMounted(async () => {
 
 <template>
   <div class="catalog">
-    <RouterLink
-      class="catalog__back"
-      :to="{ name: ROUTE.settings }"
-    >
-      <span aria-hidden="true">←</span> {{ t('shell.nav.settings') }}
-    </RouterLink>
-
-    <div class="catalog__header">
-      <h1>{{ t('foods.catalog.title') }}</h1>
-      <BaseButton
-        size="sm"
-        @click="router.push({ name: ROUTE.customFood })"
-      >
-        <span aria-hidden="true">+</span> {{ t('foods.catalog.create') }}
-      </BaseButton>
-    </div>
+    <PantryHeader />
 
     <ErrorNotice :error="catalog.error" />
 
@@ -92,9 +104,40 @@ onMounted(async () => {
     >
       <BaseField
         v-model="query"
+        type="search"
         :label="t('foods.catalog.searchLabel')"
         :hint="t('foods.catalog.searchHint')"
-      />
+      >
+        <template #leading>
+          <AppIcon
+            name="search"
+            class="catalog__search-icon"
+          />
+        </template>
+      </BaseField>
+
+      <fieldset
+        v-if="canFilter"
+        class="catalog__filters"
+      >
+        <legend class="sr-only">
+          {{ t('foods.pantry.filterLegend') }}
+        </legend>
+        <label
+          v-for="option in FILTERS"
+          :key="option.value"
+          class="chip"
+        >
+          <input
+            v-model="filter"
+            class="chip__input"
+            type="radio"
+            name="food-filter"
+            :value="option.value"
+          >
+          <span class="chip__label">{{ t(option.label) }}</span>
+        </label>
+      </fieldset>
     </form>
 
     <p
@@ -102,32 +145,39 @@ onMounted(async () => {
       role="status"
       aria-live="polite"
     >
-      {{ catalog.status === 'ready' ? t('foods.catalog.found', { n: catalog.items.length }) : '' }}
+      {{ catalog.status === 'ready' ? t('foods.catalog.found', { n: shown.length }) : '' }}
     </p>
 
     <ul
-      v-if="catalog.items.length > 0"
+      v-if="shown.length > 0"
       class="catalog__list"
+      :aria-label="t('foods.pantry.foods')"
     >
       <li
-        v-for="item in catalog.items"
+        v-for="item in shown"
         :key="item.id"
       >
         <RouterLink
           class="catalog__item"
           :to="{ name: ROUTE.foodDetail, params: { foodId: item.id } }"
         >
-          <span class="catalog__name">{{ item.name }}</span>
-          <span class="catalog__meta">
-            <FoodSourceTag
-              :source="item.source"
-              :author="foodAuthor(household.household, players.playerId, item.ownerId)"
-            />
-            {{ t('meal.picker.kcalPer', { kcal: Math.round(item.macrosPer100g.calories()), per: per100Label(item) }) }}
-            <template v-if="item.servings.length > 0">
-              · {{ t('foods.catalog.portions', { n: item.servings.length }) }}
-            </template>
+          <span class="catalog__text">
+            <span class="catalog__name">{{ item.name }}</span>
+            <span class="catalog__meta">
+              <FoodSourceTag
+                :source="item.source"
+                :author="foodAuthor(household.household, players.playerId, item.ownerId)"
+              />
+              {{ t('meal.picker.kcalPer', { kcal: Math.round(item.macrosPer100g.calories()), per: per100Label(item) }) }}
+              <template v-if="item.servings.length > 0">
+                · {{ t('foods.catalog.portions', { n: item.servings.length }) }}
+              </template>
+            </span>
           </span>
+          <AppIcon
+            name="chevron-right"
+            class="catalog__chevron"
+          />
         </RouterLink>
       </li>
     </ul>
@@ -136,15 +186,22 @@ onMounted(async () => {
       v-else-if="catalog.status === 'ready'"
       :title="query.trim() === '' ? t('foods.catalog.emptyNone') : t('foods.catalog.emptyNoMatch')"
       :description="t('foods.catalog.emptyDescription')"
+    />
+
+    <aside class="catalog__missing">
+      <p class="catalog__missing-title">
+        {{ t('foods.pantry.missingTitle') }}
+      </p>
+      <p>{{ t('foods.pantry.missingText') }}</p>
+    </aside>
+
+    <BaseButton
+      block
+      @click="router.push({ name: ROUTE.customFood })"
     >
-      <BaseButton
-        size="sm"
-        variant="secondary"
-        @click="router.push({ name: ROUTE.customFood })"
-      >
-        {{ t('foods.catalog.create') }}
-      </BaseButton>
-    </EmptyState>
+      <AppIcon name="plus" />
+      {{ t('foods.catalog.create') }}
+    </BaseButton>
   </div>
 </template>
 
@@ -152,64 +209,112 @@ onMounted(async () => {
 .catalog {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
-.catalog__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-
-  h1 {
-    margin: 0;
-  }
-}
-
-.catalog__back {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 44px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-
-  &:hover {
-    color: var(--color-text);
-  }
-}
-
-.catalog__list {
+.catalog__search {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+}
+
+.catalog__search-icon {
+  color: var(--color-text-muted);
+}
+
+.catalog__filters {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin: 0;
   padding: 0;
+  border: none;
+}
+
+/* Puce de filtre : un vrai bouton radio, masqué, sous une étiquette cliquable.
+   Le clavier et l'annonce (« Les miens, bouton radio, 2 sur 3 ») viennent de
+   l'élément natif. */
+.chip {
+  position: relative;
+  display: inline-flex;
+}
+
+.chip__input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chip__label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.chip__input:checked + .chip__label {
+  background: var(--color-inverse);
+  border-color: var(--color-inverse);
+  color: var(--color-on-inverse);
+  font-weight: 700;
+}
+
+.chip__input:focus-visible + .chip__label {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Une seule carte, des lignes séparées par un filet. */
+.catalog__list {
+  margin: 0;
+  padding: 0;
   list-style: none;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.catalog__list li + li {
+  border-top: 1px solid var(--color-divider);
 }
 
 .catalog__item {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-height: 44px;
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 4.25rem;
+  padding: var(--space-3) var(--space-4);
   color: var(--color-text);
+  font-weight: 400;
   text-decoration: none;
 
-  &:hover,
+  &:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
   &:focus-visible {
-    border-color: var(--color-accent);
+    outline-offset: -3px;
   }
 }
 
+.catalog__text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .catalog__name {
-  font-weight: 600;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
@@ -219,6 +324,25 @@ onMounted(async () => {
   align-items: center;
   gap: var(--space-2);
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
+}
+
+.catalog__chevron {
+  color: var(--color-text-muted);
+}
+
+.catalog__missing {
+  padding: var(--space-4) var(--space-5);
+  background: var(--color-saffron-soft);
+  border-radius: var(--radius-lg);
+  color: var(--color-on-saffron-soft);
+
+  p {
+    margin: 0;
+  }
+}
+
+.catalog__missing-title {
+  font-weight: 700;
 }
 </style>

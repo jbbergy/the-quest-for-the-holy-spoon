@@ -5,14 +5,18 @@
  * Il n'y a pas de bouton « créer » : une recette naît d'un repas composé, avec
  * « Garder comme recette » dans l'éditeur de repas. L'écran le dit quand la
  * liste est vide. Chaque recette ouvre sa fiche, où elle se corrige.
+ *
+ * C'est l'onglet « Mes recettes » du garde-manger.
  */
 import { computed, onMounted } from 'vue'
 
+import PantryHeader from '@/app/components/PantryHeader.vue'
 import { formatPortion } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
 import { t } from '@/i18n'
 import { useRecipeStore } from '@/modules/nutrition_inventory/presentation/useRecipeStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
@@ -36,14 +40,7 @@ function ingredients(recipe: RecipeSummary): string {
 
 <template>
   <div class="recipes">
-    <RouterLink
-      class="recipes__back"
-      :to="{ name: ROUTE.settings }"
-    >
-      <span aria-hidden="true">←</span> {{ t('shell.nav.settings') }}
-    </RouterLink>
-
-    <h1>{{ t('recipes.list.title') }}</h1>
+    <PantryHeader />
 
     <ErrorNotice :error="recipeStore.error" />
 
@@ -58,6 +55,7 @@ function ingredients(recipe: RecipeSummary): string {
     <ul
       v-if="count > 0"
       class="recipes__list"
+      :aria-label="t('foods.pantry.recipes')"
     >
       <li
         v-for="recipe in recipeStore.recipes"
@@ -67,10 +65,16 @@ function ingredients(recipe: RecipeSummary): string {
           class="recipes__item"
           :to="{ name: ROUTE.recipeDetail, params: { recipeId: recipe.recipeId } }"
         >
-          <span class="recipes__name">{{ recipe.name }}</span>
-          <span class="recipes__meta">
-            {{ t('recipes.list.meta', { n: recipe.lines.length, list: ingredients(recipe) }) }}
+          <span class="recipes__text">
+            <span class="recipes__name">{{ recipe.name }}</span>
+            <span class="recipes__meta">
+              {{ t('recipes.list.meta', { n: recipe.lines.length, list: ingredients(recipe) }) }}
+            </span>
           </span>
+          <AppIcon
+            name="chevron-right"
+            class="recipes__chevron"
+          />
         </RouterLink>
       </li>
     </ul>
@@ -95,60 +99,63 @@ function ingredients(recipe: RecipeSummary): string {
 .recipes {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
-.recipes h1 {
-  margin: 0;
-}
-
-.recipes__back {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 44px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-
-  &:hover {
-    color: var(--color-text);
-  }
-}
-
+/* Une seule carte, des lignes séparées par un filet : comme les aliments. */
 .recipes__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.recipes__list li + li {
+  border-top: 1px solid var(--color-divider);
 }
 
 .recipes__item {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  min-height: 44px;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 4.25rem;
   padding: var(--space-3) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: inherit;
+  color: var(--color-text);
+  font-weight: 400;
   text-decoration: none;
   overflow-wrap: anywhere;
 
   &:hover {
-    border-color: var(--color-accent);
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline-offset: -3px;
   }
 }
 
+.recipes__text {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .recipes__name {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .recipes__meta {
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+.recipes__chevron {
+  color: var(--color-text-muted);
 }
 </style>

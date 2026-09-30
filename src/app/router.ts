@@ -120,49 +120,63 @@ export function createAppRouter(): Router {
       { path: '/repas', redirect: { name: ROUTE.weekPlan } },
       { path: '/journal', redirect: { name: ROUTE.weekPlan } },
       {
-        // Mes aliments, ouverts depuis les réglages. `?q=` : la recherche en cours.
-        path: '/aliments',
+        // Garde-manger, onglet « Mes aliments ». `?q=` : la recherche en cours.
+        path: '/garde-manger',
         name: ROUTE.foods,
         meta: { title: 'shell.titles.foods' },
         component: () => import('./views/FoodCatalogView.vue'),
       },
       {
         // `?retour=` : l'éditeur de repas d'où l'on vient.
-        path: '/aliments/nouveau',
+        path: '/garde-manger/aliments/nouveau',
         name: ROUTE.customFood,
         meta: { title: 'shell.titles.createFood' },
         component: () => import('./views/CustomFoodView.vue'),
       },
       {
-        path: '/aliments/:foodId',
+        path: '/garde-manger/aliments/:foodId',
         name: ROUTE.foodDetail,
         meta: { title: 'shell.titles.food' },
         component: () => import('./views/FoodDetailView.vue'),
       },
       {
-        path: '/aliments/:foodId/modifier',
+        path: '/garde-manger/aliments/:foodId/modifier',
         name: ROUTE.foodEdit,
         meta: { title: 'shell.titles.editFood' },
         component: () => import('./views/CustomFoodView.vue'),
+      },
+      {
+        // Garde-manger, onglet « Mes recettes ».
+        path: '/garde-manger/recettes',
+        name: ROUTE.recipes,
+        meta: { title: 'shell.titles.recipes' },
+        component: () => import('./views/RecipeListView.vue'),
+      },
+      {
+        path: '/garde-manger/recettes/:recipeId',
+        name: ROUTE.recipeDetail,
+        meta: { title: 'shell.titles.recipe' },
+        component: () => import('./views/RecipeDetailView.vue'),
+      },
+      // Adresses d'avant le garde-manger : un favori ou un lien partagé peut
+      // encore y mener. `nouveau` d'abord, sinon il passerait pour un identifiant.
+      { path: '/aliments', redirect: (to) => ({ name: ROUTE.foods, query: to.query }) },
+      { path: '/aliments/nouveau', redirect: (to) => ({ name: ROUTE.customFood, query: to.query }) },
+      { path: '/aliments/:foodId', redirect: (to) => ({ name: ROUTE.foodDetail, params: to.params }) },
+      {
+        path: '/aliments/:foodId/modifier',
+        redirect: (to) => ({ name: ROUTE.foodEdit, params: to.params }),
+      },
+      { path: '/reglages/recettes', redirect: { name: ROUTE.recipes } },
+      {
+        path: '/reglages/recettes/:recipeId',
+        redirect: (to) => ({ name: ROUTE.recipeDetail, params: to.params }),
       },
       {
         path: '/reglages',
         name: ROUTE.settings,
         meta: { title: 'shell.titles.settings' },
         component: () => import('./views/SettingsView.vue'),
-      },
-      {
-        // Mes recettes, ouvertes depuis les réglages.
-        path: '/reglages/recettes',
-        name: ROUTE.recipes,
-        meta: { title: 'shell.titles.recipes' },
-        component: () => import('./views/RecipeListView.vue'),
-      },
-      {
-        path: '/reglages/recettes/:recipeId',
-        name: ROUTE.recipeDetail,
-        meta: { title: 'shell.titles.recipe' },
-        component: () => import('./views/RecipeDetailView.vue'),
       },
       {
         // Comment les repères sont calculés, ouvert depuis les réglages.

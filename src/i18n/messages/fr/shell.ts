@@ -1,11 +1,13 @@
 /** Coquille de l'application : navigation, titres d'écran, synchronisation, mises à jour, accueil. */
 export const shell = {
   skipLink: 'Aller au contenu',
+  brand: 'Holy Spoon',
   pageShown: '{title}, page affichée',
   nav: {
     label: 'Navigation principale',
-    home: 'Accueil',
+    home: 'Aujourd’hui',
     week: 'Semaine',
+    pantry: 'Garde-manger',
     household: 'Foyer',
     settings: 'Réglages',
     pendingInvitations: ', {n} invitation en attente | , {n} invitations en attente',
@@ -14,7 +16,7 @@ export const shell = {
     loading: 'Chargement',
     welcome: 'Bienvenue',
     profileSetup: 'Créer mon profil',
-    home: 'Accueil',
+    home: 'Aujourd’hui',
     week: 'Semaine',
     meal: 'Repas',
     shoppingList: 'Liste de courses',

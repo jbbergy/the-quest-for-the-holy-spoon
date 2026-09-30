@@ -67,8 +67,9 @@ async function mountAt(view: object, path: string): Promise<VueWrapper> {
     routes: [
       { path: '/reglages', name: ROUTE.settings, component: blank },
       { path: '/semaine/repas/:mealId?', name: ROUTE.mealEditor, component: blank },
-      { path: '/reglages/recettes', name: ROUTE.recipes, component: RecipeListView },
-      { path: '/reglages/recettes/:recipeId', name: ROUTE.recipeDetail, component: RecipeDetailView },
+      { path: '/garde-manger', name: ROUTE.foods, component: blank },
+      { path: '/garde-manger/recettes', name: ROUTE.recipes, component: RecipeListView },
+      { path: '/garde-manger/recettes/:recipeId', name: ROUTE.recipeDetail, component: RecipeDetailView },
     ],
   })
   await router.push(path)
@@ -107,7 +108,7 @@ const button = (wrapper: VueWrapper, label: string) =>
 
 describe('RecipeListView', () => {
   it('liste les recettes par ordre alphabétique, avec leurs aliments', async () => {
-    const wrapper = await mountAt(RecipeListView, '/reglages/recettes')
+    const wrapper = await mountAt(RecipeListView, '/garde-manger/recettes')
 
     const names = wrapper.findAll('.recipes__name').map((n) => n.text())
     expect(names).toEqual(['Poke bowl', 'Toast'])
@@ -115,7 +116,7 @@ describe('RecipeListView', () => {
   })
 
   it('mène à la fiche de la recette', async () => {
-    const wrapper = await mountAt(RecipeListView, '/reglages/recettes')
+    const wrapper = await mountAt(RecipeListView, '/garde-manger/recettes')
 
     await wrapper.findAll('.recipes__item')[0]!.trigger('click')
     await flushPromises()
@@ -126,7 +127,7 @@ describe('RecipeListView', () => {
 
   it('explique comment créer une recette quand il n’y en a pas', async () => {
     recipes = new InMemoryRecipeRepository()
-    const wrapper = await mountAt(RecipeListView, '/reglages/recettes')
+    const wrapper = await mountAt(RecipeListView, '/garde-manger/recettes')
 
     expect(wrapper.text()).toContain('Vous n’avez pas encore de recette.')
     expect(wrapper.text()).toContain('Garder comme recette')
@@ -135,7 +136,7 @@ describe('RecipeListView', () => {
 
 describe('RecipeDetailView', () => {
   const open = async (name: string) =>
-    mountAt(RecipeDetailView, `/reglages/recettes/${await idOf(name)}`)
+    mountAt(RecipeDetailView, `/garde-manger/recettes/${await idOf(name)}`)
 
   it('montre les aliments avec leur quantité dans leur mesure', async () => {
     const wrapper = await open('Toast')
@@ -216,7 +217,7 @@ describe('RecipeDetailView', () => {
   })
 
   it('dit qu’une recette a disparu', async () => {
-    const wrapper = await mountAt(RecipeDetailView, '/reglages/recettes/inconnue')
+    const wrapper = await mountAt(RecipeDetailView, '/garde-manger/recettes/inconnue')
 
     expect(wrapper.text()).toContain('Cette recette n’existe plus.')
   })

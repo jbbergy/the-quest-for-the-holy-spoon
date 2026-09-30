@@ -1,5 +1,18 @@
 /** Mes aliments : liste, fiche, création et modification. */
 export const foods = {
+  pantry: {
+    title: 'Garde-manger',
+    tabsLabel: 'Contenu du garde-manger',
+    foods: 'Mes aliments',
+    recipes: 'Mes recettes',
+    count: '{n} élément | {n} éléments',
+    filterLegend: 'Afficher',
+    filterAll: 'Tous',
+    filterMine: 'Les miens',
+    filterHousehold: 'Du foyer',
+    missingTitle: 'Un aliment manque dans la recherche ?',
+    missingText: 'Créez-le ici. Il apparaîtra ensuite quand vous composez un repas.',
+  },
   catalog: {
     title: 'Mes aliments',
     create: 'Créer un aliment',

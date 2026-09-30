@@ -3,11 +3,13 @@ import type { shell as fr } from '../fr/shell'
 
 export const shell: Messages<typeof fr> = {
   skipLink: 'Skip to content',
+  brand: 'Holy Spoon',
   pageShown: '{title}, page shown',
   nav: {
     label: 'Main navigation',
-    home: 'Home',
+    home: 'Today',
     week: 'Week',
+    pantry: 'Pantry',
     household: 'Household',
     settings: 'Settings',
     pendingInvitations: ', {n} pending invitation | , {n} pending invitations',
@@ -16,7 +18,7 @@ export const shell: Messages<typeof fr> = {
     loading: 'Loading',
     welcome: 'Welcome',
     profileSetup: 'Create my profile',
-    home: 'Home',
+    home: 'Today',
     week: 'Week',
     meal: 'Meal',
     shoppingList: 'Shopping list',

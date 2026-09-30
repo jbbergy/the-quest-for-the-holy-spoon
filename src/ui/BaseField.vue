@@ -17,7 +17,7 @@ const props = withDefaults(
   defineProps<{
     label: string
     modelValue: string | number
-    type?: 'text' | 'number' | 'email' | 'password'
+    type?: 'text' | 'number' | 'email' | 'password' | 'search'
     hint?: string
     error?: string
     required?: boolean
@@ -81,6 +81,7 @@ const onInput = (event: Event): string | number => {
       class="field__control"
       :class="{ 'field__control--invalid': error }"
     >
+      <slot name="leading" />
       <input
         :id="id"
         class="field__input"

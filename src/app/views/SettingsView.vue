@@ -218,30 +218,6 @@ async function toggleSharing(event: Event): Promise<void> {
     </BaseCard>
 
     <BaseCard
-      :title="t('settings.foods.title')"
-      :subtitle="t('settings.foods.subtitle')"
-    >
-      <BaseButton
-        variant="secondary"
-        @click="router.push({ name: ROUTE.foods })"
-      >
-        {{ t('settings.foods.open') }}
-      </BaseButton>
-    </BaseCard>
-
-    <BaseCard
-      :title="t('settings.recipes.title')"
-      :subtitle="t('settings.recipes.subtitle')"
-    >
-      <BaseButton
-        variant="secondary"
-        @click="router.push({ name: ROUTE.recipes })"
-      >
-        {{ t('settings.recipes.open') }}
-      </BaseButton>
-    </BaseCard>
-
-    <BaseCard
       :title="t('settings.calculations.title')"
       :subtitle="t('settings.calculations.subtitle')"
     >

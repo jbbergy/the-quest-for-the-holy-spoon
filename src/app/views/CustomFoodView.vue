@@ -2,8 +2,9 @@
 /**
  * Création ou modification d'un aliment saisi à la main.
  *
- * Deux adresses, un seul formulaire : `/aliments/nouveau` pour une fiche
- * vierge, `/aliments/:foodId/modifier` pour un de ses propres aliments.
+ * Deux adresses, un seul formulaire : `/garde-manger/aliments/nouveau` pour
+ * une fiche vierge, `/garde-manger/aliments/:foodId/modifier` pour un de ses
+ * propres aliments.
  *
  * Les valeurs sont saisies **pour 100 g**, ou pour 100 ml pour un liquide,
  * comme sur les étiquettes : demander une autre base obligerait à convertir ce

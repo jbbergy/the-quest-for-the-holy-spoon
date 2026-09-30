@@ -24,16 +24,6 @@ export const settings: Messages<typeof fr> = {
     perDay: '{kcal} kcal per day',
     note: 'Your target is your resting energy plus that of your activities. It is an estimate{tip}.',
   },
-  foods: {
-    title: 'My foods',
-    subtitle: 'The foods you have created yourself.',
-    open: 'See my foods',
-  },
-  recipes: {
-    title: 'My recipes',
-    subtitle: 'The meals you have kept, to add them in one tap.',
-    open: 'See my recipes',
-  },
   calculations: {
     title: 'How are my figures calculated?',
     subtitle: 'Where the figures for foods and for your day come from.',

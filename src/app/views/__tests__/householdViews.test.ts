@@ -88,6 +88,7 @@ async function mountAt(
     routes: [
       { path: '/tableau-de-bord', name: ROUTE.dashboard, component: blank },
       { path: '/semaine', name: ROUTE.weekPlan, component: blank },
+      { path: '/garde-manger', name: ROUTE.foods, component: blank },
       { path: '/reglages', name: ROUTE.settings, component: path === '/reglages' ? view : blank },
       { path: '/profil/creation', name: ROUTE.profileSetup, component: blank },
       { path: '/connexion', name: ROUTE.signIn, component: path === '/connexion' ? view : blank },
@@ -348,17 +349,28 @@ describe('Navigation', () => {
   }
 
   it('n’offre l’onglet Foyer qu’avec un compte', async () => {
-    expect(await mountShell(false)).toEqual(['◎Accueil', '▦Semaine', '⚙Réglages'])
+    expect(await mountShell(false)).toEqual(['Aujourd’hui', 'Semaine', 'Garde-manger'])
     setActivePinia(createPinia())
-    expect((await mountShell(true))[2]).toContain('Foyer')
+    expect((await mountShell(true))[3]).toContain('Foyer')
   })
 
   it('signale les invitations en attente, lecteur d’écran compris', async () => {
     const links = await mountShell(true, {
       household: { receivedInvitations: succeedsWith([invitation]) },
     })
-    expect(links[2]).toContain('1')
-    expect(links[2]).toContain('1 invitation en attente')
+    expect(links[3]).toContain('1')
+    expect(links[3]).toContain('1 invitation en attente')
+  })
+
+  it('ouvre les réglages depuis un bouton nommé, hors des onglets', async () => {
+    const wrapper = await mountAt(AppShell, '/tableau-de-bord', {}, false)
+    const settings = wrapper.findAll('a').filter((link) => link.attributes('href') === '/reglages')
+
+    // Deux emplacements (en-tête du téléphone, colonne du grand écran), un seul
+    // affiché à la fois : chacun porte le mot, pas seulement l'avatar.
+    expect(settings.length).toBeGreaterThan(0)
+    for (const link of settings) expect(link.text()).toContain('Réglages')
+    expect(wrapper.findAll('nav a').map((link) => link.text())).not.toContain('Réglages')
   })
 })
 

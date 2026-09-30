@@ -2,6 +2,19 @@ import type { Messages } from '../schema'
 import type { foods as fr } from '../fr/foods'
 
 export const foods: Messages<typeof fr> = {
+  pantry: {
+    title: 'Pantry',
+    tabsLabel: 'Pantry contents',
+    foods: 'My foods',
+    recipes: 'My recipes',
+    count: '{n} item | {n} items',
+    filterLegend: 'Show',
+    filterAll: 'All',
+    filterMine: 'Mine',
+    filterHousehold: 'Household',
+    missingTitle: 'A food is missing from the search?',
+    missingText: 'Create it here. It will then show up when you put a meal together.',
+  },
   catalog: {
     title: 'My foods',
     create: 'Create a food',
