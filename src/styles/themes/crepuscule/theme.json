@@ -3,5 +3,13 @@
   "name": "Crépuscule",
   "author": "The Quest for the Holy Spoon",
   "description": "Fond sombre, texte clair.",
-  "colorScheme": "dark"
+  "colorScheme": "dark",
+  "preview": {
+    "background": "#1B211D",
+    "border": "#343C36",
+    "swatches": [
+      "#8CC3A2",
+      "#F0BC5E"
+    ]
+  }
 }

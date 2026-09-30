@@ -89,6 +89,8 @@ async function mountAt(
       { path: '/tableau-de-bord', name: ROUTE.dashboard, component: blank },
       { path: '/semaine', name: ROUTE.weekPlan, component: blank },
       { path: '/garde-manger', name: ROUTE.foods, component: blank },
+      { path: '/reglages/profil', name: ROUTE.profileEdit, component: blank },
+      { path: '/reglages/calculs', name: ROUTE.calculations, component: blank },
       { path: '/reglages', name: ROUTE.settings, component: path === '/reglages' ? view : blank },
       { path: '/profil/creation', name: ROUTE.profileSetup, component: blank },
       { path: '/connexion', name: ROUTE.signIn, component: path === '/connexion' ? view : blank },

@@ -33,6 +33,24 @@ describe('registre des thèmes', () => {
     expect(AVAILABLE_THEMES.map((theme) => theme.id)).toContain('crepuscule')
   })
 
+  it('donne à chaque thème l’aperçu montré dans le choix des couleurs', () => {
+    for (const theme of AVAILABLE_THEMES) {
+      expect(theme.preview?.swatches.length, theme.id).toBeGreaterThan(0)
+    }
+  })
+
+  it('refuse un aperçu dont une couleur n’est pas un code hexadécimal', () => {
+    const parsed = themeMetadataSchema.safeParse({
+      id: 'essai',
+      name: 'Essai',
+      author: 'Test',
+      description: '',
+      colorScheme: 'light',
+      preview: { background: 'blanc', border: '#000000', swatches: [] },
+    })
+    expect(parsed.success).toBe(false)
+  })
+
   it('expose des métadonnées conformes au schéma', () => {
     for (const theme of AVAILABLE_THEMES) {
       expect(themeMetadataSchema.safeParse(theme).success).toBe(true)

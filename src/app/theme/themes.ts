@@ -15,6 +15,18 @@ export const themeMetadataSchema = z.object({
   description: z.string(),
   /** Indique au navigateur quoi peindre autour de la page (barres de défilement, champs natifs). */
   colorScheme: z.enum(['light', 'dark']),
+  /**
+   * Couleurs de l'aperçu, dans le choix des couleurs : le fond, sa bordure et
+   * deux pastilles. Un thème n'a pas accès aux variables des autres ; ses
+   * propres valeurs, lues ici, servent donc à le montrer tel qu'il est.
+   */
+  preview: z
+    .object({
+      background: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      border: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+      swatches: z.array(z.string().regex(/^#[0-9a-fA-F]{6}$/)).max(3),
+    })
+    .optional(),
 })
 
 export type ThemeMetadata = z.infer<typeof themeMetadataSchema>

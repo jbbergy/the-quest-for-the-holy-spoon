@@ -13,6 +13,12 @@ export const settings = {
     diet: 'Régime',
     noDiet: 'Aucun',
     edit: 'Modifier mon profil',
+    editShort: 'Modifier',
+    editSpoken: ' mon profil',
+    needLine: 'Besoin : {kcal} kcal par jour',
+  },
+  display: {
+    title: 'Affichage',
   },
   needs: {
     title: 'Mes besoins',
@@ -90,12 +96,15 @@ export const settings = {
     shared: 'Le foyer voit de nouveau vos journées.',
     unshared: 'Le foyer ne voit plus vos journées.',
   },
+  accountData: {
+    title: 'Compte et données',
+  },
   data: {
     title: 'Mes données',
     subtitleAccount: 'Votre profil et vos repas sont sur cet appareil et sur votre compte.',
     subtitleLocal: 'Votre profil et vos repas sont sur cet appareil.',
     note: 'Vous pouvez télécharger un fichier avec votre profil, tous vos repas et les aliments que vous avez créés.',
-    download: 'Télécharger mes données',
+    download: 'Exporter mes données',
     saved: 'Fichier enregistré : {file}.',
   },
 } as const

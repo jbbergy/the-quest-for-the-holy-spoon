@@ -30,7 +30,13 @@ async function mountSettings() {
 
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/', name: ROUTE.settings, component: blank }],
+    routes: [
+      { path: '/', name: ROUTE.settings, component: blank },
+      { path: '/profil', name: ROUTE.profileEdit, component: blank },
+      { path: '/calculs', name: ROUTE.calculations, component: blank },
+      { path: '/connexion', name: ROUTE.signIn, component: blank },
+      { path: '/inscription', name: ROUTE.signUp, component: blank },
+    ],
   })
   await router.push('/')
   const wrapper = mount(SettingsView, { global: { plugins: [router] }, attachTo: document.body })
@@ -38,8 +44,15 @@ async function mountSettings() {
   return wrapper
 }
 
+const languageSelect = (wrapper: Awaited<ReturnType<typeof mountSettings>>) =>
+  wrapper.find('select[name="locale"]')
+
 const languageChoices = (wrapper: Awaited<ReturnType<typeof mountSettings>>) =>
-  wrapper.findAll('input[name="locale"]')
+  languageSelect(wrapper).findAll('option')
+
+/** Choisit une langue dans la liste déroulante, comme le ferait la personne. */
+const choose = async (wrapper: Awaited<ReturnType<typeof mountSettings>>, value: string) =>
+  languageSelect(wrapper).setValue(value)
 
 beforeEach(() => {
   setActivePinia(createPinia())
@@ -61,11 +74,7 @@ describe('choix de la langue dans les réglages', () => {
 
     const choices = languageChoices(wrapper)
     expect(choices.map((choice) => choice.attributes('value'))).toEqual(['auto', 'fr', 'en'])
-    expect(choices.map((choice) => (choice.element as HTMLInputElement).checked)).toEqual([
-      true,
-      false,
-      false,
-    ])
+    expect((languageSelect(wrapper).element as HTMLSelectElement).value).toBe('auto')
     expect(wrapper.text()).toContain('Suit la langue de l’appareil : Français.')
   })
 
@@ -81,7 +90,7 @@ describe('choix de la langue dans les réglages', () => {
     const wrapper = await mountSettings()
     expect(wrapper.find('h1').text()).toBe('Réglages')
 
-    await languageChoices(wrapper)[2]!.setValue(true)
+    await choose(wrapper, 'en')
     await flushPromises()
 
     expect(wrapper.find('h1').text()).toBe('Settings')
@@ -96,7 +105,7 @@ describe('choix de la langue dans les réglages', () => {
     const wrapper = await mountSettings()
     expect(wrapper.find('h1').text()).toBe('Settings')
 
-    await languageChoices(wrapper)[1]!.setValue(true)
+    await choose(wrapper, 'fr')
     await flushPromises()
     expect(wrapper.find('h1').text()).toBe('Réglages')
 
@@ -111,7 +120,7 @@ describe('choix de la langue dans les réglages', () => {
     const wrapper = await mountSettings()
     expect(wrapper.find('h1').text()).toBe('Réglages')
 
-    await languageChoices(wrapper)[0]!.setValue(true)
+    await choose(wrapper, 'auto')
     await flushPromises()
 
     expect(wrapper.find('h1').text()).toBe('Settings')

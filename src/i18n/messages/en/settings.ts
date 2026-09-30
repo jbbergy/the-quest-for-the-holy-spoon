@@ -15,6 +15,12 @@ export const settings: Messages<typeof fr> = {
     diet: 'Diet',
     noDiet: 'None',
     edit: 'Edit my profile',
+    editShort: 'Edit',
+    editSpoken: ' my profile',
+    needLine: 'Target: {kcal} kcal per day',
+  },
+  display: {
+    title: 'Display',
   },
   needs: {
     title: 'My needs',
@@ -92,12 +98,15 @@ export const settings: Messages<typeof fr> = {
     shared: 'The household can see your days again.',
     unshared: 'The household no longer sees your days.',
   },
+  accountData: {
+    title: 'Account and data',
+  },
   data: {
     title: 'My data',
     subtitleAccount: 'Your profile and your meals are on this device and on your account.',
     subtitleLocal: 'Your profile and your meals are on this device.',
     note: 'You can download a file with your profile, all your meals and the foods you have created.',
-    download: 'Download my data',
+    download: 'Export my data',
     saved: 'File saved: {file}.',
   },
 }

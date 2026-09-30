@@ -3,5 +3,13 @@
   "name": "Aube",
   "author": "The Quest for the Holy Spoon",
   "description": "Fond clair, texte foncé.",
-  "colorScheme": "light"
+  "colorScheme": "light",
+  "preview": {
+    "background": "#F5F1E8",
+    "border": "#E3DBC9",
+    "swatches": [
+      "#2C6446",
+      "#E9A93B"
+    ]
+  }
 }

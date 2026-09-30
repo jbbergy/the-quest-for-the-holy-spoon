@@ -3,5 +3,13 @@
   "name": "Contraste renforcé",
   "author": "The Quest for the Holy Spoon",
   "description": "Fond blanc, texte noir, le plus lisible.",
-  "colorScheme": "light"
+  "colorScheme": "light",
+  "preview": {
+    "background": "#FFFFFF",
+    "border": "#000000",
+    "swatches": [
+      "#000000",
+      "#0B4F2E"
+    ]
+  }
 }
