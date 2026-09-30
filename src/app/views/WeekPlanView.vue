@@ -22,6 +22,7 @@ import { useSyncStatus } from '@/app/sync/useSyncStatus'
 import { useReturnQuery } from '@/app/useBackLink'
 import { addDays, type DayKey, startOfWeek } from '@/core/day'
 import type { MealId } from '@/core/identity'
+import { t, upperFirst } from '@/i18n'
 import { type MealSummary, MealType, type PlannedDay } from '@/modules/nutrition_inventory/application'
 import { useWeekPlanStore } from '@/modules/nutrition_inventory/presentation/useWeekPlanStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
@@ -101,24 +102,25 @@ async function setConsumed(mealId: MealId, consumed: boolean): Promise<void> {
  * intitulé, pas comme une phrase coupée.
  */
 function dayTitle(day: DayKey): string {
-  const text = formatDay(day)
-  return text.charAt(0).toUpperCase() + text.slice(1)
+  return upperFirst(formatDay(day))
 }
 
 function subtitle(day: PlannedDay): string {
   const total =
-    day.meals.length === 0 ? 'Aucun repas prévu' : `${Math.round(day.plannedCalories)} kcal au total`
-  return day.day === today.value ? `Aujourd’hui · ${total}` : total
+    day.meals.length === 0
+      ? t('week.noMeals')
+      : t('week.total', { kcal: Math.round(day.plannedCalories) })
+  return day.day === today.value ? t('week.todayWithTotal', { total }) : total
 }
 </script>
 
 <template>
   <div class="week">
-    <h1>Semaine</h1>
+    <h1>{{ t('week.title') }}</h1>
 
     <nav
       class="week__nav"
-      aria-label="Navigation par semaine"
+      :aria-label="t('week.navLabel')"
     >
       <BaseButton
         variant="ghost"
@@ -126,7 +128,7 @@ function subtitle(day: PlannedDay): string {
         @click="load(addDays(week.weekStart, -7))"
       >
         <span aria-hidden="true">←</span>
-        <span class="sr-only">Semaine précédente</span>
+        <span class="sr-only">{{ t('week.previous') }}</span>
       </BaseButton>
 
       <p
@@ -142,7 +144,7 @@ function subtitle(day: PlannedDay): string {
         @click="load(addDays(week.weekStart, 7))"
       >
         <span aria-hidden="true">→</span>
-        <span class="sr-only">Semaine suivante</span>
+        <span class="sr-only">{{ t('week.next') }}</span>
       </BaseButton>
     </nav>
 
@@ -152,8 +154,8 @@ function subtitle(day: PlannedDay): string {
         size="sm"
         @click="openShoppingList"
       >
-        Liste de courses
-        <span class="sr-only">de cette semaine</span>
+        {{ t('week.shoppingList') }}
+        <span class="sr-only">{{ t('week.shoppingListOfWeek') }}</span>
       </BaseButton>
 
       <BaseButton
@@ -162,7 +164,7 @@ function subtitle(day: PlannedDay): string {
         size="sm"
         @click="load(today)"
       >
-        Revenir à la semaine en cours
+        {{ t('week.backToCurrent') }}
       </BaseButton>
     </div>
 
@@ -187,8 +189,8 @@ function subtitle(day: PlannedDay): string {
               size="sm"
               @click="addMeal(day)"
             >
-              <span aria-hidden="true">＋</span> Ajouter un repas
-              <span class="sr-only">le {{ formatDay(day.day) }}</span>
+              <span aria-hidden="true">＋</span> {{ t('week.addMeal') }}
+              <span class="sr-only">{{ t('week.addMealOn', { day: formatDay(day.day) }) }}</span>
             </BaseButton>
           </template>
 
@@ -213,14 +215,14 @@ function subtitle(day: PlannedDay): string {
                 <span
                   v-if="meal.plannedBy"
                   class="week__meal-by"
-                >Prévu pour vous par {{ memberName(household.household, meal.plannedBy) ?? 'un membre du foyer' }}</span>
-                <span class="sr-only"> — modifier</span>
+                >{{ t('week.plannedBy', { name: memberName(household.household, meal.plannedBy) ?? t('week.aHouseholdMember') }) }}</span>
+                <span class="sr-only">{{ t('week.edit') }}</span>
               </RouterLink>
 
               <MealConsumedToggle
                 v-if="day.day <= today"
                 :consumed-at="meal.consumedAt"
-                :meal-label="`${mealLabel(meal.type)} du ${formatDay(day.day)}`"
+                :meal-label="t('week.mealOnDay', { meal: mealLabel(meal.type), day: formatDay(day.day) })"
                 @toggle="(next) => setConsumed(meal.mealId, next)"
               />
             </li>

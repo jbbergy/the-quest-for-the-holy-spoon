@@ -1,0 +1,113 @@
+import type { Messages } from '../schema'
+import type { settings as fr } from '../fr/settings'
+
+export const settings: Messages<typeof fr> = {
+  title: 'Settings',
+  profile: {
+    title: 'My profile',
+    name: 'First name or nickname',
+    height: 'Height',
+    weight: 'Weight',
+    age: 'Age',
+    ageValue: '{n} years old',
+    sex: 'Sex',
+    activity: 'Activity',
+    diet: 'Diet',
+    noDiet: 'None',
+    edit: 'Edit my profile',
+  },
+  needs: {
+    title: 'My needs',
+    subtitle: 'The app works them out from your profile.',
+    resting: 'At rest',
+    yourNeed: 'Your target',
+    perDay: '{kcal} kcal per day',
+    note: 'Your target is your resting energy plus that of your activities. It is an estimate{tip}.',
+  },
+  foods: {
+    title: 'My foods',
+    subtitle: 'The foods you have created yourself.',
+    open: 'See my foods',
+  },
+  recipes: {
+    title: 'My recipes',
+    subtitle: 'The meals you have kept, to add them in one tap.',
+    open: 'See my recipes',
+  },
+  calculations: {
+    title: 'How are my figures calculated?',
+    subtitle: 'Where the figures for foods and for your day come from.',
+    open: 'Understand the calculations',
+  },
+  dayStart: {
+    title: 'Start of the day',
+    subtitle: 'This setting applies to this device only.',
+    label: 'My day starts at',
+    midnight: 'Midnight',
+    noon: 'Noon',
+    hour: '{hour}:00',
+    hint: 'Before this time, the home screen still shows yesterday. Do you sleep at night? Choose midnight. Do you work at night? Choose a later time.',
+  },
+  language: {
+    title: 'Language',
+    subtitle: 'The change shows straight away. It applies to this device only.',
+    legend: 'App language',
+    auto: 'Automatic',
+    autoHint: 'Follows the device language: {language}.',
+    fr: 'Français',
+    en: 'English',
+  },
+  colors: {
+    title: 'Colours',
+    subtitle: 'The change shows straight away. It applies to this device only.',
+    legend: 'App colours',
+    aube: { name: 'Dawn', description: 'Light background, dark text.' },
+    contraste: { name: 'High contrast', description: 'Black and white, the most legible.' },
+    crepuscule: { name: 'Dusk', description: 'Dark background, light text.' },
+  },
+  account: {
+    title: 'Account',
+    signedInAs: 'You are signed in as {email}.',
+    noAccount: 'Without an account, your data stays on this device.',
+    unsent:
+      '{n} change has not been sent yet: the server is not responding. | {n} changes have not been sent yet: the server is not responding.',
+    unsentSome: 'Some changes have not been sent yet: the server is not responding.',
+    loseThem: 'If you sign out now, you will lose them.',
+    signOutAnyway: 'Sign out anyway',
+    stay: 'Stay signed in',
+    signOut: 'Sign out',
+    signOutNote:
+      'If you sign out, the account data is removed from this device. It stays on your account.',
+    signedOut: 'You are signed out. The account data is removed from this device.',
+    deleteSummary: 'Delete my account',
+    deleteNote:
+      'Your account will be deleted for good. The data on this device stays: you can carry on without an account.',
+    deletePassword: 'Your password, to confirm',
+    deleteButton: 'Delete my account for good',
+    deleted: 'Your account is deleted. Your data stays on this device.',
+    unreachable: 'The accounts server is not responding. We do not know whether you are signed in.',
+    retry: 'Try again',
+    withAccount:
+      'With an account, you find your meals on your other devices. You can also share your meals with your {household}.',
+    householdWord: 'household',
+    signIn: 'Sign in',
+    create: 'Create an account',
+  },
+  household: {
+    title: 'Household',
+    subtitle: 'You are part of the household “{name}”.',
+    share: 'Show my days to the household',
+    shareHint:
+      'The other members see your meals and your gauges. They never see your height, weight or age.',
+    shared: 'The household can see your days again.',
+    unshared: 'The household no longer sees your days.',
+  },
+  data: {
+    title: 'My data',
+    subtitleAccount: 'Your profile and your meals are on this device and on your account.',
+    subtitleLocal: 'Your profile and your meals are on this device.',
+    note: 'You can download a file with your profile, all your meals and the foods you have created.',
+    download: 'Download my data',
+    saved: 'File saved: {file}.',
+  },
+}

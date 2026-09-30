@@ -10,6 +10,7 @@ import { computed, onMounted } from 'vue'
 
 import { formatPortion } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
+import { t } from '@/i18n'
 import { useRecipeStore } from '@/modules/nutrition_inventory/presentation/useRecipeStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
@@ -39,10 +40,10 @@ function ingredients(recipe: RecipeSummary): string {
       class="recipes__back"
       :to="{ name: ROUTE.settings }"
     >
-      <span aria-hidden="true">←</span> Réglages
+      <span aria-hidden="true">←</span> {{ t('shell.nav.settings') }}
     </RouterLink>
 
-    <h1>Mes recettes</h1>
+    <h1>{{ t('recipes.list.title') }}</h1>
 
     <ErrorNotice :error="recipeStore.error" />
 
@@ -51,7 +52,7 @@ function ingredients(recipe: RecipeSummary): string {
       role="status"
       aria-live="polite"
     >
-      {{ recipeStore.status === 'ready' ? `${count} recette${count > 1 ? 's' : ''}.` : '' }}
+      {{ recipeStore.status === 'ready' ? t('recipes.list.count', { n: count }) : '' }}
     </p>
 
     <ul
@@ -68,8 +69,7 @@ function ingredients(recipe: RecipeSummary): string {
         >
           <span class="recipes__name">{{ recipe.name }}</span>
           <span class="recipes__meta">
-            {{ recipe.lines.length }} aliment{{ recipe.lines.length > 1 ? 's' : '' }} :
-            {{ ingredients(recipe) }}
+            {{ t('recipes.list.meta', { n: recipe.lines.length, list: ingredients(recipe) }) }}
           </span>
         </RouterLink>
       </li>
@@ -77,15 +77,15 @@ function ingredients(recipe: RecipeSummary): string {
 
     <EmptyState
       v-else-if="recipeStore.status === 'ready'"
-      title="Vous n’avez pas encore de recette."
-      description="Composez un repas, puis choisissez « Garder comme recette ». Vous la retrouverez ici, et dans la recherche d’aliments."
+      :title="t('recipes.list.emptyTitle')"
+      :description="t('recipes.list.emptyDescription')"
     >
       <BaseButton
         size="sm"
         variant="secondary"
         @click="$router.push({ name: ROUTE.mealEditor })"
       >
-        Composer un repas
+        {{ t('recipes.list.compose') }}
       </BaseButton>
     </EmptyState>
   </div>

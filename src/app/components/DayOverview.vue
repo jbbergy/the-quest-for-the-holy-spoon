@@ -19,6 +19,7 @@ import { GLOSSARY } from '@/app/glossary'
 import { formatDay } from '@/app/mealLabels'
 import type { MacrosProps } from '@/core/nutrition/Macros'
 import type { NutrientDetailProps } from '@/core/nutrition/NutrientDetail'
+import { lower, numberFormat, t, upperFirst } from '@/i18n'
 import {
   type DayBalance,
   type Nutrient,
@@ -28,6 +29,7 @@ import {
 import type { PlayerNutritionalNeeds } from '@/modules/player_profile/application'
 import BentoTile from '@/ui/BentoTile.vue'
 import InfoTip from '@/ui/InfoTip.vue'
+import RichText from '@/ui/RichText.vue'
 import RingGauge from '@/ui/RingGauge.vue'
 
 const props = defineProps<{
@@ -52,21 +54,38 @@ interface NutrientLine {
 }
 
 /** L'ordre de lecture : l'énergie, ce qu'il faut atteindre, puis ce qu'il ne faut pas dépasser. */
+/**
+ * `name` est à la fois la clé du glossaire et celle du libellé. `label` et
+ * `tip` sont lus à l'affichage : ils suivent la langue courante.
+ */
+function nutrientLine(
+  key: Nutrient,
+  name: 'calories' | 'protein' | 'carbs' | 'fat' | 'fiber' | 'sugars' | 'saturatedFat' | 'salt',
+  unit: string,
+  reading: Reading,
+): NutrientLine {
+  return {
+    key,
+    unit,
+    reading,
+    get label() {
+      return t(`labels.nutrient.${name}`)
+    },
+    get tip() {
+      return GLOSSARY[name]
+    },
+  }
+}
+
 const LINES: readonly NutrientLine[] = [
-  { key: 'calories', label: 'Calories', unit: 'kcal', reading: 'target', tip: GLOSSARY.calories },
-  { key: 'proteinG', label: 'Protéines', unit: 'g', reading: 'target', tip: GLOSSARY.protein },
-  { key: 'carbsG', label: 'Glucides', unit: 'g', reading: 'target', tip: GLOSSARY.carbs },
-  { key: 'fatG', label: 'Lipides', unit: 'g', reading: 'target', tip: GLOSSARY.fat },
-  { key: 'fiberG', label: 'Fibres', unit: 'g', reading: 'floor', tip: GLOSSARY.fiber },
-  { key: 'sugarsG', label: 'Sucres', unit: 'g', reading: 'limit', tip: GLOSSARY.sugars },
-  {
-    key: 'saturatedFatG',
-    label: 'Graisses saturées',
-    unit: 'g',
-    reading: 'limit',
-    tip: GLOSSARY.saturatedFat,
-  },
-  { key: 'saltG', label: 'Sel', unit: 'g', reading: 'limit', tip: GLOSSARY.salt },
+  nutrientLine('calories', 'calories', 'kcal', 'target'),
+  nutrientLine('proteinG', 'protein', 'g', 'target'),
+  nutrientLine('carbsG', 'carbs', 'g', 'target'),
+  nutrientLine('fatG', 'fat', 'g', 'target'),
+  nutrientLine('fiberG', 'fiber', 'g', 'floor'),
+  nutrientLine('sugarsG', 'sugars', 'g', 'limit'),
+  nutrientLine('saturatedFatG', 'saturatedFat', 'g', 'limit'),
+  nutrientLine('saltG', 'salt', 'g', 'limit'),
 ]
 
 const byKey = (key: Nutrient): NutrientLine => LINES.find((line) => line.key === key)!
@@ -96,13 +115,10 @@ function today(key: Nutrient): { readonly value: number; readonly target: number
 const MACROS: readonly Nutrient[] = ['proteinG', 'carbsG', 'fatG', 'fiberG']
 const LIMITS: readonly Nutrient[] = ['sugarsG', 'saturatedFatG', 'saltG']
 
-const decimal = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
-const whole = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
-
 function quantity(value: number, unit: string): string {
   const magnitude = Math.abs(value)
-  const format = unit === 'kcal' || magnitude >= 10 ? whole : decimal
-  return `${format.format(magnitude)} ${unit}`
+  const digits = unit === 'kcal' || magnitude >= 10 ? 0 : 1
+  return `${numberFormat({ maximumFractionDigits: digits }).format(magnitude)} ${unit}`
 }
 
 /** Sous un centième du repère, un écart n'est pas une information. */
@@ -115,13 +131,19 @@ function describeGap(line: NutrientLine, gap: number, base: number): string {
   const amount = quantity(gap, line.unit)
   const negligible = isNegligible(gap, base)
   if (line.reading === 'limit') {
-    return gap > 0 && !negligible ? `${amount} au-dessus de la limite` : 'sous la limite'
+    return gap > 0 && !negligible
+      ? t('dashboard.overview.gap.aboveLimit', { amount })
+      : t('dashboard.overview.gap.underLimit')
   }
   if (line.reading === 'floor') {
-    return gap >= 0 || negligible ? 'minimum atteint' : `${amount} de moins que le minimum`
+    return gap >= 0 || negligible
+      ? t('dashboard.overview.gap.floorReached')
+      : t('dashboard.overview.gap.belowFloor', { amount })
   }
-  if (negligible) return 'au niveau du besoin'
-  return gap < 0 ? `${amount} de moins que le besoin` : `${amount} de plus que le besoin`
+  if (negligible) return t('dashboard.overview.gap.atTarget')
+  return gap < 0
+    ? t('dashboard.overview.gap.belowTarget', { amount })
+    : t('dashboard.overview.gap.aboveTarget', { amount })
 }
 
 /** Moyennes de la semaine écoulée, en phrases. `null` sans aucun jour renseigné. */
@@ -146,34 +168,32 @@ const recentDays = computed(() => [...(props.recent?.recentDays ?? [])].reverse(
 
 /** Première lettre en majuscule : chaque morceau devient une phrase. */
 function sentence(text: string): string {
-  return `${text.charAt(0).toLocaleUpperCase('fr-FR')}${text.slice(1)}.`
+  return `${upperFirst(text)}.`
 }
 
 /** Une journée passée, en une ou deux phrases courtes. */
 function describeDay(day: DayBalance): string {
   const gap = day.gap
-  if (gap === null) return 'Aucun repas mangé : ce jour ne compte pas dans la moyenne.'
+  if (gap === null) return t('dashboard.overview.noMealEaten')
 
   const energy = describeGap(byKey('calories'), gap.calories, props.needs.targetCalories)
-  const over = LIMITS.filter((key) => gap[key] >= 0.05).map((key) =>
-    byKey(key).label.toLocaleLowerCase('fr-FR'),
-  )
+  const over = LIMITS.filter((key) => gap[key] >= 0.05).map((key) => lower(byKey(key).label))
   return over.length === 0
     ? sentence(energy)
-    : `${sentence(energy)} ${sentence(`${over.join(', ')} : au-dessus de la limite`)}`
+    : `${sentence(energy)} ${sentence(t('dashboard.overview.overLimits', { list: over.join(', ') }))}`
 }
 </script>
 
 <template>
   <div class="bento">
     <BentoTile
-      title="Calories"
+      :title="t('labels.nutrient.calories')"
       :tip="GLOSSARY.calories"
       wide
     >
       <div class="bento__calories">
         <RingGauge
-          label="Calories"
+          :label="t('labels.nutrient.calories')"
           unit="kcal"
           size="lg"
           :value="totalCalories"
@@ -181,8 +201,12 @@ function describeDay(day: DayBalance): string {
           :average="averageOf('calories')"
         />
         <p class="bento__hint">
-          Votre besoin pour la journée : <strong>{{ Math.round(needs.targetCalories) }} kcal</strong>.<InfoTip
-            term="besoin"
+          <RichText path="dashboard.overview.needForDay">
+            <template #kcal>
+              <strong>{{ Math.round(needs.targetCalories) }} kcal</strong>
+            </template>
+          </RichText><InfoTip
+            :term="t('labels.term.need')"
             :text="GLOSSARY.needs"
           />
         </p>
@@ -190,7 +214,7 @@ function describeDay(day: DayBalance): string {
           v-if="plannedCount > 0 || consumedCount === 0"
           class="bento__hint"
         >
-          Seuls les repas mangés comptent.
+          {{ t('dashboard.overview.onlyEaten') }}
         </p>
       </div>
     </BentoTile>
@@ -214,8 +238,8 @@ function describeDay(day: DayBalance): string {
     </BentoTile>
 
     <BentoTile
-      title="À ne pas dépasser"
-      subtitle="Il vaut mieux rester sous ces limites."
+      :title="t('dashboard.overview.limitsTitle')"
+      :subtitle="t('dashboard.overview.limitsSubtitle')"
       wide
     >
       <div class="bento__limits">
@@ -242,7 +266,7 @@ function describeDay(day: DayBalance): string {
     </BentoTile>
 
     <BentoTile
-      :title="`Ces ${RECENT_DAYS} derniers jours`"
+      :title="t('dashboard.overview.recentTitle', { n: RECENT_DAYS })"
       :tip="GLOSSARY.weekAverage"
       wide
     >
@@ -250,13 +274,11 @@ function describeDay(day: DayBalance): string {
         v-if="weekLines === null"
         class="bento__hint"
       >
-        Pas encore de jour à comparer. Cochez « Mangé » sur vos repas : la moyenne apparaîtra
-        ici dès demain.
+        {{ t('dashboard.overview.noRecent') }}
       </p>
       <template v-else>
         <p class="bento__hint">
-          Moyenne par jour, sur {{ trackedDays }} jour{{ trackedDays > 1 ? 's' : '' }} avec des
-          repas mangés.
+          {{ t('dashboard.overview.averagePerDay', { n: trackedDays }) }}
         </p>
         <ul class="bento__week">
           <li
@@ -275,7 +297,7 @@ function describeDay(day: DayBalance): string {
         -->
         <details class="bento__days">
           <summary class="bento__days-summary">
-            Voir jour par jour
+            {{ t('dashboard.overview.dayByDay') }}
           </summary>
           <ul class="bento__days-list">
             <li

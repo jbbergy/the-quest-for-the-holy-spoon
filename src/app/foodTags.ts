@@ -1,3 +1,4 @@
+import { labelled, t } from '@/i18n'
 import { FoodTag } from '@/modules/nutrition_inventory/domain/FoodItem'
 
 /**
@@ -7,43 +8,43 @@ import { FoodTag } from '@/modules/nutrition_inventory/domain/FoodItem'
  * **contient** l'écarte d'un régime, ce à quoi il **convient** l'y admet.
  */
 export const CONTAINS_OPTIONS = [
-  { value: FoodTag.CONTAINS_MEAT, label: 'De la viande' },
-  { value: FoodTag.CONTAINS_PORK, label: 'Du porc' },
-  { value: FoodTag.CONTAINS_BEEF, label: 'Du bœuf ou du veau' },
-  { value: FoodTag.CONTAINS_FISH, label: 'Du poisson' },
-  { value: FoodTag.CONTAINS_SHELLFISH, label: 'Des fruits de mer (crevettes, moules…)' },
-  { value: FoodTag.CONTAINS_MILK, label: 'Du lait' },
-  { value: FoodTag.CONTAINS_EGG, label: 'Des œufs' },
-  { value: FoodTag.CONTAINS_GLUTEN, label: 'Du gluten (blé, orge, seigle)' },
-  { value: FoodTag.CONTAINS_NUTS, label: 'Des fruits à coque' },
-  { value: FoodTag.CONTAINS_ALCOHOL, label: 'De l’alcool' },
+  labelled(FoodTag.CONTAINS_MEAT, 'labels.contains.meat'),
+  labelled(FoodTag.CONTAINS_PORK, 'labels.contains.pork'),
+  labelled(FoodTag.CONTAINS_BEEF, 'labels.contains.beef'),
+  labelled(FoodTag.CONTAINS_FISH, 'labels.contains.fish'),
+  labelled(FoodTag.CONTAINS_SHELLFISH, 'labels.contains.shellfish'),
+  labelled(FoodTag.CONTAINS_MILK, 'labels.contains.milk'),
+  labelled(FoodTag.CONTAINS_EGG, 'labels.contains.egg'),
+  labelled(FoodTag.CONTAINS_GLUTEN, 'labels.contains.gluten'),
+  labelled(FoodTag.CONTAINS_NUTS, 'labels.contains.nuts'),
+  labelled(FoodTag.CONTAINS_ALCOHOL, 'labels.contains.alcohol'),
 ] as const
 
 export const SUITS_OPTIONS = [
-  { value: FoodTag.VEGETARIAN, label: 'Végétarien' },
-  { value: FoodTag.VEGAN, label: 'Végan' },
-  { value: FoodTag.GLUTEN_FREE, label: 'Sans gluten' },
-  { value: FoodTag.LACTOSE_FREE, label: 'Sans lactose' },
+  labelled(FoodTag.VEGETARIAN, 'labels.suits.vegetarian'),
+  labelled(FoodTag.VEGAN, 'labels.suits.vegan'),
+  labelled(FoodTag.GLUTEN_FREE, 'labels.suits.glutenFree'),
+  labelled(FoodTag.LACTOSE_FREE, 'labels.suits.lactoseFree'),
 ] as const
 
 /** Libellé d'un marqueur seul, sur la fiche d'un aliment. */
 const TAG_LABELS: Readonly<Record<FoodTag, string>> = {
-  [FoodTag.CONTAINS_MEAT]: 'Contient de la viande',
-  [FoodTag.CONTAINS_PORK]: 'Contient du porc',
-  [FoodTag.CONTAINS_BEEF]: 'Contient du bœuf ou du veau',
-  [FoodTag.CONTAINS_FISH]: 'Contient du poisson',
-  [FoodTag.CONTAINS_SHELLFISH]: 'Contient des fruits de mer',
-  [FoodTag.CONTAINS_MILK]: 'Contient du lait',
-  [FoodTag.CONTAINS_EGG]: 'Contient des œufs',
-  [FoodTag.CONTAINS_GLUTEN]: 'Contient du gluten',
-  [FoodTag.CONTAINS_NUTS]: 'Contient des fruits à coque',
-  [FoodTag.CONTAINS_ALCOHOL]: 'Contient de l’alcool',
-  [FoodTag.VEGETARIAN]: 'Végétarien',
-  [FoodTag.VEGAN]: 'Végan',
-  [FoodTag.GLUTEN_FREE]: 'Sans gluten',
-  [FoodTag.LACTOSE_FREE]: 'Sans lactose',
+  [FoodTag.CONTAINS_MEAT]: 'labels.tag.meat',
+  [FoodTag.CONTAINS_PORK]: 'labels.tag.pork',
+  [FoodTag.CONTAINS_BEEF]: 'labels.tag.beef',
+  [FoodTag.CONTAINS_FISH]: 'labels.tag.fish',
+  [FoodTag.CONTAINS_SHELLFISH]: 'labels.tag.shellfish',
+  [FoodTag.CONTAINS_MILK]: 'labels.tag.milk',
+  [FoodTag.CONTAINS_EGG]: 'labels.tag.egg',
+  [FoodTag.CONTAINS_GLUTEN]: 'labels.tag.gluten',
+  [FoodTag.CONTAINS_NUTS]: 'labels.tag.nuts',
+  [FoodTag.CONTAINS_ALCOHOL]: 'labels.tag.alcohol',
+  [FoodTag.VEGETARIAN]: 'labels.tag.vegetarian',
+  [FoodTag.VEGAN]: 'labels.tag.vegan',
+  [FoodTag.GLUTEN_FREE]: 'labels.tag.glutenFree',
+  [FoodTag.LACTOSE_FREE]: 'labels.tag.lactoseFree',
 }
 
 export function tagLabel(tag: FoodTag): string {
-  return TAG_LABELS[tag] ?? tag
+  return t(TAG_LABELS[tag] ?? tag)
 }

@@ -7,6 +7,7 @@ import { ref } from 'vue'
 
 import { formatPortion } from '@/app/portionFormat'
 import type { RecipeId } from '@/core/identity'
+import { t } from '@/i18n'
 import type { RecipeSummary } from '@/modules/nutrition_inventory/application'
 import BaseButton from '@/ui/BaseButton.vue'
 
@@ -41,7 +42,7 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
       id="recipe-results-title"
       class="recipes__title"
     >
-      {{ recipes.length > 1 ? 'Vos recettes' : 'Votre recette' }}
+      {{ recipes.length > 1 ? t('meal.recipes.many') : t('meal.recipes.one') }}
     </h3>
 
     <ul class="recipes__list">
@@ -61,7 +62,7 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
             :disabled="busy"
             @click="add(recipe)"
           >
-            Ajouter<span class="sr-only"> la recette {{ recipe.name }}</span>
+            {{ t('meal.recipes.add') }}<span class="sr-only">{{ t('meal.recipes.theRecipe', { name: recipe.name }) }}</span>
           </BaseButton>
 
           <template v-if="confirming === recipe.recipeId">
@@ -71,14 +72,14 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
               :disabled="busy"
               @click="removeRecipe(recipe)"
             >
-              Oui, supprimer<span class="sr-only"> la recette {{ recipe.name }}</span>
+              {{ t('meal.recipes.yesDelete') }}<span class="sr-only">{{ t('meal.recipes.theRecipe', { name: recipe.name }) }}</span>
             </BaseButton>
             <BaseButton
               size="sm"
               variant="ghost"
               @click="confirming = null"
             >
-              Non
+              {{ t('meal.recipes.no') }}
             </BaseButton>
           </template>
           <BaseButton
@@ -88,7 +89,7 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
             :disabled="busy"
             @click="confirming = recipe.recipeId"
           >
-            Supprimer<span class="sr-only"> la recette {{ recipe.name }}</span>
+            {{ t('meal.recipes.delete') }}<span class="sr-only">{{ t('meal.recipes.theRecipe', { name: recipe.name }) }}</span>
           </BaseButton>
         </div>
       </li>

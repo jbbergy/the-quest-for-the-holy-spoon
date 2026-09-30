@@ -11,6 +11,7 @@ import { useRouter } from 'vue-router'
 import ProfileForm, { type ProfileFormValues } from '@/app/components/ProfileForm.vue'
 import { ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
+import { t } from '@/i18n'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
@@ -30,21 +31,19 @@ async function submit(values: ProfileFormValues): Promise<void> {
 <template>
   <div class="setup">
     <header>
-      <h1>Créer mon profil</h1>
+      <h1>{{ t('profile.setup.title') }}</h1>
       <p class="setup__intro">
-        L’application a besoin de quelques informations sur vous. Elle s’en sert pour calculer
-        ce que votre corps dépense chaque jour.
+        {{ t('profile.setup.intro1') }}
       </p>
       <p class="setup__intro">
-        Ces informations restent sur cet appareil. Si vous créez un compte, personne d’autre ne
-        voit votre taille, votre poids ni votre âge.
+        {{ t('profile.setup.intro2') }}
       </p>
     </header>
 
     <ErrorNotice :error="players.error" />
 
     <ProfileForm
-      submit-label="Créer mon profil"
+      :submit-label="t('profile.setup.submit')"
       :busy="players.status === 'loading'"
       @submit="submit"
     />

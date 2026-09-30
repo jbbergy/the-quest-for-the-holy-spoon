@@ -13,6 +13,8 @@
  */
 import { ref } from 'vue'
 
+import { t } from '@/i18n'
+
 import BaseField from './BaseField.vue'
 
 withDefaults(
@@ -51,8 +53,8 @@ const visible = ref(false)
         :aria-pressed="visible"
         @click="visible = !visible"
       >
-        {{ visible ? 'Masquer' : 'Afficher' }}
-        <span class="sr-only">le mot de passe</span>
+        {{ visible ? t('ui.password.hide') : t('ui.password.show') }}
+        <span class="sr-only">{{ t('ui.password.theField') }}</span>
       </button>
     </template>
   </BaseField>

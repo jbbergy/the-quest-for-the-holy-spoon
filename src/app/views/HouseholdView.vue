@@ -12,6 +12,7 @@ import { RouterLink, useRouter } from 'vue-router'
 import { HOUSEHOLD_APP_LINK } from '@/contract/household'
 import { ROUTE } from '@/app/router'
 import { useHousehold } from '@/app/useHousehold'
+import { t } from '@/i18n'
 import type { HouseholdMemberView } from '@/modules/household/application'
 import { HOUSEHOLD_NAME_MAX_LENGTH } from '@/modules/household/application'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
@@ -20,6 +21,7 @@ import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
 import ConfirmButton from '@/ui/ConfirmButton.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import RichText from '@/ui/RichText.vue'
 
 import { formatDay } from './householdFormat'
 
@@ -39,9 +41,9 @@ function memberNote(member: HouseholdMemberView): string {
   const notes = [
     // Le nom du profil s'affiche en titre ; l'adresse reste là pour lever un doute.
     member.name === null ? null : member.email,
-    member.isOwner ? 'responsable du foyer' : null,
-    member.accountId === myAccountId.value ? 'vous' : null,
-    member.sharesDays ? null : 'ne montre pas ses journées',
+    member.isOwner ? t('household.noteOwner') : null,
+    member.accountId === myAccountId.value ? t('household.noteYou') : null,
+    member.sharesDays ? null : t('household.noteHidden'),
   ].filter((note): note is string => note !== null)
   return notes.join(', ')
 }
@@ -53,28 +55,28 @@ async function run(action: () => Promise<boolean>, success: string): Promise<voi
 }
 
 async function create(): Promise<void> {
-  await run(() => store.create(name.value), 'Le foyer est créé. Vous pouvez inviter des personnes.')
+  await run(() => store.create(name.value), t('household.created'))
   if (store.household !== null) name.value = ''
 }
 
 async function invite(): Promise<void> {
   const email = inviteEmail.value.trim()
-  await run(() => store.invite(email), `L’invitation est envoyée à ${email}.`)
+  await run(() => store.invite(email), t('household.invited', { email }))
   if (store.error === null) inviteEmail.value = ''
 }
 
 const remove = (member: HouseholdMemberView) =>
   run(
     () => store.removeMember(member.accountId),
-    `${member.name ?? member.email} ne fait plus partie du foyer.`,
+    t('household.removed', { name: member.name ?? member.email }),
   )
 
 async function leave(): Promise<void> {
-  await run(() => store.leave(), 'Vous avez quitté le foyer.')
+  await run(() => store.leave(), t('household.left'))
 }
 
 async function dissolve(): Promise<void> {
-  await run(() => store.dissolve(), 'Le foyer est supprimé.')
+  await run(() => store.dissolve(), t('household.dissolved'))
 }
 
 const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
@@ -82,38 +84,38 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
 
 <template>
   <div class="household">
-    <h1>Foyer</h1>
+    <h1>{{ t('household.title') }}</h1>
 
     <template v-if="!account.session">
       <BaseCard
         v-if="account.status === 'unreachable'"
-        title="Serveur injoignable"
+        :title="t('household.unreachableTitle')"
       >
         <p class="household__text">
-          Le foyer ne marche qu’avec Internet. Le serveur ne répond pas pour le moment.
+          {{ t('household.unreachableText') }}
         </p>
         <BaseButton
           variant="secondary"
           @click="account.load()"
         >
-          Réessayer
+          {{ t('household.retry') }}
         </BaseButton>
       </BaseCard>
 
       <BaseCard
         v-else
-        title="Il faut un compte pour avoir un foyer"
-        subtitle="Vous avez reçu une invitation ? Connectez-vous avec l’adresse e-mail qui l’a reçue."
+        :title="t('household.needAccountTitle')"
+        :subtitle="t('household.needAccountSubtitle')"
       >
         <div class="household__actions">
           <BaseButton @click="router.push(signInLink)">
-            Se connecter
+            {{ t('household.signIn') }}
           </BaseButton>
           <BaseButton
             variant="secondary"
             @click="router.push({ name: ROUTE.signUp })"
           >
-            Créer un compte
+            {{ t('household.signUp') }}
           </BaseButton>
         </div>
       </BaseCard>
@@ -131,16 +133,16 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
 
       <BaseCard
         v-if="store.status === 'unreachable'"
-        title="Serveur injoignable"
+        :title="t('household.unreachableTitle')"
       >
         <p class="household__text">
-          Le foyer ne marche qu’avec Internet. Le serveur ne répond pas pour le moment.
+          {{ t('household.unreachableText') }}
         </p>
         <BaseButton
           variant="secondary"
           @click="store.load()"
         >
-          Réessayer
+          {{ t('household.retry') }}
         </BaseButton>
       </BaseCard>
 
@@ -149,24 +151,24 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
           v-if="store.status !== 'error'"
           class="household__text"
         >
-          Chargement du foyer…
+          {{ t('household.loading') }}
         </p>
         <BaseButton
           v-else
           variant="secondary"
           @click="store.load()"
         >
-          Réessayer
+          {{ t('household.retry') }}
         </BaseButton>
       </template>
 
       <template v-else-if="household">
         <BaseCard
           :title="household.name"
-          :subtitle="household.role === 'owner' ? 'Vous êtes responsable de ce foyer.' : 'Vous faites partie de ce foyer.'"
+          :subtitle="household.role === 'owner' ? t('household.roleOwner') : t('household.roleMember')"
         >
           <h3 class="household__heading">
-            Membres ({{ household.members.length }})
+            {{ t('household.members', { n: household.members.length }) }}
           </h3>
           <ul class="household__list">
             <li
@@ -182,34 +184,33 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
                   class="household__days"
                   :to="{ name: ROUTE.memberDay, params: { playerId: member.playerId } }"
                 >
-                  Voir ses journées<span class="sr-only"> ({{ member.name ?? member.email }})</span>
+                  {{ t('household.viewDays') }}<span class="sr-only"> ({{ member.name ?? member.email }})</span>
                 </RouterLink>
               </span>
               <ConfirmButton
                 v-if="store.isOwner && !member.isOwner"
                 size="sm"
-                :question="`Retirer ${member.name ?? member.email} du foyer ?`"
-                confirm-label="Retirer"
+                :question="t('household.removeQuestion', { name: member.name ?? member.email })"
+                :confirm-label="t('household.remove')"
                 @confirm="remove(member)"
               >
-                Retirer
+                {{ t('household.remove') }}
               </ConfirmButton>
             </li>
           </ul>
 
           <p class="household__note">
-            Le foyer
-            <strong>{{ household.sharesDays ? 'voit' : 'ne voit pas' }}</strong> vos journées.
+            <RichText :path="household.sharesDays ? 'household.sharesYes' : 'household.sharesNo'" />
             <RouterLink :to="{ name: ROUTE.settings }">
-              Changer dans les réglages
+              {{ t('household.changeInSettings') }}
             </RouterLink>
           </p>
         </BaseCard>
 
         <BaseCard
           v-if="store.isOwner"
-          title="Inviter"
-          subtitle="La personne reçoit un e-mail. Elle rejoint le foyer si elle accepte."
+          :title="t('household.inviteTitle')"
+          :subtitle="t('household.inviteSubtitle')"
         >
           <form
             class="household__form"
@@ -218,7 +219,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
           >
             <BaseField
               v-model="inviteEmail"
-              label="Adresse e-mail"
+              :label="t('household.inviteEmail')"
               type="email"
               autocomplete="off"
               required
@@ -228,13 +229,13 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
               type="submit"
               :loading="busy"
             >
-              Envoyer l’invitation
+              {{ t('household.inviteSend') }}
             </BaseButton>
           </form>
 
           <template v-if="household.invitations.length > 0">
             <h3 class="household__heading">
-              En attente de réponse
+              {{ t('household.pendingTitle') }}
             </h3>
             <ul class="household__list">
               <li
@@ -244,16 +245,16 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
               >
                 <span class="household__who">
                   <strong>{{ invitation.email }}</strong>
-                  <small>valable jusqu’au {{ formatDay(invitation.expiresAt) }}</small>
+                  <small>{{ t('household.validUntil', { date: formatDay(invitation.expiresAt) }) }}</small>
                 </span>
                 <ConfirmButton
                   size="sm"
-                  :question="`Annuler l’invitation de ${invitation.email} ?`"
-                  confirm-label="Annuler l’invitation"
-                  cancel-label="La garder"
-                  @confirm="run(() => store.revoke(invitation.id), 'L’invitation est annulée.')"
+                  :question="t('household.revokeQuestion', { email: invitation.email })"
+                  :confirm-label="t('household.revoke')"
+                  :cancel-label="t('household.keep')"
+                  @confirm="run(() => store.revoke(invitation.id), t('household.revoked'))"
                 >
-                  Annuler l’invitation
+                  {{ t('household.revoke') }}
                 </ConfirmButton>
               </li>
             </ul>
@@ -262,8 +263,8 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
 
         <BaseCard
           v-if="store.invitations.length > 0"
-          title="Autres invitations"
-          subtitle="On ne peut faire partie que d’un seul foyer. Pour en rejoindre un autre, quittez d’abord celui-ci."
+          :title="t('household.otherInvitationsTitle')"
+          :subtitle="t('household.otherInvitationsSubtitle')"
         >
           <ul class="household__list">
             <li
@@ -273,44 +274,42 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
               <RouterLink :to="{ name: ROUTE.invitation, params: { invitationId: invitation.id } }">
                 {{ invitation.householdName }}
               </RouterLink>
-              <small class="household__meta"> — de {{ invitation.invitedBy }}</small>
+              <small class="household__meta">{{ t('household.invitedBy', { name: invitation.invitedBy }) }}</small>
             </li>
           </ul>
         </BaseCard>
 
         <BaseCard
           v-if="store.isOwner"
-          title="Supprimer le foyer"
+          :title="t('household.dissolveTitle')"
         >
           <p class="household__text">
-            Le foyer disparaît pour tous ses membres. Les invitations sont annulées. Les repas et
-            les profils de chacun ne changent pas.
+            {{ t('household.dissolveText') }}
           </p>
           <ConfirmButton
-            :question="`Supprimer « ${household.name} » pour tous ses membres ?`"
-            confirm-label="Supprimer le foyer"
+            :question="t('household.dissolveQuestion', { name: household.name })"
+            :confirm-label="t('household.dissolve')"
             :loading="busy"
             @confirm="dissolve"
           >
-            Supprimer le foyer
+            {{ t('household.dissolve') }}
           </ConfirmButton>
         </BaseCard>
 
         <BaseCard
           v-else
-          title="Quitter le foyer"
+          :title="t('household.leaveTitle')"
         >
           <p class="household__text">
-            Les autres membres ne verront plus vos journées. Pour revenir, il faudra une nouvelle
-            invitation.
+            {{ t('household.leaveText') }}
           </p>
           <ConfirmButton
-            :question="`Quitter « ${household.name} » ?`"
-            confirm-label="Quitter"
+            :question="t('household.leaveQuestion', { name: household.name })"
+            :confirm-label="t('household.leaveConfirm')"
             :loading="busy"
             @confirm="leave"
           >
-            Quitter le foyer
+            {{ t('household.leave') }}
           </ConfirmButton>
         </BaseCard>
       </template>
@@ -318,7 +317,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
       <template v-else>
         <BaseCard
           v-if="store.invitations.length > 0"
-          title="Invitations reçues"
+          :title="t('household.receivedTitle')"
         >
           <ul class="household__list">
             <li
@@ -328,25 +327,24 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
             >
               <span class="household__who">
                 <strong>{{ invitation.householdName }}</strong>
-                <small>de {{ invitation.invitedBy }}, valable jusqu’au {{ formatDay(invitation.expiresAt) }}</small>
+                <small>{{ t('household.receivedFrom', { name: invitation.invitedBy, date: formatDay(invitation.expiresAt) }) }}</small>
               </span>
               <BaseButton
                 size="sm"
                 @click="router.push({ name: ROUTE.invitation, params: { invitationId: invitation.id } })"
               >
-                Répondre
+                {{ t('household.answer') }}
               </BaseButton>
             </li>
           </ul>
         </BaseCard>
 
         <BaseCard
-          title="Créer un foyer"
-          subtitle="Vous serez responsable du foyer. Vous seul pourrez inviter ou retirer des personnes."
+          :title="t('household.createTitle')"
+          :subtitle="t('household.createSubtitle')"
         >
           <p class="household__text">
-            Dans un foyer, chacun voit les repas et les jauges des autres. Chacun peut prévoir un
-            repas pour plusieurs personnes. La taille, le poids et l’âge restent privés.
+            {{ t('household.createText') }}
           </p>
           <form
             class="household__form"
@@ -355,8 +353,8 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
           >
             <BaseField
               v-model="name"
-              label="Nom du foyer"
-              :hint="`Par exemple : Les Martin. ${HOUSEHOLD_NAME_MAX_LENGTH} lettres au plus.`"
+              :label="t('household.createName')"
+              :hint="t('household.createHint', { max: HOUSEHOLD_NAME_MAX_LENGTH })"
               autocomplete="off"
               required
             />
@@ -364,7 +362,7 @@ const signInLink = { name: ROUTE.signIn, query: { suite: HOUSEHOLD_APP_LINK } }
               type="submit"
               :loading="busy"
             >
-              Créer le foyer
+              {{ t('household.create') }}
             </BaseButton>
           </form>
         </BaseCard>

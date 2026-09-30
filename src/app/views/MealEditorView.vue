@@ -24,12 +24,13 @@ import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
 import RecipesCard from '@/app/components/RecipesCard.vue'
 import { formatDay, MEAL_OPTIONS, mealLabel } from '@/app/mealLabels'
 import { usePageTitle } from '@/app/pageTitle'
-import { formatPortion, pluralize } from '@/app/portionFormat'
+import { formatPortion, measureWord } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
 import { useBackLink } from '@/app/useBackLink'
 import { parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
 import type { FoodItemId, MealId } from '@/core/identity'
+import { t } from '@/i18n'
 import {
   type MealEntrySummary,
   MealType,
@@ -56,7 +57,7 @@ const feedback = ref('')
 /** Aliment à présélectionner : celui qu'on vient de créer (`?aliment=`). */
 const preselect = ref<FoodItemId | null>(null)
 
-const back = useBackLink({ to: { name: ROUTE.weekPlan }, label: 'Semaine' })
+const back = useBackLink({ to: { name: ROUTE.weekPlan }, label: t('week.title') })
 
 const meal = computed(() => editor.meal)
 const isNew = computed(() => meal.value === null)
@@ -65,8 +66,11 @@ const canBeConsumed = computed(() => meal.value !== null && editor.schedule.plan
 
 const title = computed(() =>
   isNew.value
-    ? 'Nouveau repas'
-    : `${mealLabel(editor.schedule.type)} du ${formatDay(editor.schedule.plannedFor)}`,
+    ? t('meal.editor.newMeal')
+    : t('week.mealOnDay', {
+        meal: mealLabel(editor.schedule.type),
+        day: formatDay(editor.schedule.plannedFor),
+      }),
 )
 usePageTitle(title)
 
@@ -144,7 +148,10 @@ async function add(choice: FoodChoice): Promise<boolean> {
   const added = await editor.addFood(playerId, choice.food.id, choice.grams, choice.measure.label)
   if (!added) return false
 
-  feedback.value = `${choice.food.name} ajouté (${formatPortion(choice.grams / choice.measure.grams, choice.measure)}).`
+  feedback.value = t('meal.editor.foodAdded', {
+    food: choice.food.name,
+    portion: formatPortion(choice.grams / choice.measure.grams, choice.measure),
+  })
 
   await followNewMeal(wasNew)
   return true
@@ -168,11 +175,11 @@ async function addRecipe(recipe: RecipeSummary): Promise<void> {
     return
   }
 
-  const added = `${recipe.name} ajoutée (${result.added} ${result.added > 1 ? 'aliments' : 'aliment'}).`
+  const added = t('meal.editor.recipeAdded', { recipe: recipe.name, n: result.added })
   feedback.value =
     result.missing.length === 0
       ? added
-      : `${added} Ces aliments n’existent plus, ils manquent : ${result.missing.join(', ')}.`
+      : t('meal.editor.recipeMissing', { added, list: result.missing.join(', ') })
   await followNewMeal(wasNew)
 }
 
@@ -182,7 +189,7 @@ async function saveRecipe(name: string): Promise<boolean> {
   if (playerId === null || id === null) return false
 
   const saved = await recipeStore.saveMeal(playerId, id, name)
-  feedback.value = saved === null ? '' : `Recette « ${saved.name} » enregistrée.`
+  feedback.value = saved === null ? '' : t('meal.editor.recipeSaved', { name: saved.name })
   return saved !== null
 }
 
@@ -190,7 +197,7 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
   const playerId = players.playerId
   if (playerId === null) return
   if (await recipeStore.remove(playerId, recipe.recipeId)) {
-    feedback.value = `Recette « ${recipe.name} » supprimée.`
+    feedback.value = t('meal.editor.recipeRemoved', { name: recipe.name })
   }
 }
 
@@ -217,9 +224,7 @@ function amountValue(entry: MealEntrySummary): number {
 }
 
 function entryUnit(entry: MealEntrySummary): string {
-  return entry.measure.countable && entry.amount >= 2
-    ? pluralize(entry.measure.label)
-    : entry.measure.label
+  return measureWord(entry.measure, entry.amount)
 }
 
 async function remove(): Promise<void> {
@@ -244,9 +249,9 @@ async function remove(): Promise<void> {
     <ErrorNotice :error="editor.error" />
     <ErrorNotice :error="recipeStore.error" />
 
-    <BaseCard title="Quand ?">
+    <BaseCard :title="t('meal.editor.when')">
       <label class="editor__date">
-        <span class="editor__label">Jour</span>
+        <span class="editor__label">{{ t('meal.editor.day') }}</span>
         <input
           type="date"
           :value="editor.schedule.plannedFor"
@@ -257,7 +262,7 @@ async function remove(): Promise<void> {
 
       <fieldset class="editor__fieldset">
         <legend class="editor__label">
-          Repas
+          {{ t('meal.editor.meal') }}
         </legend>
         <div class="editor__choices">
           <label
@@ -280,7 +285,7 @@ async function remove(): Promise<void> {
 
     <BaseCard
       v-if="meal"
-      title="Dans ce repas"
+      :title="t('meal.editor.inMeal')"
       :subtitle="`${Math.round(meal.calories)} kcal`"
     >
       <ul class="editor__entries">
@@ -293,7 +298,7 @@ async function remove(): Promise<void> {
 
           <template v-if="!editor.isLocked">
             <label class="editor__grams">
-              <span class="sr-only">Portion de {{ entry.foodName }}, en {{ entry.measure.label }}</span>
+              <span class="sr-only">{{ t('meal.editor.portionOf', { food: entry.foodName, unit: entry.measure.label }) }}</span>
               <input
                 type="number"
                 inputmode="decimal"
@@ -314,7 +319,7 @@ async function remove(): Promise<void> {
               @click="editor.removeEntry(entry.entryId)"
             >
               <span aria-hidden="true">×</span>
-              <span class="sr-only">Retirer {{ entry.foodName }}</span>
+              <span class="sr-only">{{ t('meal.editor.remove', { food: entry.foodName }) }}</span>
             </BaseButton>
           </template>
 
@@ -327,15 +332,15 @@ async function remove(): Promise<void> {
 
       <dl class="editor__macros">
         <div>
-          <dt>Protéines</dt>
+          <dt>{{ t('labels.nutrient.protein') }}</dt>
           <dd>{{ meal.macros.proteinG.toFixed(1) }} g</dd>
         </div>
         <div>
-          <dt>Glucides</dt>
+          <dt>{{ t('labels.nutrient.carbs') }}</dt>
           <dd>{{ meal.macros.carbsG.toFixed(1) }} g</dd>
         </div>
         <div>
-          <dt>Lipides</dt>
+          <dt>{{ t('labels.nutrient.fat') }}</dt>
           <dd>{{ meal.macros.fatG.toFixed(1) }} g</dd>
         </div>
       </dl>
@@ -344,7 +349,7 @@ async function remove(): Promise<void> {
         v-if="editor.isLocked"
         class="editor__note"
       >
-        Ce repas est mangé. Pour le changer, décochez d’abord « Mangé ».
+        {{ t('meal.editor.locked') }}
       </p>
 
       <MealConsumedToggle
@@ -357,7 +362,7 @@ async function remove(): Promise<void> {
 
     <BaseCard
       v-if="!editor.isLocked"
-      title="Ajouter un aliment"
+      :title="t('meal.editor.addFood')"
     >
       <FoodPicker
         :add="add"
@@ -392,14 +397,14 @@ async function remove(): Promise<void> {
 
     <div class="editor__actions">
       <BaseButton @click="$router.push(back.to)">
-        Terminé
+        {{ t('meal.editor.done') }}
       </BaseButton>
       <BaseButton
         v-if="meal"
         variant="danger"
         @click="remove"
       >
-        Supprimer ce repas
+        {{ t('meal.editor.deleteMeal') }}
       </BaseButton>
     </div>
   </div>

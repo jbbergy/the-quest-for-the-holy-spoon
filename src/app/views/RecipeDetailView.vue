@@ -11,9 +11,10 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { usePageTitle } from '@/app/pageTitle'
-import { pluralize } from '@/app/portionFormat'
+import { measureWord } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
 import type { RecipeId } from '@/core/identity'
+import { t } from '@/i18n'
 import type { RecipeLineSummary } from '@/modules/nutrition_inventory/application'
 import { useRecipeStore } from '@/modules/nutrition_inventory/presentation/useRecipeStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
@@ -30,7 +31,7 @@ const players = usePlayerStore()
 
 const recipe = computed(() => recipeStore.current)
 const recipeId = computed(() => route.params.recipeId as RecipeId)
-usePageTitle(() => recipe.value?.name ?? 'Recette')
+usePageTitle(() => recipe.value?.name ?? t('shell.titles.recipe'))
 
 const name = ref('')
 const feedback = ref('')
@@ -47,7 +48,7 @@ const canRename = computed(
 
 async function rename(): Promise<void> {
   if (!canRename.value) return
-  feedback.value = (await recipeStore.rename(recipeId.value, name.value)) ? 'Nom enregistré.' : ''
+  feedback.value = (await recipeStore.rename(recipeId.value, name.value)) ? t('recipes.detail.nameSaved') : ''
 }
 
 /**
@@ -59,12 +60,12 @@ async function changeAmount(index: number, line: RecipeLineSummary, raw: string)
   const value = Number.parseFloat(raw)
   if (!Number.isFinite(value) || value <= 0) return
   const saved = await recipeStore.changeLine(recipeId.value, index, value * line.measure.grams)
-  feedback.value = saved ? `Quantité de ${line.foodName} enregistrée.` : ''
+  feedback.value = saved ? t('recipes.detail.amountSaved', { food: line.foodName }) : ''
 }
 
 async function removeLine(index: number, line: RecipeLineSummary): Promise<void> {
   const saved = await recipeStore.removeLine(recipeId.value, index)
-  feedback.value = saved ? `${line.foodName} retiré de la recette.` : ''
+  feedback.value = saved ? t('recipes.detail.lineRemoved', { food: line.foodName }) : ''
 }
 
 async function remove(): Promise<void> {
@@ -79,7 +80,7 @@ function amountValue(line: RecipeLineSummary): number {
 }
 
 function unit(line: RecipeLineSummary): string {
-  return line.measure.countable && line.amount >= 2 ? pluralize(line.measure.label) : line.measure.label
+  return measureWord(line.measure, line.amount)
 }
 </script>
 
@@ -89,15 +90,15 @@ function unit(line: RecipeLineSummary): string {
       class="recipe__back"
       :to="{ name: ROUTE.recipes }"
     >
-      <span aria-hidden="true">←</span> Mes recettes
+      <span aria-hidden="true">←</span> {{ t('recipes.list.title') }}
     </RouterLink>
 
     <ErrorNotice :error="recipeStore.error" />
 
     <EmptyState
       v-if="recipe === null && recipeStore.status !== 'loading'"
-      title="Cette recette n’existe plus."
-      description="Elle a été supprimée, sur cet appareil ou sur un autre."
+      :title="t('recipes.detail.notFoundTitle')"
+      :description="t('recipes.detail.notFoundDescription')"
     />
 
     <template v-else-if="recipe">
@@ -105,13 +106,13 @@ function unit(line: RecipeLineSummary): string {
         {{ recipe.name }}
       </h1>
 
-      <BaseCard title="Nom">
+      <BaseCard :title="t('recipes.detail.nameCard')">
         <form
           class="recipe__rename"
           @submit.prevent="rename"
         >
           <label class="recipe__field">
-            <span class="recipe__label">Nom de la recette</span>
+            <span class="recipe__label">{{ t('recipes.detail.nameLabel') }}</span>
             <input
               v-model="name"
               type="text"
@@ -124,14 +125,14 @@ function unit(line: RecipeLineSummary): string {
             variant="secondary"
             :disabled="!canRename || recipeStore.status === 'loading'"
           >
-            Changer le nom
+            {{ t('recipes.detail.rename') }}
           </BaseButton>
         </form>
       </BaseCard>
 
       <BaseCard
-        title="Aliments"
-        :subtitle="`${recipe.lines.length} aliment${recipe.lines.length > 1 ? 's' : ''}`"
+        :title="t('recipes.detail.foodsCard')"
+        :subtitle="t('recipes.detail.foodsCount', { n: recipe.lines.length })"
       >
         <ul class="recipe__lines">
           <li
@@ -142,7 +143,7 @@ function unit(line: RecipeLineSummary): string {
             <span class="recipe__line-name">{{ line.foodName }}</span>
 
             <label class="recipe__amount">
-              <span class="sr-only">Quantité de {{ line.foodName }}, en {{ line.measure.label }}</span>
+              <span class="sr-only">{{ t('recipes.detail.amountOf', { food: line.foodName, unit: line.measure.label }) }}</span>
               <input
                 type="number"
                 inputmode="decimal"
@@ -164,14 +165,13 @@ function unit(line: RecipeLineSummary): string {
               @click="removeLine(index, line)"
             >
               <span aria-hidden="true">×</span>
-              <span class="sr-only">Retirer {{ line.foodName }}</span>
+              <span class="sr-only">{{ t('recipes.detail.remove', { food: line.foodName }) }}</span>
             </BaseButton>
           </li>
         </ul>
 
         <p class="recipe__note">
-          Pour ajouter un aliment, composez un repas avec la recette, ajoutez-y l’aliment, puis
-          gardez-le comme recette sous un autre nom.
+          {{ t('recipes.detail.note') }}
         </p>
       </BaseCard>
 
@@ -185,12 +185,12 @@ function unit(line: RecipeLineSummary): string {
 
       <div class="recipe__actions">
         <ConfirmButton
-          :question="`Supprimer la recette « ${recipe.name} » ? Les repas déjà composés ne changent pas.`"
-          confirm-label="Supprimer"
+          :question="t('recipes.detail.deleteQuestion', { name: recipe.name })"
+          :confirm-label="t('recipes.detail.delete')"
           :loading="recipeStore.status === 'loading'"
           @confirm="remove"
         >
-          Supprimer la recette
+          {{ t('recipes.detail.deleteRecipe') }}
         </ConfirmButton>
       </div>
     </template>

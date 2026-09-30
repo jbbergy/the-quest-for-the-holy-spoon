@@ -11,11 +11,13 @@ import { RouterLink } from 'vue-router'
 import { useAccountFormErrors } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
 import { ROUTE } from '@/app/router'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import RichText from '@/ui/RichText.vue'
 
 const account = useAccountStore()
 const { emailError, formError } = useAccountFormErrors(() => account.error)
@@ -37,8 +39,8 @@ async function submit(): Promise<void> {
 
 <template>
   <AccountLayout
-    title="Mot de passe oublié"
-    intro="Écrivez votre adresse e-mail. Vous recevrez un lien pour choisir un nouveau mot de passe."
+    :title="t('account.forgot.title')"
+    :intro="t('account.forgot.intro')"
   >
     <BaseCard v-if="sentTo === null">
       <form
@@ -50,7 +52,7 @@ async function submit(): Promise<void> {
 
         <BaseField
           v-model="email"
-          label="Adresse e-mail"
+          :label="t('account.form.email')"
           type="email"
           autocomplete="email"
           required
@@ -63,7 +65,7 @@ async function submit(): Promise<void> {
           block
           :loading="account.status === 'loading'"
         >
-          Recevoir le lien
+          {{ t('account.forgot.submit') }}
         </BaseButton>
       </form>
     </BaseCard>
@@ -74,14 +76,17 @@ async function submit(): Promise<void> {
         tabindex="-1"
         role="status"
       >
-        Si un compte existe avec l’adresse <strong>{{ sentTo }}</strong>, nous venons d’y envoyer
-        un lien. Il marche pendant 1 heure. Regardez aussi dans les courriers indésirables.
+        <RichText path="account.forgot.sent">
+          <template #email>
+            <strong>{{ sentTo }}</strong>
+          </template>
+        </RichText>
       </p>
     </BaseCard>
 
     <template #links>
       <RouterLink :to="{ name: ROUTE.signIn }">
-        Retour à la connexion
+        {{ t('account.form.backToSignIn') }}
       </RouterLink>
     </template>
   </AccountLayout>

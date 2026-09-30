@@ -14,6 +14,7 @@
  */
 import { computed } from 'vue'
 
+import { t } from '@/i18n'
 import { useServiceWorkerState } from '@/app/pwa/serviceWorker'
 import BaseButton from '@/ui/BaseButton.vue'
 
@@ -37,7 +38,7 @@ const mode = computed<'update' | 'offline' | null>(() => {
       class="sw-notice__panel"
     >
       <p class="sw-notice__text">
-        Une nouvelle version de l’application est prête.
+        {{ t('shell.update.ready') }}
       </p>
       <div class="sw-notice__actions">
         <BaseButton
@@ -45,14 +46,14 @@ const mode = computed<'update' | 'offline' | null>(() => {
           :loading="serviceWorker.applying.value"
           @click="serviceWorker.applyUpdate()"
         >
-          Mettre à jour
+          {{ t('shell.update.apply') }}
         </BaseButton>
         <BaseButton
           size="sm"
           variant="ghost"
           @click="serviceWorker.dismissUpdate()"
         >
-          Plus tard
+          {{ t('shell.update.later') }}
         </BaseButton>
       </div>
     </div>
@@ -63,7 +64,7 @@ const mode = computed<'update' | 'offline' | null>(() => {
     >
       <p class="sw-notice__text">
         <span aria-hidden="true">✓</span>
-        L’application marche maintenant sans Internet.
+        {{ t('shell.update.offlineReady') }}
       </p>
       <div class="sw-notice__actions">
         <BaseButton
@@ -71,7 +72,7 @@ const mode = computed<'update' | 'offline' | null>(() => {
           variant="ghost"
           @click="serviceWorker.dismissOfflineNotice()"
         >
-          Fermer
+          {{ t('shell.update.close') }}
         </BaseButton>
       </div>
     </div>

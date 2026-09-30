@@ -14,11 +14,13 @@ import { tokenFromHash } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
 import { ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import RichText from '@/ui/RichText.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -49,23 +51,25 @@ onMounted(async () => {
 </script>
 
 <template>
-  <AccountLayout title="Confirmation de l’adresse">
+  <AccountLayout :title="t('account.verify.title')">
     <BaseCard>
       <div
         class="verify"
         role="status"
       >
         <p v-if="state === 'pending'">
-          Confirmation en cours…
+          {{ t('account.verify.pending') }}
         </p>
         <p v-else-if="state === 'missing'">
-          Ce lien ne marche pas : il est incomplet. Ouvrez-le directement depuis l’e-mail, sans le
-          recopier.
+          {{ t('account.verify.missing') }}
         </p>
         <template v-else-if="state === 'done'">
           <p>
-            Votre adresse est confirmée. Vous êtes connecté avec
-            <strong>{{ account.session?.email }}</strong>.
+            <RichText path="account.verify.done">
+              <template #email>
+                <strong>{{ account.session?.email }}</strong>
+              </template>
+            </RichText>
           </p>
         </template>
       </div>
@@ -80,14 +84,13 @@ onMounted(async () => {
         block
         @click="router.push({ name: next })"
       >
-        {{ players.player === null ? 'Créer mon profil' : 'Continuer' }}
+        {{ players.player === null ? t('account.verify.createProfile') : t('account.verify.continue') }}
       </BaseButton>
       <p
         v-if="state === 'failed'"
         class="verify__help"
       >
-        Connectez-vous avec votre adresse et votre mot de passe : si l’adresse n’est toujours pas
-        confirmée, un nouveau lien vous sera envoyé.
+        {{ t('account.verify.failedHelp') }}
       </p>
     </BaseCard>
 
@@ -96,10 +99,10 @@ onMounted(async () => {
       #links
     >
       <RouterLink :to="{ name: ROUTE.signIn }">
-        Se connecter
+        {{ t('account.verify.signIn') }}
       </RouterLink>
       <RouterLink :to="{ name: ROUTE.auth }">
-        Continuer sans compte
+        {{ t('account.form.continueWithout') }}
       </RouterLink>
     </template>
   </AccountLayout>

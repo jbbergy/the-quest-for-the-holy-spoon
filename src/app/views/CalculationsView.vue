@@ -16,18 +16,20 @@ import { computed } from 'vue'
 import { ACTIVITY_OPTIONS } from '@/app/profileOptions'
 import { ROUTE } from '@/app/router'
 import { KCAL_PER_GRAM } from '@/core/nutrition/Macros'
+import { lower, numberFormat, t } from '@/i18n'
 import { RECENT_DAYS } from '@/modules/planning/domain/RecentIntakeService'
 import { ACTIVITY_MULTIPLIER } from '@/modules/player_profile/domain/ActivityLevel'
 import { BALANCED_MACRO_SPLIT, SATURATED_FAT_ENERGY_SHARE } from '@/modules/player_profile/domain/BalancedDiet'
 import { BiologicalSex } from '@/modules/player_profile/domain/BodyMeasurements'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseCard from '@/ui/BaseCard.vue'
+import RichText from '@/ui/RichText.vue'
 
 const players = usePlayerStore()
 const view = computed(() => players.profileView)
 
-const number = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
-const decimal = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 2 })
+const number = { format: (value: number): string => numberFormat({ maximumFractionDigits: 0 }).format(value) }
+const decimal = { format: (value: number): string => numberFormat({ maximumFractionDigits: 2 }).format(value) }
 const percent = (share: number): string => `${number.format(share * 100)} %`
 
 /** Un aliment d'exemple : 100 g de pâtes cuites, à peu près. */
@@ -46,9 +48,9 @@ const body = computed(() => {
     weight: decimal.format(v.weightKg),
     height: decimal.format(v.heightCm),
     age: v.ageYears,
-    sexLabel: male ? 'un homme' : 'une femme',
+    sexLabel: male ? t('calculations.need.sexMale') : t('calculations.need.sexFemale'),
     sexTerm: male ? '+ 5' : '− 161',
-    activityLabel: activity?.label.toLocaleLowerCase('fr-FR') ?? '',
+    activityLabel: activity === undefined ? '' : lower(activity.label),
     multiplier: decimal.format(ACTIVITY_MULTIPLIER[v.activityLevel]),
     rest: number.format(v.basalMetabolicRate),
     need: number.format(v.targetCalories),
@@ -73,144 +75,154 @@ const split = {
       class="calculations__back"
       :to="{ name: ROUTE.settings }"
     >
-      <span aria-hidden="true">←</span> Réglages
+      <span aria-hidden="true">←</span> {{ t('shell.nav.settings') }}
     </RouterLink>
 
-    <h1>Comment sont calculés mes repères ?</h1>
-    <p>
-      Cette page explique d’où viennent les chiffres de l’application. D’abord ceux des aliments.
-      Ensuite ceux de votre journée. Les nombres en gras sont les vôtres.
-    </p>
+    <h1>{{ t('calculations.title') }}</h1>
+    <p>{{ t('calculations.intro') }}</p>
 
     <BaseCard
-      title="1. Ce que contient un aliment"
-      subtitle="Les chiffres viennent de bases de données publiques."
+      :title="t('calculations.foods.title')"
+      :subtitle="t('calculations.foods.subtitle')"
     >
       <ul class="calculations__list">
-        <li>
-          Les aliments courants (pomme, riz, poulet…) viennent de <strong>Ciqual</strong>, le catalogue
-          public de l’Anses.
-        </li>
-        <li>
-          Les produits de marque viennent d’<strong>Open Food Facts</strong>, une base libre remplie par
-          des bénévoles.
-        </li>
-        <li>
-          Les aliments que vous créez vous-même gardent les chiffres que vous avez écrits.
-        </li>
-        <li>
-          Les chiffres sont donnés <strong>pour 100 g</strong>. Pour un liquide de marque, c’est pour
-          100 ml.
-        </li>
+        <li><RichText path="calculations.foods.ciqual" /></li>
+        <li><RichText path="calculations.foods.off" /></li>
+        <li>{{ t('calculations.foods.own') }}</li>
+        <li><RichText path="calculations.foods.per100" /></li>
       </ul>
     </BaseCard>
 
     <BaseCard
-      title="2. Ce que vous mangez"
-      subtitle="Le calcul se fait pour la portion que vous avez choisie."
+      :title="t('calculations.eaten.title')"
+      :subtitle="t('calculations.eaten.subtitle')"
     >
       <ol class="calculations__steps">
+        <li><RichText path="calculations.eaten.portions" /></li>
+        <li><RichText path="calculations.eaten.crossProduct" /></li>
         <li>
-          <strong>Les portions.</strong> Si vous choisissez « 1 tranche », l’application la convertit en
-          grammes. Un signe « ≈ » veut dire que le poids de la tranche est une moyenne.
-        </li>
-        <li>
-          <strong>Le produit en croix.</strong> Chaque chiffre de l’aliment est multiplié par la portion,
-          puis divisé par 100.
-        </li>
-        <li>
-          <strong>Les calories.</strong> Elles sont calculées avec les protéines, les glucides et les
-          lipides : {{ KCAL_PER_GRAM.protein }} kcal par gramme de protéines,
-          {{ KCAL_PER_GRAM.carbs }} kcal par gramme de glucides, {{ KCAL_PER_GRAM.fat }} kcal par gramme de
-          lipides.
+          <RichText
+            path="calculations.eaten.calories"
+            :params="{
+              protein: KCAL_PER_GRAM.protein,
+              carbs: KCAL_PER_GRAM.carbs,
+              fat: KCAL_PER_GRAM.fat,
+            }"
+          />
         </li>
       </ol>
       <p class="calculations__example">
-        <strong>Exemple.</strong> Pour 100 g, un aliment contient {{ EXAMPLE.proteinG }} g de protéines,
-        {{ EXAMPLE.carbsG }} g de glucides et {{ EXAMPLE.fatG }} g de lipides.
-        Cela fait {{ EXAMPLE.proteinG }} × {{ KCAL_PER_GRAM.protein }} + {{ EXAMPLE.carbsG }} ×
-        {{ KCAL_PER_GRAM.carbs }} + {{ EXAMPLE.fatG }} × {{ KCAL_PER_GRAM.fat }} =
-        <strong>{{ exampleKcalPer100g }} kcal</strong> pour 100 g. Pour {{ EXAMPLE.grams }} g, on
-        multiplie par {{ EXAMPLE.grams / 100 }} :
-        <strong>{{ exampleKcalPer100g * (EXAMPLE.grams / 100) }} kcal</strong>.
+        <RichText
+          path="calculations.eaten.example"
+          :params="{
+            proteinG: EXAMPLE.proteinG,
+            carbsG: EXAMPLE.carbsG,
+            fatG: EXAMPLE.fatG,
+            protein: KCAL_PER_GRAM.protein,
+            carbs: KCAL_PER_GRAM.carbs,
+            fat: KCAL_PER_GRAM.fat,
+            per100: exampleKcalPer100g,
+            grams: EXAMPLE.grams,
+            factor: EXAMPLE.grams / 100,
+            total: exampleKcalPer100g * (EXAMPLE.grams / 100),
+          }"
+        />
       </p>
       <ul class="calculations__list">
-        <li>
-          Les fibres, les sucres, les graisses saturées et le sel se calculent de la même façon. Ils ne
-          s’ajoutent pas aux calories : ils sont déjà dedans, sauf le sel, qui n’en donne aucune.
-        </li>
-        <li>
-          Quand une base ne donne pas une valeur, l’application compte 0. Pour le sel, Open Food Facts
-          donne parfois le sodium : l’application le multiplie par 2,5.
-        </li>
-        <li>
-          Seuls les repas <strong>cochés comme mangés</strong> comptent dans vos jauges. Un repas prévu
-          ne compte pas encore.
-        </li>
-        <li>
-          Un repas mangé garde les chiffres du jour où vous l’avez ajouté. Si l’aliment est corrigé
-          plus tard, votre journée passée ne change pas.
-        </li>
+        <li>{{ t('calculations.eaten.others') }}</li>
+        <li>{{ t('calculations.eaten.missing') }}</li>
+        <li><RichText path="calculations.eaten.onlyEaten" /></li>
+        <li>{{ t('calculations.eaten.frozen') }}</li>
       </ul>
     </BaseCard>
 
     <BaseCard
       v-if="body"
-      title="3. Votre besoin en calories"
-      subtitle="C’est l’énergie que votre corps dépense en une journée."
+      :title="t('calculations.need.title')"
+      :subtitle="t('calculations.need.subtitle')"
     >
       <ol class="calculations__steps">
         <li>
-          <strong>Au repos.</strong> L’application utilise la formule de Mifflin-St Jeor : 10 × poids +
-          6,25 × taille − 5 × âge, puis {{ body.sexTerm }} pour {{ body.sexLabel }}.
+          <RichText
+            path="calculations.need.resting"
+            :params="{ sexTerm: body.sexTerm, sexLabel: body.sexLabel }"
+          />
           <span class="calculations__mine">
-            10 × {{ body.weight }} + 6,25 × {{ body.height }} − 5 × {{ body.age }} {{ body.sexTerm }} =
-            <strong>{{ body.rest }} kcal</strong>
+            <RichText
+              path="calculations.need.restingMine"
+              :params="{
+                weight: body.weight,
+                height: body.height,
+                age: body.age,
+                sexTerm: body.sexTerm,
+                rest: body.rest,
+              }"
+            />
           </span>
         </li>
         <li>
-          <strong>Avec votre activité.</strong> On multiplie par un coefficient : 1,2 si l’on bouge très
-          peu, jusqu’à 1,9 pour un métier physique. Le vôtre : « {{ body.activityLabel }} ».
+          <RichText
+            path="calculations.need.withActivity"
+            :params="{ activity: body.activityLabel }"
+          />
           <span class="calculations__mine">
-            {{ body.rest }} × {{ body.multiplier }} = <strong>{{ body.need }} kcal par jour</strong>
+            <RichText
+              path="calculations.need.withActivityMine"
+              :params="{ rest: body.rest, multiplier: body.multiplier, need: body.need }"
+            />
           </span>
         </li>
       </ol>
-      <p>
-        Ce nombre est votre besoin. L’application ne vous demande ni de maigrir, ni de grossir : elle
-        vise l’équilibre. C’est une estimation, pas une mesure exacte.
-      </p>
+      <p>{{ t('calculations.need.note') }}</p>
     </BaseCard>
 
     <BaseCard
       v-if="body"
-      title="4. Vos protéines, glucides et lipides"
-      subtitle="Votre besoin en calories est partagé en trois."
+      :title="t('calculations.macros.title')"
+      :subtitle="t('calculations.macros.subtitle')"
     >
-      <p>
-        Le partage suit les repères de l’Anses. Il est le même pour tout le monde. Chaque part est
-        ensuite transformée en grammes, avec les mêmes kcal par gramme qu’au point 2.
-      </p>
+      <p>{{ t('calculations.macros.intro') }}</p>
       <dl class="calculations__table">
         <div>
-          <dt>Protéines</dt>
+          <dt>{{ t('labels.nutrient.protein') }}</dt>
           <dd>
-            {{ split.protein }} de {{ body.need }} kcal ÷ {{ KCAL_PER_GRAM.protein }} =
-            <strong>{{ body.protein }} g</strong>
+            <RichText
+              path="calculations.macros.line"
+              :params="{
+                share: split.protein,
+                need: body.need,
+                kcalPerGram: KCAL_PER_GRAM.protein,
+                grams: body.protein,
+              }"
+            />
           </dd>
         </div>
         <div>
-          <dt>Glucides</dt>
+          <dt>{{ t('labels.nutrient.carbs') }}</dt>
           <dd>
-            {{ split.carbs }} de {{ body.need }} kcal ÷ {{ KCAL_PER_GRAM.carbs }} =
-            <strong>{{ body.carbs }} g</strong>
+            <RichText
+              path="calculations.macros.line"
+              :params="{
+                share: split.carbs,
+                need: body.need,
+                kcalPerGram: KCAL_PER_GRAM.carbs,
+                grams: body.carbs,
+              }"
+            />
           </dd>
         </div>
         <div>
-          <dt>Lipides</dt>
+          <dt>{{ t('labels.nutrient.fat') }}</dt>
           <dd>
-            {{ split.fat }} de {{ body.need }} kcal ÷ {{ KCAL_PER_GRAM.fat }} =
-            <strong>{{ body.fat }} g</strong>
+            <RichText
+              path="calculations.macros.line"
+              :params="{
+                share: split.fat,
+                need: body.need,
+                kcalPerGram: KCAL_PER_GRAM.fat,
+                grams: body.fat,
+              }"
+            />
           </dd>
         </div>
       </dl>
@@ -218,63 +230,59 @@ const split = {
 
     <BaseCard
       v-if="body"
-      title="5. Fibres, sucres, graisses saturées et sel"
-      subtitle="Ici, il y a un minimum ou une limite."
+      :title="t('calculations.limits.title')"
+      :subtitle="t('calculations.limits.subtitle')"
     >
       <dl class="calculations__table">
         <div>
-          <dt>Fibres</dt>
-          <dd>Un <strong>minimum</strong> : au moins 30 g par jour.</dd>
+          <dt>{{ t('labels.nutrient.fiber') }}</dt>
+          <dd><RichText path="calculations.limits.fiber" /></dd>
         </div>
         <div>
-          <dt>Sucres</dt>
-          <dd>Une <strong>limite</strong> : pas plus de 100 g par jour.</dd>
+          <dt>{{ t('labels.nutrient.sugars') }}</dt>
+          <dd><RichText path="calculations.limits.sugars" /></dd>
         </div>
         <div>
-          <dt>Graisses saturées</dt>
+          <dt>{{ t('labels.nutrient.saturatedFat') }}</dt>
           <dd>
-            Une <strong>limite</strong> : {{ split.saturatedFat }} de {{ body.need }} kcal ÷
-            {{ KCAL_PER_GRAM.fat }} = <strong>{{ body.saturatedFat }} g</strong>. C’est la seule qui change
-            d’une personne à l’autre.
+            <RichText
+              path="calculations.limits.saturatedFat"
+              :params="{
+                share: split.saturatedFat,
+                need: body.need,
+                kcalPerGram: KCAL_PER_GRAM.fat,
+                grams: body.saturatedFat,
+              }"
+            />
           </dd>
         </div>
         <div>
-          <dt>Sel</dt>
-          <dd>Une <strong>limite</strong> : moins de 5 g par jour.</dd>
+          <dt>{{ t('labels.nutrient.salt') }}</dt>
+          <dd><RichText path="calculations.limits.salt" /></dd>
         </div>
       </dl>
-      <p>
-        Pour les sucres, l’application compte aussi ceux du lait et des fruits. La limite est donc un
-        peu sévère : c’est voulu.
-      </p>
+      <p>{{ t('calculations.limits.sugarsNote') }}</p>
     </BaseCard>
 
     <BaseCard
-      title="6. La moyenne des 7 derniers jours"
-      subtitle="Votre corps ne compte pas jour par jour."
+      :title="t('calculations.average.title')"
+      :subtitle="t('calculations.average.subtitle')"
     >
       <ol class="calculations__steps">
         <li>
-          L’application prend les {{ RECENT_DAYS }} jours <strong>avant aujourd’hui</strong>.
+          <RichText
+            path="calculations.average.days"
+            :params="{ n: RECENT_DAYS }"
+          />
         </li>
-        <li>
-          Un jour où vous n’avez marqué <strong>aucun repas mangé</strong> est ignoré. Ce n’est pas un
-          jeûne : c’est un jour non renseigné.
-        </li>
-        <li>
-          Pour chaque autre jour, elle compare ce que vous avez mangé au besoin que vous aviez ce
-          jour-là. Puis elle fait la moyenne.
-        </li>
+        <li><RichText path="calculations.average.ignored" /></li>
+        <li>{{ t('calculations.average.compare') }}</li>
       </ol>
-      <p>
-        Cette moyenne <strong>ne change pas</strong> votre objectif du lendemain. Manger plus un jour
-        n’oblige pas à manger moins le suivant.
-      </p>
+      <p><RichText path="calculations.average.note" /></p>
     </BaseCard>
 
     <p class="calculations__caveat">
-      Ces repères aident à manger équilibré. Ils ne remplacent pas l’avis d’un médecin ou d’un
-      diététicien.
+      {{ t('calculations.caveat') }}
     </p>
   </div>
 </template>

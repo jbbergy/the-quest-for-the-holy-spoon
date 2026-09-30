@@ -11,6 +11,7 @@ import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ROUTE } from '@/app/router'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
@@ -35,10 +36,9 @@ onMounted(async () => {
       >
         🥄
       </p>
-      <h1>Bienvenue dans <span lang="en">Holy Spoon</span></h1>
+      <h1>{{ t('shell.welcome.title') }} <span lang="en">Holy Spoon</span></h1>
       <p class="auth__intro">
-        Préparez vos repas de la semaine. Voyez ce que vous mangez chaque jour. Apprenez à manger
-        équilibré.
+        {{ t('shell.welcome.intro') }}
       </p>
     </header>
 
@@ -46,52 +46,52 @@ onMounted(async () => {
 
     <BaseCard
       v-if="players.player"
-      title="Reprendre"
-      :subtitle="`Le profil de ${players.player.name} est sur cet appareil.`"
+      :title="t('shell.welcome.resumeTitle')"
+      :subtitle="t('shell.welcome.resumeSubtitle', { name: players.player.name })"
     >
       <BaseButton
         block
         @click="router.push({ name: ROUTE.dashboard })"
       >
-        Continuer
+        {{ t('shell.welcome.resume') }}
       </BaseButton>
     </BaseCard>
 
     <BaseCard
       v-else
-      title="Commencer sans compte"
-      subtitle="Vos données restent sur cet appareil."
+      :title="t('shell.welcome.startTitle')"
+      :subtitle="t('shell.welcome.startSubtitle')"
     >
       <BaseButton
         block
         @click="router.push({ name: ROUTE.profileSetup })"
       >
-        Créer mon profil
+        {{ t('shell.welcome.start') }}
       </BaseButton>
     </BaseCard>
 
     <BaseCard
       v-if="account.session"
-      title="Compte"
-      :subtitle="`Vous êtes connecté avec ${account.session.email}.`"
+      :title="t('shell.welcome.accountTitle')"
+      :subtitle="t('shell.welcome.signedInAs', { email: account.session.email })"
     />
     <BaseCard
       v-else
-      title="Avec un compte"
-      subtitle="Vous retrouvez vos repas sur vos autres appareils. Vous pouvez les partager avec votre foyer."
+      :title="t('shell.welcome.withAccountTitle')"
+      :subtitle="t('shell.welcome.withAccountSubtitle')"
     >
       <div class="auth__actions">
         <BaseButton
           variant="secondary"
           @click="router.push({ name: ROUTE.signIn })"
         >
-          Se connecter
+          {{ t('shell.welcome.signIn') }}
         </BaseButton>
         <BaseButton
           variant="secondary"
           @click="router.push({ name: ROUTE.signUp })"
         >
-          Créer un compte
+          {{ t('shell.welcome.signUp') }}
         </BaseButton>
       </div>
     </BaseCard>

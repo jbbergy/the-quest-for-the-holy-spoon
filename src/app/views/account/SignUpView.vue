@@ -10,15 +10,17 @@
 import { nextTick, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
-import { NEW_PASSWORD_HINT, useAccountFormErrors } from '@/app/accountForm'
+import { newPasswordHint, useAccountFormErrors } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
 import { ROUTE } from '@/app/router'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 import PasswordField from '@/ui/PasswordField.vue'
+import RichText from '@/ui/RichText.vue'
 
 const account = useAccountStore()
 const { emailError, passwordError, formError } = useAccountFormErrors(() => account.error)
@@ -51,8 +53,8 @@ function editAddress(): void {
 
 <template>
   <AccountLayout
-    title="Créer un compte"
-    intro="Avec un compte, vous retrouvez vos repas sur vos autres appareils. Vous pouvez aussi rejoindre un foyer."
+    :title="t('account.signUp.title')"
+    :intro="t('account.signUp.intro')"
   >
     <BaseCard v-if="sentTo === null">
       <form
@@ -64,7 +66,7 @@ function editAddress(): void {
 
         <BaseField
           v-model="email"
-          label="Adresse e-mail"
+          :label="t('account.form.email')"
           type="email"
           autocomplete="email"
           required
@@ -73,9 +75,9 @@ function editAddress(): void {
         />
         <PasswordField
           v-model="password"
-          label="Mot de passe"
+          :label="t('account.form.password')"
           autocomplete="new-password"
-          :hint="NEW_PASSWORD_HINT"
+          :hint="newPasswordHint()"
           required
           v-bind="passwordError === undefined ? {} : { error: passwordError }"
         />
@@ -85,7 +87,7 @@ function editAddress(): void {
           block
           :loading="account.status === 'loading'"
         >
-          Créer mon compte
+          {{ t('account.signUp.submit') }}
         </BaseButton>
       </form>
     </BaseCard>
@@ -98,37 +100,39 @@ function editAddress(): void {
         role="status"
       >
         <h2 class="account-sent__title">
-          Regardez vos e-mails
+          {{ t('account.signUp.sentTitle') }}
         </h2>
         <p>
-          Nous venons d’envoyer un lien à <strong>{{ sentTo }}</strong>. Ouvrez-le pour confirmer
-          votre adresse. Il marche pendant 24 heures. Regardez aussi dans les courriers
-          indésirables.
+          <RichText path="account.signUp.sent">
+            <template #email>
+              <strong>{{ sentTo }}</strong>
+            </template>
+          </RichText>
         </p>
         <p class="account-sent__note">
-          Cette adresse a déjà un compte ? Vous recevrez alors un e-mail pour vous connecter.
+          {{ t('account.signUp.existing') }}
         </p>
         <p
           v-if="isDev"
           class="account-sent__note"
         >
-          En développement, aucun e-mail ne part : le lien s’affiche dans le terminal du serveur.
+          {{ t('account.signUp.devNote') }}
         </p>
       </div>
       <BaseButton
         variant="secondary"
         @click="editAddress"
       >
-        Changer d’adresse
+        {{ t('account.signUp.changeAddress') }}
       </BaseButton>
     </BaseCard>
 
     <template #links>
       <RouterLink :to="{ name: ROUTE.signIn }">
-        J’ai déjà un compte
+        {{ t('account.signUp.haveAccount') }}
       </RouterLink>
       <RouterLink :to="{ name: ROUTE.auth }">
-        Continuer sans compte
+        {{ t('account.form.continueWithout') }}
       </RouterLink>
     </template>
   </AccountLayout>

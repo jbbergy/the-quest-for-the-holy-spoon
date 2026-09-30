@@ -14,6 +14,8 @@
  */
 import { computed } from 'vue'
 
+import { t } from '@/i18n'
+
 import { FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 
 /**
@@ -29,9 +31,9 @@ const props = defineProps<{ source: string; author?: string | null }>()
  * sources restent expliqués par une info-bulle, là où l'on cherche un aliment.
  */
 const LABEL: Readonly<Record<string, string>> = {
-  [FoodSource.CIQUAL]: 'Catalogue public',
-  [FoodSource.OPEN_FOOD_FACTS]: 'Produit de marque',
-  [FoodSource.USER]: 'Mon aliment',
+  [FoodSource.CIQUAL]: 'ui.source.ciqual',
+  [FoodSource.OPEN_FOOD_FACTS]: 'ui.source.openFoodFacts',
+  [FoodSource.USER]: 'ui.source.user',
 }
 
 const TONE: Readonly<Record<string, string>> = {
@@ -42,8 +44,8 @@ const TONE: Readonly<Record<string, string>> = {
 
 const label = computed(() =>
   props.source === FoodSource.USER && props.author != null
-    ? `Ajouté par ${props.author}`
-    : (LABEL[props.source] ?? props.source),
+    ? t('ui.source.addedBy', { author: props.author })
+    : t(LABEL[props.source] ?? props.source),
 )
 const tone = computed(() => TONE[props.source] ?? '')
 </script>

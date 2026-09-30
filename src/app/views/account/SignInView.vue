@@ -13,6 +13,7 @@ import { useAccountFormErrors } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
 import { returnPath, ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
@@ -47,7 +48,7 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <AccountLayout title="Se connecter">
+  <AccountLayout :title="t('account.signIn.title')">
     <BaseCard>
       <form
         class="account-form"
@@ -58,7 +59,7 @@ async function submit(): Promise<void> {
 
         <BaseField
           v-model="email"
-          label="Adresse e-mail"
+          :label="t('account.form.email')"
           type="email"
           autocomplete="email"
           required
@@ -67,7 +68,7 @@ async function submit(): Promise<void> {
         />
         <PasswordField
           v-model="password"
-          label="Mot de passe"
+          :label="t('account.form.password')"
           autocomplete="current-password"
           required
         />
@@ -77,20 +78,20 @@ async function submit(): Promise<void> {
           block
           :loading="account.status === 'loading'"
         >
-          Se connecter
+          {{ t('account.signIn.submit') }}
         </BaseButton>
       </form>
     </BaseCard>
 
     <template #links>
       <RouterLink :to="{ name: ROUTE.forgotPassword }">
-        Mot de passe oublié ?
+        {{ t('account.signIn.forgot') }}
       </RouterLink>
       <RouterLink :to="{ name: ROUTE.signUp }">
-        Créer un compte
+        {{ t('account.signIn.create') }}
       </RouterLink>
       <RouterLink :to="{ name: ROUTE.auth }">
-        Continuer sans compte
+        {{ t('account.form.continueWithout') }}
       </RouterLink>
     </template>
   </AccountLayout>

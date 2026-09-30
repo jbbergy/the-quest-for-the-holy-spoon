@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { t } from '@/i18n'
+
 /**
  * Mise en page des écrans de compte : connexion, inscription, liens reçus par
  * e-mail. Plein écran, sans barre de navigation — comme l'accueil — mais
@@ -33,7 +35,7 @@ defineProps<{ title: string; intro?: string }>()
     <nav
       v-if="$slots.links"
       class="account__links"
-      aria-label="Autres options"
+      :aria-label="t('shell.account.otherOptions')"
     >
       <slot name="links" />
     </nav>

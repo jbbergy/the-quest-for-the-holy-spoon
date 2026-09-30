@@ -1,3 +1,4 @@
+import { numberFormat, t } from '@/i18n'
 import { Diet } from '@/modules/nutrition_inventory/application'
 import { CompletionStatus, type IdealFoodProfile } from '@/modules/planning/application'
 
@@ -16,6 +17,7 @@ import { CompletionStatus, type IdealFoodProfile } from '@/modules/planning/appl
 type Macro = 'protein' | 'carbs' | 'fat'
 
 interface Example {
+  /** Clé de traduction du nom de l'aliment. */
   readonly word: string
   /** Régimes auxquels cet exemple ne convient pas. */
   readonly unsuitableFor: readonly Diet[]
@@ -27,38 +29,38 @@ const MILK_FREE = [Diet.VEGAN, Diet.LACTOSE_FREE] as const
 
 const EXAMPLES: Readonly<Record<Macro | 'fiber', readonly Example[]>> = {
   protein: [
-    { word: 'viande', unsuitableFor: MEAT_FREE },
-    { word: 'poisson', unsuitableFor: FISH_FREE },
-    { word: 'œufs', unsuitableFor: [Diet.VEGAN] },
-    { word: 'légumes secs', unsuitableFor: [] },
-    { word: 'tofu', unsuitableFor: [] },
-    { word: 'yaourt', unsuitableFor: MILK_FREE },
+    { word: 'advice.example.meat', unsuitableFor: MEAT_FREE },
+    { word: 'advice.example.fish', unsuitableFor: FISH_FREE },
+    { word: 'advice.example.eggs', unsuitableFor: [Diet.VEGAN] },
+    { word: 'advice.example.pulses', unsuitableFor: [] },
+    { word: 'advice.example.tofu', unsuitableFor: [] },
+    { word: 'advice.example.yogurt', unsuitableFor: MILK_FREE },
   ],
   carbs: [
-    { word: 'pain', unsuitableFor: [Diet.GLUTEN_FREE] },
-    { word: 'pâtes', unsuitableFor: [Diet.GLUTEN_FREE] },
-    { word: 'riz', unsuitableFor: [] },
-    { word: 'pommes de terre', unsuitableFor: [] },
-    { word: 'fruits', unsuitableFor: [] },
+    { word: 'advice.example.bread', unsuitableFor: [Diet.GLUTEN_FREE] },
+    { word: 'advice.example.pasta', unsuitableFor: [Diet.GLUTEN_FREE] },
+    { word: 'advice.example.rice', unsuitableFor: [] },
+    { word: 'advice.example.potatoes', unsuitableFor: [] },
+    { word: 'advice.example.fruit', unsuitableFor: [] },
   ],
   fat: [
-    { word: 'huile d’olive', unsuitableFor: [] },
-    { word: 'noix', unsuitableFor: [] },
-    { word: 'avocat', unsuitableFor: [] },
-    { word: 'fromage', unsuitableFor: MILK_FREE },
+    { word: 'advice.example.oliveOil', unsuitableFor: [] },
+    { word: 'advice.example.nuts', unsuitableFor: [] },
+    { word: 'advice.example.avocado', unsuitableFor: [] },
+    { word: 'advice.example.cheese', unsuitableFor: MILK_FREE },
   ],
   fiber: [
-    { word: 'légumes', unsuitableFor: [] },
-    { word: 'fruits', unsuitableFor: [] },
-    { word: 'légumes secs', unsuitableFor: [] },
-    { word: 'pain complet', unsuitableFor: [Diet.GLUTEN_FREE] },
+    { word: 'advice.example.vegetables', unsuitableFor: [] },
+    { word: 'advice.example.fruit', unsuitableFor: [] },
+    { word: 'advice.example.pulses', unsuitableFor: [] },
+    { word: 'advice.example.wholemealBread', unsuitableFor: [Diet.GLUTEN_FREE] },
   ],
 }
 
 const NAMES: Readonly<Record<Macro, string>> = {
-  protein: 'protéines',
-  carbs: 'glucides',
-  fat: 'lipides',
+  protein: 'advice.macro.protein',
+  carbs: 'advice.macro.carbs',
+  fat: 'advice.macro.fat',
 }
 
 const GRAMS: Readonly<Record<Macro, 'proteinG' | 'carbsG' | 'fatG'>> = {
@@ -71,13 +73,13 @@ const GRAMS: Readonly<Record<Macro, 'proteinG' | 'carbsG' | 'fatG'>> = {
 const MIN_GRAMS = 5
 const MIN_FIBER_G = 1
 
-const whole = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
+const whole = { format: (value: number): string => numberFormat({ maximumFractionDigits: 0 }).format(value) }
 
 function examplesFor(kind: Macro | 'fiber', diets: readonly Diet[]): string {
   const words = EXAMPLES[kind]
     .filter((example) => !example.unsuitableFor.some((diet) => diets.includes(diet)))
-    .map((example) => example.word)
-  return `Par exemple : ${words.join(', ')}.`
+    .map((example) => t(example.word))
+  return t('advice.forExample', { examples: words.join(', ') })
 }
 
 /** Le nutriment le plus en retard, en part des calories qui restent. `null` : aucun. */
@@ -97,17 +99,17 @@ export function adviceFor(profile: IdealFoodProfile, diets: readonly Diet[]): st
 
   if (profile.status === CompletionStatus.EXCEEDED) {
     lines.push(
-      `Vous avez mangé ${whole.format(profile.excessCalories)} kcal de plus que votre besoin.`,
-      'Ce n’est pas grave. Ce qui compte, c’est la moyenne sur plusieurs jours.',
+      t('advice.exceeded', { kcal: whole.format(profile.excessCalories) }),
+      t('advice.exceededNote'),
     )
   } else if (profile.status === CompletionStatus.COMPLETE) {
-    lines.push('Vous avez mangé ce dont vous avez besoin aujourd’hui.')
+    lines.push(t('advice.complete'))
   } else {
-    lines.push(`Il vous reste ${whole.format(profile.remainingCalories)} kcal pour aujourd’hui.`)
+    lines.push(t('advice.remaining', { kcal: whole.format(profile.remainingCalories) }))
     const priority = priorityOf(profile)
     if (priority !== null) {
       const grams = whole.format(profile.remainingMacros[GRAMS[priority]])
-      lines.push(`Il vous manque surtout des ${NAMES[priority]} : ${grams} g.`)
+      lines.push(t('advice.missingMacro', { name: t(NAMES[priority]), grams }))
       lines.push(examplesFor(priority, diets))
       missesMacro = true
     }
@@ -115,8 +117,8 @@ export function adviceFor(profile: IdealFoodProfile, diets: readonly Diet[]): st
 
   const fiber = Math.round(profile.remainingFiberG)
   if (fiber >= MIN_FIBER_G) {
-    const also = missesMacro ? 'aussi' : 'encore'
-    lines.push(`Il vous manque ${also} ${fiber} g de fibres.`, examplesFor('fiber', diets))
+    const also = missesMacro ? t('advice.also') : t('advice.stillMissing')
+    lines.push(t('advice.missingFiber', { also, grams: fiber }), examplesFor('fiber', diets))
   }
   return lines
 }

@@ -1,0 +1,47 @@
+/** Semaine, journée d'un membre du foyer, repas prévu pour d'autres. */
+export const week = {
+  title: 'Semaine',
+  navLabel: 'Navigation par semaine',
+  previous: 'Semaine précédente',
+  next: 'Semaine suivante',
+  shoppingList: 'Liste de courses',
+  shoppingListOfWeek: 'de cette semaine',
+  backToCurrent: 'Revenir à la semaine en cours',
+  addMeal: 'Ajouter un repas',
+  addMealOn: 'le {day}',
+  noMeals: 'Aucun repas prévu',
+  total: '{kcal} kcal au total',
+  todayWithTotal: 'Aujourd’hui · {total}',
+  plannedBy: 'Prévu pour vous par {name}',
+  aHouseholdMember: 'un membre du foyer',
+  edit: ' — modifier',
+  mealOnDay: '{meal} du {day}',
+  member: {
+    back: '← Foyer',
+    fallbackName: 'Membre du foyer',
+    pageTitle: 'Journée {of}',
+    today: 'Aujourd’hui',
+    changeDay: 'Changer de jour',
+    previousDay: 'Jour précédent',
+    nextDay: 'Jour suivant',
+    notShared: '{name} ne montre pas ses journées pour le moment.',
+    loading: 'Chargement…',
+    gaugesNotReady:
+      'Les jauges {of} ne sont pas encore prêtes. Elles apparaîtront quand son application aura envoyé son besoin.',
+    mealsTitle: 'Repas {of}',
+    noMealsTitle: 'Aucun repas ce jour-là.',
+    noMealsDescription: 'Rien de prévu, rien de mangé.',
+    planned: 'Prévu',
+    eaten: 'Mangé',
+  },
+  plan: {
+    title: 'Prévoir aussi pour…',
+    subtitle:
+      'Chaque personne reçoit ce repas dans sa semaine. Les portions sont adaptées à son besoin. Elle pourra les changer.',
+    legend: 'Membres du foyer',
+    submit: 'Prévoir pour cette personne | Prévoir pour ces personnes',
+    planned: 'Le repas est prévu pour {names}. Les portions sont adaptées au besoin de chacun.',
+    plannedUnknown:
+      'Le repas est prévu pour {names}. Nous ne connaissons pas encore le besoin de {unknown} : ses portions sont les mêmes que les vôtres.',
+  },
+} as const

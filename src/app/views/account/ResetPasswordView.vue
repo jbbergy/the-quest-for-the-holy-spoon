@@ -9,10 +9,11 @@
 import { onMounted, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import { NEW_PASSWORD_HINT, tokenFromHash, useAccountFormErrors } from '@/app/accountForm'
+import { newPasswordHint, tokenFromHash, useAccountFormErrors } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
 import { ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
@@ -48,11 +49,10 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <AccountLayout title="Nouveau mot de passe">
+  <AccountLayout :title="t('account.reset.title')">
     <BaseCard v-if="ready && token === null">
       <p role="status">
-        Ce lien ne marche pas : il est incomplet. Ouvrez-le directement depuis l’e-mail, ou
-        demandez un nouveau lien.
+        {{ t('account.reset.incomplete') }}
       </p>
     </BaseCard>
 
@@ -66,9 +66,9 @@ async function submit(): Promise<void> {
 
         <PasswordField
           v-model="password"
-          label="Nouveau mot de passe"
+          :label="t('account.form.newPassword')"
           autocomplete="new-password"
-          :hint="NEW_PASSWORD_HINT"
+          :hint="newPasswordHint()"
           required
           v-bind="passwordError === undefined ? {} : { error: passwordError }"
         />
@@ -78,17 +78,17 @@ async function submit(): Promise<void> {
           block
           :loading="account.status === 'loading'"
         >
-          Enregistrer et me connecter
+          {{ t('account.reset.submit') }}
         </BaseButton>
       </form>
     </BaseCard>
 
     <template #links>
       <RouterLink :to="{ name: ROUTE.forgotPassword }">
-        Demander un nouveau lien
+        {{ t('account.reset.askNewLink') }}
       </RouterLink>
       <RouterLink :to="{ name: ROUTE.signIn }">
-        Retour à la connexion
+        {{ t('account.form.backToSignIn') }}
       </RouterLink>
     </template>
   </AccountLayout>

@@ -29,6 +29,8 @@
  */
 import { computed } from 'vue'
 
+import { numberFormat, t } from '@/i18n'
+
 import { useAnimatedNumber } from './useAnimatedNumber'
 
 const props = withDefaults(
@@ -42,8 +44,6 @@ const props = withDefaults(
     size?: 'md' | 'lg'
     /** Apport moyen par jour sur les jours précédents ; `null` : pas de trait. */
     average?: number | null
-    /** Légende du trait : « 7 derniers jours ». */
-    averageLabel?: string
   }>(),
   {
     unit: 'g',
@@ -51,21 +51,17 @@ const props = withDefaults(
     mode: 'target',
     size: 'md',
     average: null,
-    averageLabel: '7 derniers jours',
   },
 )
 
 /** Sans séparateur de milliers : « 2298 » se lit mieux que « 2 298 » dans un anneau étroit. */
-const amountFormat = new Intl.NumberFormat('fr-FR', {
-  maximumFractionDigits: 1,
-  useGrouping: false,
-})
+const amountFormat = () => numberFormat({ maximumFractionDigits: 1, useGrouping: false })
 
 /** Une décimale sous 10 g — le sel se joue au dixième —, aucune au-delà ni pour les kcal. */
 function amount(value: number): string {
   const magnitude = Math.abs(value)
   const precise = props.unit !== 'kcal' && magnitude < 10
-  return amountFormat.format(precise ? Math.round(magnitude * 10) / 10 : Math.round(magnitude))
+  return amountFormat().format(precise ? Math.round(magnitude * 10) / 10 : Math.round(magnitude))
 }
 
 /** Sous un centième du repère, un écart n'est pas une information. */
@@ -82,31 +78,39 @@ const isExceeded = computed(() => props.target > 0 && gap.value > 0 && !negligib
 const status = computed(() => {
   const rest = `${amount(gap.value)} ${props.unit}`
   if (props.mode === 'limit') {
-    return isExceeded.value ? `Limite dépassée de ${rest}` : 'Sous la limite'
+    return isExceeded.value ? t('ui.gauge.limitExceeded', { rest }) : t('ui.gauge.underLimit')
   }
   if (props.mode === 'floor') {
-    return gap.value >= 0 || negligible.value ? 'Minimum atteint' : `Encore ${rest}`
+    return gap.value >= 0 || negligible.value
+      ? t('ui.gauge.floorReached')
+      : t('ui.gauge.remaining', { rest })
   }
-  if (negligible.value) return 'Besoin atteint'
-  return gap.value < 0 ? `Encore ${rest}` : `${rest} de plus que le besoin`
+  if (negligible.value) return t('ui.gauge.targetReached')
+  return gap.value < 0 ? t('ui.gauge.remaining', { rest }) : t('ui.gauge.overTarget', { rest })
 })
 
 /** Ce que l'anneau compare : « sur 2298 kcal », « au moins 30 g », « 5 g au plus ». */
 const reference = computed(() => {
   const bound = `${Math.round(props.target)} ${props.unit}`
-  if (props.mode === 'limit') return `limite ${bound}`
-  if (props.mode === 'floor') return `au moins ${bound}`
-  return `sur ${bound}`
+  if (props.mode === 'limit') return t('ui.gauge.limitOf', { bound })
+  if (props.mode === 'floor') return t('ui.gauge.atLeast', { bound })
+  return t('ui.gauge.outOf', { bound })
 })
 
 const averageText = computed(() =>
   props.average === null
     ? null
-    : `Moyenne des ${props.averageLabel} : ${amount(props.average)} ${props.unit}`,
+    : t('ui.gauge.averageSpoken', { value: amount(props.average), unit: props.unit }),
 )
 
 const valueText = computed(() => {
-  const head = `${props.label} : ${amount(props.value)} ${props.unit}, ${reference.value}. ${status.value}.`
+  const head = t('ui.gauge.spoken', {
+    label: props.label,
+    value: amount(props.value),
+    unit: props.unit,
+    reference: reference.value,
+    status: status.value,
+  })
   return averageText.value === null ? head : `${head} ${averageText.value}.`
 })
 
@@ -221,7 +225,7 @@ const averageTick = computed(() => {
       aria-hidden="true"
     >
       <span class="ring__swatch" />
-      Moyenne : {{ amount(average) }} {{ unit }}
+      {{ t('ui.gauge.average', { value: amount(average), unit }) }}
     </p>
   </div>
 </template>

@@ -1,4 +1,6 @@
-import { type MaybeRefOrGetter, readonly, ref, toValue, watchEffect } from 'vue'
+import { computed, type MaybeRefOrGetter, shallowRef, toValue, watchEffect } from 'vue'
+
+import { t, te } from '@/i18n'
 
 /**
  * Titre de l'écran affiché.
@@ -14,18 +16,40 @@ import { type MaybeRefOrGetter, readonly, ref, toValue, watchEffect } from 'vue'
  */
 export const APP_NAME = 'Holy Spoon'
 
-const current = ref('')
+/**
+ * Le titre est gardé **sous forme de fonction** : lue dans un `computed`, elle
+ * suit la langue et les données dont elle dépend, si bien qu'un changement de
+ * langue met à jour l'onglet sans que l'écran ait à le redemander.
+ */
+const source = shallowRef<() => string>(() => '')
 
-export const pageTitle = readonly(current)
+export const pageTitle = computed(() => source.value())
 
-export function setPageTitle(title: string): void {
-  current.value = title
-  if (typeof document !== 'undefined') {
+// Synchrone : le titre du document ne doit jamais retarder sur celui de l'écran.
+watchEffect(
+  () => {
+    if (typeof document === 'undefined') return
+    const title = pageTitle.value
     document.title = title === '' ? APP_NAME : `${title} · ${APP_NAME}`
-  }
+  },
+  { flush: 'sync' },
+)
+
+export function setPageTitle(title: string | (() => string)): void {
+  source.value = typeof title === 'function' ? title : () => title
 }
 
 /** Titre propre à un écran, tenu à jour tant que l'écran est affiché. */
 export function usePageTitle(title: MaybeRefOrGetter<string>): void {
-  watchEffect(() => setPageTitle(toValue(title)))
+  setPageTitle(() => toValue(title))
+}
+
+/**
+ * Titre d'une route : `meta.title` est une clé de traduction (`shell.titles.week`).
+ * Une valeur qui n'en est pas une est prise telle quelle.
+ */
+export function routeTitle(meta: Readonly<Record<string | symbol, unknown>>): string {
+  const raw = meta.title
+  if (typeof raw !== 'string') return ''
+  return te(raw) ? t(raw) : raw
 }

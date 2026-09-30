@@ -13,6 +13,7 @@ import { useContainer } from '@/app/container'
 import { useHousehold } from '@/app/useHousehold'
 import { type ErrorView, toErrorView } from '@/core/errors'
 import type { MealId, PlayerId } from '@/core/identity'
+import { formatList, t } from '@/i18n'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
@@ -37,8 +38,6 @@ const busy = ref(false)
 const message = ref('')
 const error = ref<ErrorView | null>(null)
 
-const listFormat = new Intl.ListFormat('fr-FR', { style: 'long', type: 'conjunction' })
-
 async function plan(): Promise<void> {
   const plannedBy = players.playerId
   const selected = guests.value.filter((guest) => chosen.value.includes(guest.playerId))
@@ -60,26 +59,26 @@ async function plan(): Promise<void> {
     return
   }
   chosen.value = []
-  const names = listFormat.format(selected.map((guest) => guest.name))
+  const names = formatList(selected.map((guest) => guest.name))
   const unknown = selected.filter((guest) => guest.targetCalories === null)
   message.value =
     unknown.length === 0
-      ? `Le repas est prévu pour ${names}. Les portions sont adaptées au besoin de chacun.`
-      : `Le repas est prévu pour ${names}. Nous ne connaissons pas encore le besoin de ${listFormat.format(unknown.map((guest) => guest.name))} : ses portions sont les mêmes que les vôtres.`
+      ? t('week.plan.planned', { names })
+      : t('week.plan.plannedUnknown', { names, unknown: formatList(unknown.map((guest) => guest.name)) })
 }
 </script>
 
 <template>
   <BaseCard
     v-if="guests.length > 0"
-    title="Prévoir aussi pour…"
-    subtitle="Chaque personne reçoit ce repas dans sa semaine. Les portions sont adaptées à son besoin. Elle pourra les changer."
+    :title="t('week.plan.title')"
+    :subtitle="t('week.plan.subtitle')"
   >
     <ErrorNotice :error="error" />
 
     <fieldset class="plan__fieldset">
       <legend class="sr-only">
-        Membres du foyer
+        {{ t('week.plan.legend') }}
       </legend>
       <label
         v-for="guest in guests"
@@ -101,7 +100,7 @@ async function plan(): Promise<void> {
       :loading="busy"
       @click="plan"
     >
-      Prévoir pour {{ chosen.length > 1 ? 'ces personnes' : 'cette personne' }}
+      {{ t('week.plan.submit', { n: chosen.length }) }}
     </BaseButton>
 
     <p

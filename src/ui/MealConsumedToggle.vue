@@ -10,6 +10,8 @@
  */
 import { computed } from 'vue'
 
+import { dateFormat, t } from '@/i18n'
+
 const props = defineProps<{
   /** Date ISO de consommation, ou `null` si le repas n'est que prévu. */
   consumedAt: string | null
@@ -22,15 +24,10 @@ const emit = defineEmits<{ toggle: [boolean] }>()
 
 const isConsumed = computed(() => props.consumedAt !== null)
 
-const timeFormatter = new Intl.DateTimeFormat('fr-FR', {
-  hour: '2-digit',
-  minute: '2-digit',
-})
-
 const time = computed(() => {
   if (props.consumedAt === null) return null
   const date = new Date(props.consumedAt)
-  return Number.isNaN(date.getTime()) ? null : timeFormatter.format(date)
+  return Number.isNaN(date.getTime()) ? null : dateFormat({ hour: '2-digit', minute: '2-digit' }).format(date)
 })
 </script>
 
@@ -48,7 +45,7 @@ const time = computed(() => {
         class="consumed__mark"
         aria-hidden="true"
       >{{ isConsumed ? '✓' : '○' }}</span>
-      <span>Mangé</span>
+      <span>{{ t('ui.consumed.label') }}</span>
       <!-- Le libellé du repas n'est visible nulle part dans le bouton : sans lui,
            une liste de quatre repas offrirait quatre boutons « Mangé » identiques. -->
       <span class="sr-only"> — {{ mealLabel }}</span>
@@ -58,13 +55,13 @@ const time = computed(() => {
       v-if="time"
       class="consumed__time"
     >
-      à {{ time }}
+      {{ t('ui.consumed.at', { time }) }}
     </p>
     <p
       v-else
       class="consumed__time"
     >
-      Pas encore mangé
+      {{ t('ui.consumed.not') }}
     </p>
   </div>
 </template>

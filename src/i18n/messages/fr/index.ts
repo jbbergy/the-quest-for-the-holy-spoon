@@ -1,0 +1,20 @@
+import { account } from './account'
+import { advice } from './advice'
+import { calculations } from './calculations'
+import { dashboard } from './dashboard'
+import { errors } from './errors'
+import { foods } from './foods'
+import { glossary } from './glossary'
+import { household } from './household'
+import { labels } from './labels'
+import { meal } from './meal'
+import { profile } from './profile'
+import { recipes } from './recipes'
+import { settings } from './settings'
+import { shopping } from './shopping'
+import { shell } from './shell'
+import { week } from './week'
+import { ui } from './ui'
+
+/** Textes français : la langue de référence, dont l'anglais suit la forme. */
+export const fr = { account, advice, calculations, dashboard, errors, foods, glossary, household, labels, meal, profile, recipes, settings, shell, shopping, ui, week } as const

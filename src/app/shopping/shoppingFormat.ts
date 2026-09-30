@@ -1,7 +1,8 @@
 import { formatPortion } from '@/app/portionFormat'
+import { numberFormat } from '@/i18n'
 import type { ShoppingItemView } from '@/modules/shopping/application'
 
-const decimal = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
+const decimal = { format: (value: number): string => numberFormat({ maximumFractionDigits: 1 }).format(value) }
 
 /** Arrondi au-dessus : on n'achète pas un peu moins que ce qu'il faut. */
 function roundUp(value: number, step: number): number {

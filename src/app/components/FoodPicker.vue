@@ -23,6 +23,7 @@ import { dietLabel, dietsOf } from '@/app/profileOptions'
 import { ROUTE } from '@/app/router'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import type { FoodItemId } from '@/core/identity'
+import { lower, t } from '@/i18n'
 import {
   DietSuitability,
   type RecentPortion,
@@ -39,6 +40,7 @@ import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 import FoodSourceTag from '@/ui/FoodSourceTag.vue'
 import InfoTip from '@/ui/InfoTip.vue'
+import RichText from '@/ui/RichText.vue'
 
 export interface FoodChoice {
   readonly food: FoodItem
@@ -134,7 +136,7 @@ function conflictNote(item: FoodItem): string | null {
   const conflicts = DietSuitability.conflicts(item, diets.value)
   return conflicts.length === 0
     ? null
-    : `Ne convient pas : ${conflicts.map((diet) => dietLabel(diet).toLocaleLowerCase('fr-FR')).join(', ')}`
+    : t('meal.picker.conflict', { diets: conflicts.map((diet) => lower(dietLabel(diet))).join(', ') })
 }
 
 /**
@@ -143,17 +145,17 @@ function conflictNote(item: FoodItem): string | null {
  * titre ne doit pas le contredire.
  */
 const emptyTitle = computed(() => {
-  if (search.excluded.length > 0) return 'Aucun aliment trouvé qui convienne à votre régime.'
+  if (search.excluded.length > 0) return t('meal.picker.emptyDiet')
   return search.onlineSearchUnavailable
-    ? 'Aucun aliment trouvé dans le catalogue public.'
-    : 'Aucun aliment trouvé.'
+    ? t('meal.picker.emptyPublic')
+    : t('meal.picker.empty')
 })
 
 const emptyDescription = computed(() => {
-  if (search.unknownBarcode) return 'Ce code-barres n’est dans aucun catalogue.'
+  if (search.unknownBarcode) return t('meal.picker.unknownBarcode')
   return search.onlineSearchUnavailable
-    ? 'Les produits de marque n’ont pas pu être cherchés. Réessayez dans un moment, ou créez cet aliment vous-même.'
-    : 'Vous pouvez créer cet aliment vous-même.'
+    ? t('meal.picker.brandsFailed')
+    : t('meal.picker.createHint')
 })
 
 function runSearch(text: string): void {
@@ -186,18 +188,26 @@ async function createFood(): Promise<void> {
     <ErrorNotice :error="search.error" />
 
     <p class="picker__note">
-      Tapez le nom d’un aliment, ou le numéro du code-barres<InfoTip
-        term="code-barres"
-        :text="GLOSSARY.barcode"
-      />.
-      L’application cherche dans le catalogue public des aliments<InfoTip
-        term="catalogue public"
-        :text="GLOSSARY.ciqual"
-      />
-      et dans les produits de marque<InfoTip
-        term="produits de marque"
-        :text="GLOSSARY.openFoodFacts"
-      />.
+      <RichText path="meal.picker.note">
+        <template #barcode>
+          {{ t('meal.picker.barcode') }}<InfoTip
+            :term="t('labels.term.barcode')"
+            :text="GLOSSARY.barcode"
+          />
+        </template>
+        <template #catalogue>
+          {{ t('meal.picker.catalogue') }}<InfoTip
+            :term="t('labels.term.publicCatalogue')"
+            :text="GLOSSARY.ciqual"
+          />
+        </template>
+        <template #brands>
+          {{ t('meal.picker.brands') }}<InfoTip
+            :term="t('labels.term.brandProducts')"
+            :text="GLOSSARY.openFoodFacts"
+          />
+        </template>
+      </RichText>
     </p>
     <form
       class="picker__search"
@@ -206,15 +216,15 @@ async function createFood(): Promise<void> {
     >
       <BaseField
         v-model="query"
-        label="Nom ou code-barres"
-        hint="Par exemple : poulet, ou 3017620422003."
+        :label="t('meal.picker.searchLabel')"
+        :hint="t('meal.picker.searchHint')"
       />
       <BaseButton
         type="submit"
         variant="secondary"
         :loading="search.status === 'loading'"
       >
-        Chercher
+        {{ t('meal.picker.search') }}
       </BaseButton>
     </form>
 
@@ -231,12 +241,10 @@ async function createFood(): Promise<void> {
     >
       <p role="status">
         <template v-if="!showExcluded">
-          {{ search.excluded.length }} aliment{{ search.excluded.length > 1 ? 's' : '' }}
-          masqué{{ search.excluded.length > 1 ? 's' : '' }} : ne
-          convien{{ search.excluded.length > 1 ? 'nent' : 't' }} pas à votre régime.
+          {{ t('meal.picker.hidden', { n: search.excluded.length }) }}
         </template>
         <template v-else>
-          Les aliments qui ne conviennent pas à votre régime sont à la fin de la liste.
+          {{ t('meal.picker.hiddenAtEnd') }}
         </template>
       </p>
       <BaseButton
@@ -245,7 +253,7 @@ async function createFood(): Promise<void> {
         :aria-pressed="showExcluded ? 'true' : 'false'"
         @click="showExcluded = !showExcluded"
       >
-        {{ showExcluded ? 'Les masquer' : 'Les afficher' }}
+        {{ showExcluded ? t('meal.picker.hide') : t('meal.picker.show') }}
       </BaseButton>
     </div>
 
@@ -267,7 +275,7 @@ async function createFood(): Promise<void> {
         variant="secondary"
         @click="createFood"
       >
-        Créer un aliment
+        {{ t('meal.picker.create') }}
       </BaseButton>
     </EmptyState>
 
@@ -276,7 +284,7 @@ async function createFood(): Promise<void> {
       class="picker__fieldset"
     >
       <legend class="sr-only">
-        Résultats de la recherche
+        {{ t('meal.picker.results') }}
       </legend>
       <ul class="picker__results">
         <li
@@ -297,7 +305,7 @@ async function createFood(): Promise<void> {
                   :source="item.source"
                   :author="foodAuthor(household.household, players.playerId, item.ownerId)"
                 />
-                {{ Math.round(item.macrosPer100g.calories()) }} kcal pour {{ per100Label(item) }}
+                {{ t('meal.picker.kcalPer', { kcal: Math.round(item.macrosPer100g.calories()), per: per100Label(item) }) }}
               </small>
               <small
                 v-if="conflictNote(item)"
@@ -340,19 +348,19 @@ async function createFood(): Promise<void> {
         class="picker__macros"
       >
         <div>
-          <dt>Calories</dt>
+          <dt>{{ t('labels.nutrient.calories') }}</dt>
           <dd>{{ Math.round(macros.calories()) }} kcal</dd>
         </div>
         <div>
-          <dt>Protéines</dt>
+          <dt>{{ t('labels.nutrient.protein') }}</dt>
           <dd>{{ macros.proteinG.toFixed(1) }} g</dd>
         </div>
         <div>
-          <dt>Glucides</dt>
+          <dt>{{ t('labels.nutrient.carbs') }}</dt>
           <dd>{{ macros.carbsG.toFixed(1) }} g</dd>
         </div>
         <div>
-          <dt>Lipides</dt>
+          <dt>{{ t('labels.nutrient.fat') }}</dt>
           <dd>{{ macros.fatG.toFixed(1) }} g</dd>
         </div>
       </dl>
@@ -363,7 +371,7 @@ async function createFood(): Promise<void> {
         :loading="busy"
         @click="confirm"
       >
-        Ajouter {{ selected.name }}
+        {{ t('meal.picker.add', { food: selected.name }) }}
       </BaseButton>
 
       <BaseButton
@@ -373,7 +381,7 @@ async function createFood(): Promise<void> {
         size="sm"
         @click="selectedId = null"
       >
-        Aucun de ces aliments
+        {{ t('meal.picker.none') }}
       </BaseButton>
     </div>
   </div>

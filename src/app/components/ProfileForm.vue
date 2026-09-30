@@ -19,6 +19,7 @@ import { computed, nextTick, reactive, ref } from 'vue'
 
 import { GLOSSARY } from '@/app/glossary'
 import { ACTIVITY_OPTIONS, AVOID_OPTIONS, DIET_OPTIONS, SEX_OPTIONS } from '@/app/profileOptions'
+import { t } from '@/i18n'
 import type { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import type { BiologicalSex } from '@/modules/player_profile/domain/BodyMeasurements'
 import type { DietaryRestriction } from '@/modules/player_profile/domain/DietaryPreferences'
@@ -57,21 +58,15 @@ const form = reactive({
 })
 
 const RESTRICTION_GROUPS = [
-  { legend: 'Mon régime', options: DIET_OPTIONS },
-  { legend: 'Aliments à éviter', options: AVOID_OPTIONS },
+  { legend: 'profile.form.groupDiet', options: DIET_OPTIONS },
+  { legend: 'profile.form.groupAvoid', options: AVOID_OPTIONS },
 ] as const
 
 type Field = 'name' | 'heightCm' | 'weightKg' | 'ageYears' | 'biologicalSex' | 'activityLevel'
 
 /** Ce qu'il faut écrire, champ par champ, quand il est vide. */
-const MISSING: Readonly<Record<Field, string>> = {
-  name: 'Écrivez un prénom ou un surnom.',
-  heightCm: 'Écrivez votre taille, en centimètres. Par exemple : 170.',
-  weightKg: 'Écrivez votre poids, en kilos. Par exemple : 65.',
-  ageYears: 'Écrivez votre âge, en années.',
-  biologicalSex: 'Choisissez « Femme » ou « Homme ».',
-  activityLevel: 'Choisissez votre activité.',
-}
+/** Ce qu'il manque, dit dans la langue courante au moment de la validation. */
+const missing = (field: Field): string => t(`profile.form.missing.${field}`)
 
 const errors = ref<Partial<Record<Field, string>>>({})
 const root = ref<HTMLElement | null>(null)
@@ -84,12 +79,12 @@ function isEmptyNumber(value: number): boolean {
 
 function validate(): Partial<Record<Field, string>> {
   const found: Partial<Record<Field, string>> = {}
-  if (form.name.trim() === '') found.name = MISSING.name
-  if (isEmptyNumber(form.heightCm)) found.heightCm = MISSING.heightCm
-  if (isEmptyNumber(form.weightKg)) found.weightKg = MISSING.weightKg
-  if (isEmptyNumber(form.ageYears)) found.ageYears = MISSING.ageYears
-  if (form.biologicalSex === null) found.biologicalSex = MISSING.biologicalSex
-  if (form.activityLevel === null) found.activityLevel = MISSING.activityLevel
+  if (form.name.trim() === '') found.name = missing('name')
+  if (isEmptyNumber(form.heightCm)) found.heightCm = missing('heightCm')
+  if (isEmptyNumber(form.weightKg)) found.weightKg = missing('weightKg')
+  if (isEmptyNumber(form.ageYears)) found.ageYears = missing('ageYears')
+  if (form.biologicalSex === null) found.biologicalSex = missing('biologicalSex')
+  if (form.activityLevel === null) found.activityLevel = missing('activityLevel')
   return found
 }
 
@@ -138,15 +133,14 @@ function clear(field: Field): void {
       class="profile-form__summary"
       role="alert"
     >
-      Il manque {{ missingCount }} information{{ missingCount > 1 ? 's' : '' }}. Elles sont
-      signalées plus bas.
+      {{ t('profile.form.summary', { n: missingCount }) }}
     </p>
 
-    <BaseCard title="Vous">
+    <BaseCard :title="t('profile.form.you')">
       <BaseField
         v-model="form.name"
-        label="Prénom ou surnom"
-        hint="Il s’affiche sur l’accueil, et dans le foyer si vous en avez un."
+        :label="t('profile.form.name')"
+        :hint="t('profile.form.nameHint')"
         required
         autocomplete="nickname"
         v-bind="errors.name === undefined ? {} : { error: errors.name }"
@@ -155,13 +149,13 @@ function clear(field: Field): void {
     </BaseCard>
 
     <BaseCard
-      title="Votre corps"
-      subtitle="Ces informations servent à calculer vos besoins. Elles restent privées."
+      :title="t('profile.form.bodyTitle')"
+      :subtitle="t('profile.form.bodySubtitle')"
     >
       <div class="profile-form__grid">
         <BaseField
           v-model="form.heightCm"
-          label="Taille"
+          :label="t('profile.form.height')"
           type="number"
           suffix="cm"
           required
@@ -172,7 +166,7 @@ function clear(field: Field): void {
         />
         <BaseField
           v-model="form.weightKg"
-          label="Poids"
+          :label="t('profile.form.weight')"
           type="number"
           suffix="kg"
           required
@@ -184,9 +178,9 @@ function clear(field: Field): void {
         />
         <BaseField
           v-model="form.ageYears"
-          label="Âge"
+          :label="t('profile.form.age')"
           type="number"
-          suffix="ans"
+          :suffix="t('profile.form.ageSuffix')"
           required
           :min="13"
           :max="120"
@@ -200,11 +194,11 @@ function clear(field: Field): void {
         :aria-describedby="errors.biologicalSex ? 'profile-sex-error' : undefined"
       >
         <legend class="profile-form__legend">
-          Sexe<InfoTip
-            term="sexe"
+          {{ t('profile.form.sex') }}<InfoTip
+            :term="t('profile.form.sexTerm')"
             :text="GLOSSARY.biologicalSex"
           />
-          <span class="sr-only">(obligatoire)</span>
+          <span class="sr-only">{{ t('ui.required') }}</span>
         </legend>
         <p
           v-if="errors.biologicalSex"
@@ -234,13 +228,13 @@ function clear(field: Field): void {
       </fieldset>
     </BaseCard>
 
-    <BaseCard title="Votre activité">
+    <BaseCard :title="t('profile.form.activityTitle')">
       <fieldset
         class="profile-form__fieldset"
         :aria-describedby="errors.activityLevel ? 'profile-activity-error' : undefined"
       >
         <legend class="sr-only">
-          Votre activité (obligatoire)
+          {{ t('profile.form.activityLegend') }}
         </legend>
         <p
           v-if="errors.activityLevel"
@@ -274,8 +268,8 @@ function clear(field: Field): void {
     </BaseCard>
 
     <BaseCard
-      title="Votre régime"
-      subtitle="Facultatif. Les aliments qui ne vous conviennent pas seront masqués dans la recherche."
+      :title="t('profile.form.dietTitle')"
+      :subtitle="t('profile.form.dietSubtitle')"
     >
       <fieldset
         v-for="group in RESTRICTION_GROUPS"
@@ -283,7 +277,7 @@ function clear(field: Field): void {
         class="profile-form__fieldset"
       >
         <legend class="profile-form__legend">
-          {{ group.legend }}
+          {{ t(group.legend) }}
         </legend>
         <div class="profile-form__choices profile-form__choices--stacked">
           <label
@@ -305,8 +299,7 @@ function clear(field: Field): void {
         </div>
       </fieldset>
       <p class="profile-form__note">
-        L’application reconnaît les aliments à leur nom. Elle ne vérifie pas les certifications
-        halal ou casher. Lisez toujours l’étiquette.
+        {{ t('profile.form.dietNote') }}
       </p>
     </BaseCard>
 

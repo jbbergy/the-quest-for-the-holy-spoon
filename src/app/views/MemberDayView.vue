@@ -21,12 +21,13 @@ import { addDays, type DayKey, parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
 import { type ErrorView, toErrorView } from '@/core/errors'
 import { idFrom } from '@/core/identity'
+import { t } from '@/i18n'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
-import { ofName } from './householdFormat'
+import { nameParams } from './householdFormat'
 
 const route = useRoute()
 const router = useRouter()
@@ -61,10 +62,10 @@ watch([playerId, day], load, { immediate: true })
 
 /** Nom affiché : celui qu'il a publié, sinon ce que le foyer sait de lui. */
 const name = computed(
-  () => member.value?.name ?? memberName(household.household, playerId.value) ?? 'Membre du foyer',
+  () => member.value?.name ?? memberName(household.household, playerId.value) ?? t('week.member.fallbackName'),
 )
 
-usePageTitle(() => `Journée ${ofName(name.value)}`)
+usePageTitle(() => t('week.member.pageTitle', nameParams(name.value)))
 
 const meals = computed(() =>
   [...(member.value?.journal.meals ?? [])].sort((a, b) => mealOrder(a.type) - mealOrder(b.type)),
@@ -81,27 +82,27 @@ const goTo = (next: DayKey) =>
   <div class="member">
     <p class="member__back">
       <RouterLink :to="{ name: ROUTE.household }">
-        ← Foyer
+        {{ t('week.member.back') }}
       </RouterLink>
     </p>
 
     <header>
       <p class="member__eyebrow">
-        {{ day === today ? 'Aujourd’hui' : formatDay(day) }}
+        {{ day === today ? t('week.member.today') : formatDay(day) }}
       </p>
       <h1>{{ name }}</h1>
     </header>
 
     <nav
       class="member__days"
-      aria-label="Changer de jour"
+      :aria-label="t('week.member.changeDay')"
     >
       <BaseButton
         variant="secondary"
         size="sm"
         @click="goTo(addDays(day, -1))"
       >
-        <span aria-hidden="true">←</span> Jour précédent
+        <span aria-hidden="true">←</span> {{ t('week.member.previousDay') }}
       </BaseButton>
       <BaseButton
         variant="secondary"
@@ -109,7 +110,7 @@ const goTo = (next: DayKey) =>
         :disabled="day >= today"
         @click="goTo(addDays(day, 1))"
       >
-        Jour suivant <span aria-hidden="true">→</span>
+        {{ t('week.member.nextDay') }} <span aria-hidden="true">→</span>
       </BaseButton>
     </nav>
 
@@ -118,7 +119,7 @@ const goTo = (next: DayKey) =>
       class="member__notice"
       role="status"
     >
-      {{ name }} ne montre pas ses journées pour le moment.
+      {{ t('week.member.notShared', { name }) }}
     </p>
     <ErrorNotice
       v-else
@@ -129,7 +130,7 @@ const goTo = (next: DayKey) =>
       v-if="loading && member === null"
       class="member__text"
     >
-      Chargement…
+      {{ t('week.member.loading') }}
     </p>
 
     <template v-if="member">
@@ -147,15 +148,14 @@ const goTo = (next: DayKey) =>
         v-else
         class="member__text"
       >
-        Les jauges {{ ofName(name) }} ne sont pas encore prêtes. Elles apparaîtront quand son
-        application aura envoyé son besoin.
+        {{ t('week.member.gaugesNotReady', nameParams(name)) }}
       </p>
 
-      <BaseCard :title="`Repas ${ofName(name)}`">
+      <BaseCard :title="t('week.member.mealsTitle', nameParams(name))">
         <EmptyState
           v-if="meals.length === 0"
-          title="Aucun repas ce jour-là."
-          description="Rien de prévu, rien de mangé."
+          :title="t('week.member.noMealsTitle')"
+          :description="t('week.member.noMealsDescription')"
         />
         <ul
           v-else
@@ -170,7 +170,7 @@ const goTo = (next: DayKey) =>
             <span class="member__meal-type">{{ mealLabel(meal.type) }}</span>
             <span class="member__meal-kcal">{{ Math.round(meal.calories) }} kcal</span>
             <span class="member__meal-foods">{{ meal.entries.map((entry) => entry.foodName).join(', ') }}</span>
-            <span class="member__meal-state">{{ meal.consumedAt === null ? 'Prévu' : 'Mangé' }}</span>
+            <span class="member__meal-state">{{ meal.consumedAt === null ? t('week.member.planned') : t('week.member.eaten') }}</span>
           </li>
         </ul>
       </BaseCard>

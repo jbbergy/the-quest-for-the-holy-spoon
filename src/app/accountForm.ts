@@ -2,10 +2,13 @@ import { computed, type ComputedRef } from 'vue'
 
 import { LINK_TOKEN_PARAM } from '@/contract/account'
 import type { ErrorView } from '@/core/errors'
+import { t } from '@/i18n'
 import { PASSWORD_MIN_LENGTH } from '@/modules/account/domain/PasswordPolicy'
 
 /** Aide affichée sous tout champ de nouveau mot de passe. */
-export const NEW_PASSWORD_HINT = `Au moins ${PASSWORD_MIN_LENGTH} caractères. Le plus simple : une petite phrase de quelques mots.`
+export function newPasswordHint(): string {
+  return t('account.form.passwordHint', { min: PASSWORD_MIN_LENGTH })
+}
 
 /**
  * Répartit une erreur de compte entre les champs et le bandeau.
@@ -24,13 +27,11 @@ export function useAccountFormErrors(error: () => ErrorView | null): {
 
   return {
     emailError: computed(() =>
-      code.value === 'INVALID_EMAIL'
-        ? 'Cette adresse e-mail n’est pas correcte. Par exemple : camille@exemple.fr'
-        : undefined,
+      code.value === 'INVALID_EMAIL' ? t('account.form.emailInvalid') : undefined,
     ),
     passwordError: computed(() =>
       code.value === 'WEAK_PASSWORD'
-        ? `Ce mot de passe est trop court. Il faut au moins ${PASSWORD_MIN_LENGTH} caractères.`
+        ? t('account.form.passwordTooShort', { min: PASSWORD_MIN_LENGTH })
         : undefined,
     ),
     formError: computed(() =>

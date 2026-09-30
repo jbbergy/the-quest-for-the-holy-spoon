@@ -1,6 +1,7 @@
 import { computed, type ComputedRef } from 'vue'
 import { type RouteLocationRaw, useRoute, useRouter } from 'vue-router'
 
+import { routeTitle } from '@/app/pageTitle'
 import { returnPath } from '@/app/router'
 
 export interface BackLink {
@@ -25,11 +26,8 @@ export function useBackLink(fallback: BackLink): ComputedRef<BackLink> {
     const path = returnPath(route.query.retour)
     if (path === null) return fallback
     const target = router.resolve(path)
-    const title = target.meta.title
-    return {
-      to: target.fullPath,
-      label: typeof title === 'string' && target.matched.length > 0 ? title : fallback.label,
-    }
+    const title = target.matched.length > 0 ? routeTitle(target.meta) : ''
+    return { to: target.fullPath, label: title === '' ? fallback.label : title }
   })
 }
 

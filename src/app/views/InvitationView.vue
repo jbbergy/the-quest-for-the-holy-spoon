@@ -11,10 +11,12 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { ROUTE } from '@/app/router'
 import { useHousehold } from '@/app/useHousehold'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import RichText from '@/ui/RichText.vue'
 
 import { formatDay } from './householdFormat'
 
@@ -45,42 +47,40 @@ async function decline(): Promise<void> {
   <div class="invitation">
     <p class="invitation__back">
       <RouterLink :to="{ name: ROUTE.household }">
-        ← Foyer
+        {{ t('household.invitation.back') }}
       </RouterLink>
     </p>
 
     <template v-if="invitation">
-      <h1>Rejoindre « {{ invitation.householdName }} » ?</h1>
+      <h1>{{ t('household.invitation.join', { name: invitation.householdName }) }}</h1>
       <p class="invitation__from">
-        <strong>{{ invitation.invitedBy }}</strong> vous invite. L’invitation est valable
-        jusqu’au {{ formatDay(invitation.expiresAt) }}.
+        <RichText
+          path="household.invitation.from"
+          :params="{ name: invitation.invitedBy, date: formatDay(invitation.expiresAt) }"
+        />
       </p>
 
       <ErrorNotice :error="store.error" />
 
-      <BaseCard title="Ce que les autres membres verront">
+      <BaseCard :title="t('household.invitation.seenTitle')">
         <ul class="invitation__points">
-          <li>Vos repas, prévus et mangés.</li>
-          <li>Vos jauges de la journée, et vos moyennes des 7 derniers jours.</li>
-          <li>Les aliments que vous créez. Ils pourront les ajouter à leurs repas.</li>
-          <li>Votre besoin par jour. Sans lui, vos jauges ne voudraient rien dire.</li>
-          <li>Votre adresse e-mail, dans la liste des membres.</li>
+          <li>{{ t('household.invitation.seen1') }}</li>
+          <li>{{ t('household.invitation.seen2') }}</li>
+          <li>{{ t('household.invitation.seen3') }}</li>
+          <li>{{ t('household.invitation.seen4') }}</li>
+          <li>{{ t('household.invitation.seen5') }}</li>
         </ul>
         <p class="invitation__note">
-          Un membre pourra aussi prévoir un repas pour vous. Ce repas apparaîtra dans votre
-          semaine. Vous seul pourrez cocher « Mangé ».
+          {{ t('household.invitation.seenNote') }}
         </p>
       </BaseCard>
 
-      <BaseCard title="Ce qui reste privé">
+      <BaseCard :title="t('household.invitation.privateTitle')">
         <ul class="invitation__points">
-          <li>
-            Votre taille, votre poids et votre âge. Personne d’autre ne les voit.
-          </li>
+          <li>{{ t('household.invitation.private1') }}</li>
         </ul>
         <p class="invitation__note">
-          Vous pourrez cacher vos journées à tout moment, dans les réglages. Vous pourrez aussi
-          quitter le foyer quand vous voulez.
+          {{ t('household.invitation.privateNote') }}
         </p>
       </BaseCard>
 
@@ -89,8 +89,7 @@ async function decline(): Promise<void> {
         class="invitation__blocked"
         role="note"
       >
-        Vous faites déjà partie du foyer « {{ store.household.name }} ». On ne peut faire partie
-        que d’un seul foyer. Quittez d’abord le vôtre pour rejoindre celui-ci.
+        {{ t('household.invitation.blocked', { name: store.household.name }) }}
       </p>
 
       <div class="invitation__actions">
@@ -99,30 +98,29 @@ async function decline(): Promise<void> {
           :loading="busy"
           @click="accept"
         >
-          Rejoindre le foyer
+          {{ t('household.invitation.accept') }}
         </BaseButton>
         <BaseButton
           variant="secondary"
           :loading="busy"
           @click="decline"
         >
-          Refuser
+          {{ t('household.invitation.decline') }}
         </BaseButton>
       </div>
     </template>
 
     <template v-else>
-      <h1>Invitation</h1>
+      <h1>{{ t('household.invitation.title') }}</h1>
       <ErrorNotice :error="store.error" />
       <p v-if="!account.session">
-        Pour répondre, connectez-vous avec l’adresse e-mail qui a reçu l’invitation.
+        {{ t('household.invitation.signInToAnswer') }}
       </p>
       <p v-else-if="!store.loaded && store.status !== 'error' && store.status !== 'unreachable'">
-        Chargement de l’invitation…
+        {{ t('household.invitation.loading') }}
       </p>
       <p v-else>
-        Cette invitation n’existe plus. Elle est peut-être trop ancienne, ou elle a été annulée.
-        Ou bien vous y avez déjà répondu.
+        {{ t('household.invitation.gone') }}
       </p>
     </template>
   </div>

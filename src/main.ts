@@ -11,6 +11,7 @@ import { createServiceWorkerState, provideServiceWorkerState } from './app/pwa/s
 import { createAppRouter } from './app/router'
 import { startSyncTriggers } from './app/sync/triggers'
 import { useTodayStore } from './app/day/useTodayStore'
+import { useLocaleStore } from './i18n/useLocaleStore'
 import { useThemeStore } from './app/theme/useThemeStore'
 
 const container = createContainer()
@@ -39,6 +40,17 @@ app.config.errorHandler = (error, _instance, info) => {
 
 const pinia = createPinia()
 app.use(pinia)
+
+/**
+ * La langue aussi, avant le montage et pour la même raison que le thème : la
+ * préférence est lue de façon synchrone, et le premier écran est peint une
+ * seule fois, dans la bonne langue. Elle suit l'appareil tant qu'aucune langue
+ * n'est choisie dans les réglages ; `languagechange` couvre le cas où l'appareil
+ * en change alors que l'application est ouverte.
+ */
+const locale = useLocaleStore(pinia)
+locale.initialize()
+window.addEventListener('languagechange', () => locale.followDevice())
 
 /**
  * Le thème est appliqué **avant le montage**.

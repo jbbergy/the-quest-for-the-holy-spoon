@@ -24,6 +24,9 @@ import { useAccountSync } from '@/app/useAccountSync'
 import { useHousehold } from '@/app/useHousehold'
 import { useDataExport } from '@/app/useDataExport'
 import { useThemeStore } from '@/app/theme/useThemeStore'
+import { lower, numberFormat, t, te } from '@/i18n'
+import { AUTO_LOCALE, SUPPORTED_LOCALES } from '@/i18n/locale'
+import { useLocaleStore } from '@/i18n/useLocaleStore'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
@@ -31,6 +34,7 @@ import BaseCard from '@/ui/BaseCard.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 import InfoTip from '@/ui/InfoTip.vue'
 import PasswordField from '@/ui/PasswordField.vue'
+import RichText from '@/ui/RichText.vue'
 
 /**
  * Panneau de données de démonstration, en développement seulement. Vite
@@ -45,13 +49,30 @@ const router = useRouter()
 const players = usePlayerStore()
 const account = useAccountStore()
 const theme = useThemeStore()
+const locale = useLocaleStore()
 const dataExport = useDataExport()
 const household = useHousehold()
 const clock = useTodayStore()
 
 function hourLabel(hour: number): string {
-  return hour === 0 ? 'Minuit' : hour === 12 ? 'Midi' : `${hour} h`
+  if (hour === 0) return t('settings.dayStart.midnight')
+  if (hour === 12) return t('settings.dayStart.noon')
+  return t('settings.dayStart.hour', { hour })
 }
+
+/** Les thèmes portent un nom français dans leur `theme.json` ; les traductions le remplacent. */
+function themeName(entry: { id: string; name: string }): string {
+  const key = `settings.colors.${entry.id}.name`
+  return te(key) ? t(key) : entry.name
+}
+
+function themeDescription(entry: { id: string; description: string }): string {
+  const key = `settings.colors.${entry.id}.description`
+  return te(key) ? t(key) : entry.description
+}
+
+/** La langue de l'appareil, en toutes lettres, pour dire ce que « Automatique » donne. */
+const deviceLanguage = computed(() => t(`settings.language.${locale.deviceLocale()}`))
 
 function selectDayStart(event: Event): void {
   clock.setStartHour(Number((event.target as HTMLSelectElement).value))
@@ -63,23 +84,26 @@ const profileSummary = computed(() => {
   if (view === null) return null
   const activity = ACTIVITY_OPTIONS.find((option) => option.value === view.activityLevel)
   const diets = RESTRICTION_OPTIONS.filter((option) => view.restrictions.includes(option.value))
-  const decimal = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
+  const decimal = numberFormat({ maximumFractionDigits: 1 })
   return [
-    { label: 'Prénom ou surnom', value: view.name },
-    { label: 'Taille', value: `${decimal.format(view.heightCm)} cm` },
-    { label: 'Poids', value: `${decimal.format(view.weightKg)} kg` },
-    { label: 'Âge', value: `${view.ageYears} ans` },
+    { label: t('settings.profile.name'), value: view.name },
+    { label: t('settings.profile.height'), value: `${decimal.format(view.heightCm)} cm` },
+    { label: t('settings.profile.weight'), value: `${decimal.format(view.weightKg)} kg` },
+    { label: t('settings.profile.age'), value: t('settings.profile.ageValue', { n: view.ageYears }) },
     {
-      label: 'Sexe',
+      label: t('settings.profile.sex'),
       value: SEX_OPTIONS.find((option) => option.value === view.biologicalSex)?.label ?? '',
     },
     {
-      label: 'Activité',
-      value: activity === undefined ? '' : `${activity.label} (${activity.hint.toLocaleLowerCase('fr-FR')})`,
+      label: t('settings.profile.activity'),
+      value: activity === undefined ? '' : `${activity.label} (${lower(activity.hint)})`,
     },
     {
-      label: 'Régime',
-      value: diets.length === 0 ? 'Aucun' : diets.map((option) => option.label).join(', '),
+      label: t('settings.profile.diet'),
+      value:
+        diets.length === 0
+          ? t('settings.profile.noDiet')
+          : diets.map((option) => option.label).join(', '),
     },
   ]
 })
@@ -104,15 +128,14 @@ async function signOut(force = false): Promise<void> {
     await router.push({ name: ROUTE.auth })
     return
   }
-  accountMessage.value =
-    'Vous êtes déconnecté. Les données du compte sont retirées de cet appareil.'
+  accountMessage.value = t('settings.account.signedOut')
 }
 
 async function deleteAccount(): Promise<void> {
   accountMessage.value = ''
   if (!(await accountSync.deleteAccount(deletePassword.value))) return
   deletePassword.value = ''
-  accountMessage.value = 'Votre compte est supprimé. Vos données restent sur cet appareil.'
+  accountMessage.value = t('settings.account.deleted')
 }
 
 const sharingMessage = ref('')
@@ -123,22 +146,22 @@ async function toggleSharing(event: Event): Promise<void> {
   household.clearError()
   if (await household.setDaySharing(sharesDays)) {
     sharingMessage.value = sharesDays
-      ? 'Le foyer voit de nouveau vos journées.'
-      : 'Le foyer ne voit plus vos journées.'
+      ? t('settings.household.shared')
+      : t('settings.household.unshared')
   }
 }
 </script>
 
 <template>
   <div class="settings">
-    <h1>Réglages</h1>
+    <h1>{{ t('settings.title') }}</h1>
 
     <ErrorNotice :error="players.error" />
     <ErrorNotice :error="theme.error" />
 
     <BaseCard
       v-if="profileSummary"
-      title="Mon profil"
+      :title="t('settings.profile.title')"
     >
       <dl class="settings__summary">
         <div
@@ -153,89 +176,92 @@ async function toggleSharing(event: Event): Promise<void> {
         variant="secondary"
         @click="router.push({ name: ROUTE.profileEdit })"
       >
-        Modifier mon profil
+        {{ t('settings.profile.edit') }}
       </BaseButton>
     </BaseCard>
 
     <BaseCard
       v-if="players.profileView"
-      title="Mes besoins"
-      subtitle="L’application les calcule avec votre profil."
+      :title="t('settings.needs.title')"
+      :subtitle="t('settings.needs.subtitle')"
     >
       <dl class="settings__needs">
         <div>
           <dt>
-            Au repos<InfoTip
-              term="énergie au repos"
+            {{ t('settings.needs.resting') }}<InfoTip
+              :term="t('labels.term.restingEnergy')"
               :text="GLOSSARY.basalMetabolism"
             />
           </dt>
-          <dd>{{ Math.round(players.profileView.basalMetabolicRate) }} kcal par jour</dd>
+          <dd>{{ t('settings.needs.perDay', { kcal: Math.round(players.profileView.basalMetabolicRate) }) }}</dd>
         </div>
         <div>
           <dt>
-            Votre besoin<InfoTip
-              term="besoin"
+            {{ t('settings.needs.yourNeed') }}<InfoTip
+              :term="t('labels.term.need')"
               :text="GLOSSARY.needs"
             />
           </dt>
-          <dd>{{ Math.round(players.profileView.targetCalories) }} kcal par jour</dd>
+          <dd>{{ t('settings.needs.perDay', { kcal: Math.round(players.profileView.targetCalories) }) }}</dd>
         </div>
       </dl>
       <p class="settings__note">
-        Votre besoin, c’est l’énergie au repos, plus celle de vos activités. C’est une
-        estimation<InfoTip
-          term="comment c’est calculé"
-          :text="GLOSSARY.formula"
-        />.
+        <RichText path="settings.needs.note">
+          <template #tip>
+            <InfoTip
+              :term="t('labels.term.howCalculated')"
+              :text="GLOSSARY.formula"
+            />
+          </template>
+        </RichText>
       </p>
     </BaseCard>
 
     <BaseCard
-      title="Mes aliments"
-      subtitle="Les aliments que vous avez créés vous-même."
+      :title="t('settings.foods.title')"
+      :subtitle="t('settings.foods.subtitle')"
     >
       <BaseButton
         variant="secondary"
         @click="router.push({ name: ROUTE.foods })"
       >
-        Voir mes aliments
+        {{ t('settings.foods.open') }}
       </BaseButton>
     </BaseCard>
 
     <BaseCard
-      title="Mes recettes"
-      subtitle="Les repas que vous avez gardés, pour les ajouter d’un geste."
+      :title="t('settings.recipes.title')"
+      :subtitle="t('settings.recipes.subtitle')"
     >
       <BaseButton
         variant="secondary"
         @click="router.push({ name: ROUTE.recipes })"
       >
-        Voir mes recettes
+        {{ t('settings.recipes.open') }}
       </BaseButton>
     </BaseCard>
 
     <BaseCard
-      title="Comment sont calculés mes repères ?"
-      subtitle="D’où viennent les chiffres des aliments et de votre journée."
+      :title="t('settings.calculations.title')"
+      :subtitle="t('settings.calculations.subtitle')"
     >
       <BaseButton
         variant="secondary"
         @click="router.push({ name: ROUTE.calculations })"
       >
-        Comprendre les calculs
+        {{ t('settings.calculations.open') }}
       </BaseButton>
     </BaseCard>
 
     <BaseCard
-      title="Début de la journée"
-      subtitle="Ce réglage vaut pour cet appareil seulement."
+      :title="t('settings.dayStart.title')"
+      :subtitle="t('settings.dayStart.subtitle')"
     >
       <label
         class="settings__legend"
         for="day-start"
       >
-        Ma journée commence à
+        {{ t('settings.dayStart.label') }}
       </label>
       <select
         id="day-start"
@@ -256,18 +282,51 @@ async function toggleSharing(event: Event): Promise<void> {
         id="day-start-hint"
         class="settings__note"
       >
-        Avant cette heure, l’accueil montre encore la veille. Vous dormez la nuit ? Choisissez
-        minuit. Vous travaillez la nuit ? Choisissez une heure plus tard.
+        {{ t('settings.dayStart.hint') }}
       </p>
     </BaseCard>
 
     <BaseCard
-      title="Couleurs"
-      subtitle="Le changement se voit tout de suite. Il vaut pour cet appareil seulement."
+      :title="t('settings.language.title')"
+      :subtitle="t('settings.language.subtitle')"
     >
       <fieldset class="settings__fieldset">
         <legend class="sr-only">
-          Couleurs de l’application
+          {{ t('settings.language.legend') }}
+        </legend>
+        <ul class="settings__themes">
+          <li
+            v-for="choice in [AUTO_LOCALE, ...SUPPORTED_LOCALES]"
+            :key="choice"
+          >
+            <label class="choice choice--wide">
+              <input
+                type="radio"
+                name="locale"
+                :value="choice"
+                :checked="locale.preference === choice"
+                @change="locale.select(choice)"
+              >
+              <span>
+                <template v-if="choice === AUTO_LOCALE">
+                  <strong>{{ t('settings.language.auto') }}</strong>
+                  <small>{{ t('settings.language.autoHint', { language: deviceLanguage }) }}</small>
+                </template>
+                <strong v-else>{{ t(`settings.language.${choice}`) }}</strong>
+              </span>
+            </label>
+          </li>
+        </ul>
+      </fieldset>
+    </BaseCard>
+
+    <BaseCard
+      :title="t('settings.colors.title')"
+      :subtitle="t('settings.colors.subtitle')"
+    >
+      <fieldset class="settings__fieldset">
+        <legend class="sr-only">
+          {{ t('settings.colors.legend') }}
         </legend>
         <ul class="settings__themes">
           <li
@@ -283,8 +342,8 @@ async function toggleSharing(event: Event): Promise<void> {
                 @change="theme.select(entry.id)"
               >
               <span>
-                <strong>{{ entry.name }}</strong>
-                <small>{{ entry.description }}</small>
+                <strong>{{ themeName(entry) }}</strong>
+                <small>{{ themeDescription(entry) }}</small>
               </span>
             </label>
           </li>
@@ -293,11 +352,11 @@ async function toggleSharing(event: Event): Promise<void> {
     </BaseCard>
 
     <BaseCard
-      title="Compte"
+      :title="t('settings.account.title')"
       :subtitle="
         account.session
-          ? `Vous êtes connecté avec ${account.session.email}.`
-          : 'Sans compte, vos données restent sur cet appareil.'
+          ? t('settings.account.signedInAs', { email: account.session.email })
+          : t('settings.account.noAccount')
       "
     >
       <ErrorNotice :error="account.error" />
@@ -309,23 +368,21 @@ async function toggleSharing(event: Event): Promise<void> {
           role="alert"
         >
           <p>
-            {{ unsent === Infinity ? 'Des changements' : `${unsent} changement${unsent > 1 ? 's' : ''}` }}
-            n’{{ unsent === 1 ? 'a' : 'ont' }} pas encore été envoyé{{ unsent === 1 ? '' : 's' }} :
-            le serveur ne répond pas.
+            {{ unsent === Infinity ? t('settings.account.unsentSome') : t('settings.account.unsent', { n: unsent }) }}
           </p>
-          <p>Si vous vous déconnectez maintenant, vous les perdrez.</p>
+          <p>{{ t('settings.account.loseThem') }}</p>
           <div class="settings__actions">
             <BaseButton
               variant="danger"
               @click="signOut(true)"
             >
-              Me déconnecter quand même
+              {{ t('settings.account.signOutAnyway') }}
             </BaseButton>
             <BaseButton
               variant="secondary"
               @click="unsent = null"
             >
-              Rester connecté
+              {{ t('settings.account.stay') }}
             </BaseButton>
           </div>
         </div>
@@ -335,27 +392,25 @@ async function toggleSharing(event: Event): Promise<void> {
           :loading="account.status === 'loading'"
           @click="signOut()"
         >
-          Me déconnecter
+          {{ t('settings.account.signOut') }}
         </BaseButton>
         <p class="settings__note">
-          Si vous vous déconnectez, les données du compte sont retirées de cet appareil. Elles
-          restent sur votre compte.
+          {{ t('settings.account.signOutNote') }}
         </p>
 
         <details class="settings__danger">
-          <summary>Supprimer mon compte</summary>
+          <summary>{{ t('settings.account.deleteSummary') }}</summary>
           <form
             class="settings__form"
             novalidate
             @submit.prevent="deleteAccount"
           >
             <p class="settings__note settings__note--body">
-              Votre compte sera supprimé pour toujours. Les données de cet appareil restent : vous
-              pourrez continuer sans compte.
+              {{ t('settings.account.deleteNote') }}
             </p>
             <PasswordField
               v-model="deletePassword"
-              label="Votre mot de passe, pour confirmer"
+              :label="t('settings.account.deletePassword')"
               autocomplete="current-password"
               required
             />
@@ -364,7 +419,7 @@ async function toggleSharing(event: Event): Promise<void> {
               variant="danger"
               :loading="account.status === 'loading'"
             >
-              Supprimer mon compte pour toujours
+              {{ t('settings.account.deleteButton') }}
             </BaseButton>
           </form>
         </details>
@@ -372,33 +427,36 @@ async function toggleSharing(event: Event): Promise<void> {
 
       <template v-else-if="account.status === 'unreachable'">
         <p class="settings__note settings__note--body">
-          Le serveur des comptes ne répond pas. Nous ne savons pas si vous êtes connecté.
+          {{ t('settings.account.unreachable') }}
         </p>
         <BaseButton
           variant="secondary"
           @click="account.load()"
         >
-          Réessayer
+          {{ t('settings.account.retry') }}
         </BaseButton>
       </template>
 
       <template v-else>
         <p class="settings__note settings__note--body">
-          Avec un compte, vous retrouvez vos repas sur vos autres appareils. Vous pouvez aussi
-          partager vos repas avec votre foyer<InfoTip
-            term="foyer"
-            :text="GLOSSARY.household"
-          />.
+          <RichText path="settings.account.withAccount">
+            <template #household>
+              {{ t('settings.account.householdWord') }}<InfoTip
+                :term="t('settings.account.householdWord')"
+                :text="GLOSSARY.household"
+              />
+            </template>
+          </RichText>
         </p>
         <div class="settings__actions">
           <BaseButton @click="router.push({ name: ROUTE.signIn })">
-            Me connecter
+            {{ t('settings.account.signIn') }}
           </BaseButton>
           <BaseButton
             variant="secondary"
             @click="router.push({ name: ROUTE.signUp })"
           >
-            Créer un compte
+            {{ t('settings.account.create') }}
           </BaseButton>
         </div>
       </template>
@@ -414,8 +472,8 @@ async function toggleSharing(event: Event): Promise<void> {
 
     <BaseCard
       v-if="account.session && household.household"
-      title="Foyer"
-      :subtitle="`Vous faites partie du foyer « ${household.household.name} ».`"
+      :title="t('settings.household.title')"
+      :subtitle="t('settings.household.subtitle', { name: household.household.name })"
     >
       <ErrorNotice :error="household.error" />
       <label class="switch">
@@ -426,14 +484,13 @@ async function toggleSharing(event: Event): Promise<void> {
           aria-describedby="sharing-hint"
           @change="toggleSharing"
         >
-        <span>Montrer mes journées au foyer</span>
+        <span>{{ t('settings.household.share') }}</span>
       </label>
       <p
         id="sharing-hint"
         class="settings__note"
       >
-        Les autres membres voient vos repas et vos jauges. Ils ne voient jamais votre taille,
-        votre poids ni votre âge.
+        {{ t('settings.household.shareHint') }}
       </p>
       <p
         class="settings__saved"
@@ -445,16 +502,13 @@ async function toggleSharing(event: Event): Promise<void> {
     </BaseCard>
 
     <BaseCard
-      title="Mes données"
+      :title="t('settings.data.title')"
       :subtitle="
-        account.session
-          ? 'Votre profil et vos repas sont sur cet appareil et sur votre compte.'
-          : 'Votre profil et vos repas sont sur cet appareil.'
+        account.session ? t('settings.data.subtitleAccount') : t('settings.data.subtitleLocal')
       "
     >
       <p class="settings__note settings__note--body">
-        Vous pouvez télécharger un fichier avec votre profil, tous vos repas et les aliments que
-        vous avez créés.
+        {{ t('settings.data.note') }}
       </p>
 
       <BaseButton
@@ -462,7 +516,7 @@ async function toggleSharing(event: Event): Promise<void> {
         :loading="dataExport.busy.value"
         @click="dataExport.run()"
       >
-        Télécharger mes données
+        {{ t('settings.data.download') }}
       </BaseButton>
 
       <p
@@ -471,7 +525,7 @@ async function toggleSharing(event: Event): Promise<void> {
         aria-live="polite"
       >
         <template v-if="dataExport.lastFileName.value">
-          Fichier enregistré : {{ dataExport.lastFileName.value }}.
+          {{ t('settings.data.saved', { file: dataExport.lastFileName.value }) }}
         </template>
       </p>
 

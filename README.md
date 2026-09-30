@@ -141,6 +141,39 @@ le catalogue local au fil des consultations.
 Les calories sont estimées par les coefficients d'Atwater (4/4/9 kcal par gramme), le métabolisme de
 base par Mifflin-St Jeor.
 
+## Langues
+
+L'application existe en **français** et en **anglais**. La langue suit celle de l'appareil (l'anglais si l'appareil en parle une autre) ; dès
+qu'on en choisit une dans les Réglages, elle ne suit plus l'appareil (« Automatique » y ramène).
+Le choix est mémorisé dans `localStorage` (`holy-spoon.locale`), sur l'appareil seulement.
+
+Le code est dans `src/i18n/` : `locale.ts` (choix de la langue, sans dépendance), `useLocaleStore.ts`
+(état et application au document), `index.ts` (instance [vue-i18n](https://vue-i18n.intlify.dev)
+et formateurs `Intl`). Les textes sont dans `src/i18n/messages/{fr,en}/`, un fichier par écran ou
+par thème.
+
+- Dans un composant ou un module : `import { t } from '@/i18n'`. Pas de plugin à installer ni de
+  `useI18n` : l'instance est globale, et `t` lu dans un rendu suit la langue.
+- Le français est la référence ; chaque fichier anglais se type `Messages<typeof fr>`, si bien
+  qu'une clé oubliée ou en trop ne compile pas. `src/i18n/__tests__/messages.test.ts` vérifie en
+  plus les `{repères}`, les formes de pluriel, la syntaxe, et que toute clé employée dans le code existe.
+- Pluriel : `t('clé', { n: 2 })` avec `« un | plusieurs »`. Le français accorde « 0 » et « 1,5 » au
+  singulier, l'anglais non (`pluralRules` dans `index.ts`).
+- Un texte avec du gras ou un élément Vue (infobulle, lien) reste **entier** dans les traductions et
+  s'affiche par `ui/RichText.vue` : `**gras**`, et `{nom}` rempli par l'emplacement du même nom.
+- Nombres, dates, listes : `numberFormat`, `dateFormat` et `formatList` de `@/i18n`, jamais
+  `new Intl…('fr-FR')`.
+- Le domaine reste en dehors : ses messages d'erreur sont pour les développeurs. L'utilisateur voit
+  la phrase de `messages/*/errors.ts`, choisie par le `code` de l'erreur.
+
+**Ajouter une langue** : l'ajouter à `SUPPORTED_LOCALES` et à `INTL_TAGS` (`locale.ts`), écrire
+`messages/<code>/` sur le modèle du français, l'enregistrer dans `index.ts`, puis ajouter son nom à
+`settings.language` dans chaque langue.
+
+Ne sont pas traduits : les noms d'aliments (Ciqual est en français, Open Food Facts dans la langue
+de la fiche), les e-mails envoyés par le serveur (confirmation, mot de passe, invitation), et la
+description du manifeste PWA.
+
 ## Accessibilité
 
 Cible WCAG 2.2 niveau AA : contrastes vérifiés sur les trois thèmes, cibles tactiles de 44 px,

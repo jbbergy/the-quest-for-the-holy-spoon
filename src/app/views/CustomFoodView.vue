@@ -20,6 +20,7 @@ import { ROUTE } from '@/app/router'
 import { useBackLink } from '@/app/useBackLink'
 import type { FoodItemId } from '@/core/identity'
 import { KCAL_PER_GRAM } from '@/core/nutrition/Macros'
+import { t } from '@/i18n'
 import type { CustomFoodInput } from '@/modules/nutrition_inventory/application'
 import type { FoodItem, FoodTag } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { BaseUnit, MAX_SERVINGS } from '@/modules/nutrition_inventory/domain/Measure'
@@ -31,6 +32,7 @@ import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import RichText from '@/ui/RichText.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -50,9 +52,9 @@ const back = useBackLink(
   route.name === ROUTE.foodEdit
     ? {
         to: { name: ROUTE.foodDetail, params: { foodId: String(route.params.foodId) } },
-        label: 'Aliment',
+        label: t('shell.titles.food'),
       }
-    : { to: { name: ROUTE.foods }, label: 'Mes aliments' },
+    : { to: { name: ROUTE.foods }, label: t('foods.catalog.title') },
 )
 
 /** Fiche introuvable ou pas à soi : le formulaire n'a alors rien à proposer. */
@@ -93,8 +95,8 @@ let nextServingId = 0
 const submitting = ref(false)
 
 const UNIT_OPTIONS = [
-  { value: BaseUnit.GRAM, label: 'Solide', hint: 'Se pèse en grammes' },
-  { value: BaseUnit.MILLILITRE, label: 'Liquide', hint: 'Se mesure en millilitres' },
+  { value: BaseUnit.GRAM, label: 'foods.custom.solid', hint: 'foods.custom.solidHint' },
+  { value: BaseUnit.MILLILITRE, label: 'foods.custom.liquid', hint: 'foods.custom.liquidHint' },
 ] as const
 
 function addServing(): void {
@@ -190,7 +192,7 @@ function input(): CustomFoodInput {
 
 async function submit(): Promise<void> {
   if (name.value.trim() === '') {
-    nameError.value = 'Écrivez le nom de l’aliment.'
+    nameError.value = t('foods.custom.nameRequired')
     document.querySelector<HTMLElement>('.custom [aria-invalid="true"]')?.focus()
     return
   }
@@ -207,7 +209,9 @@ async function submit(): Promise<void> {
   await router.push(id === null ? returnTo(saved.id) : { name: ROUTE.foodDetail, params: { foodId: id } })
 }
 
-const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'Modifier l’aliment'))
+const title = computed(() =>
+  editedId.value === null ? t('foods.custom.create') : t('foods.custom.edit'),
+)
 </script>
 
 <template>
@@ -225,15 +229,18 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
 
     <EmptyState
       v-if="unavailable"
-      title="Vous ne pouvez pas modifier cet aliment."
-      description="Il a été supprimé, ou un autre membre du foyer l’a créé. Seule la personne qui l’a créé peut le modifier."
+      :title="t('foods.custom.cannotEditTitle')"
+      :description="t('foods.custom.cannotEditDescription')"
     />
 
     <p
       v-if="!unavailable"
       class="custom__intro"
     >
-      Écrivez les valeurs <strong>pour 100 {{ unit }}</strong>, comme sur l’emballage.
+      <RichText
+        path="foods.custom.intro"
+        :params="{ unit }"
+      />
     </p>
 
     <form
@@ -242,26 +249,26 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
       novalidate
       @submit.prevent="submit"
     >
-      <BaseCard title="Nom">
+      <BaseCard :title="t('foods.custom.nameCard')">
         <BaseField
           v-model="name"
-          label="Nom de l’aliment"
-          hint="Par exemple : Tarte aux pommes de mamie."
+          :label="t('foods.custom.nameLabel')"
+          :hint="t('foods.custom.nameHint')"
           required
           v-bind="nameError === '' ? {} : { error: nameError }"
           @update:model-value="nameError = ''"
         />
         <BaseField
           v-model="barcode"
-          label="Code-barres"
-          hint="Facultatif. Le numéro écrit sous les barres, sur l’emballage (8 à 14 chiffres)."
+          :label="t('foods.custom.barcodeLabel')"
+          :hint="t('foods.custom.barcodeHint')"
         />
       </BaseCard>
 
-      <BaseCard title="Solide ou liquide ?">
+      <BaseCard :title="t('foods.custom.unitTitle')">
         <fieldset class="custom__fieldset">
           <legend class="sr-only">
-            Solide ou liquide ?
+            {{ t('foods.custom.unitTitle') }}
           </legend>
           <div class="custom__choices">
             <label
@@ -276,8 +283,8 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
                 :value="option.value"
               >
               <span>
-                <strong>{{ option.label }}</strong>
-                <small>{{ option.hint }}</small>
+                <strong>{{ t(option.label) }}</strong>
+                <small>{{ t(option.hint) }}</small>
               </span>
             </label>
           </div>
@@ -285,13 +292,13 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
       </BaseCard>
 
       <BaseCard
-        :title="`Pour 100 ${unit}`"
-        :subtitle="`Cela fait ${Math.round(calories)} kcal.`"
+        :title="t('foods.custom.per', { unit })"
+        :subtitle="t('foods.custom.kcal', { kcal: Math.round(calories) })"
       >
         <div class="custom__grid">
           <BaseField
             v-model="proteinG"
-            label="Protéines"
+            :label="t('labels.nutrient.protein')"
             type="number"
             suffix="g"
             :min="0"
@@ -299,7 +306,7 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
           />
           <BaseField
             v-model="carbsG"
-            label="Glucides"
+            :label="t('labels.nutrient.carbs')"
             type="number"
             suffix="g"
             :min="0"
@@ -307,7 +314,7 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
           />
           <BaseField
             v-model="fatG"
-            label="Lipides"
+            :label="t('labels.nutrient.fat')"
             type="number"
             suffix="g"
             :min="0"
@@ -317,13 +324,13 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
       </BaseCard>
 
       <BaseCard
-        title="Autres valeurs"
-        subtitle="Facultatif. Laissez 0 si vous ne savez pas."
+        :title="t('foods.custom.othersTitle')"
+        :subtitle="t('foods.custom.othersSubtitle')"
       >
         <div class="custom__grid">
           <BaseField
             v-model="fiberG"
-            label="Fibres"
+            :label="t('labels.nutrient.fiber')"
             type="number"
             suffix="g"
             :min="0"
@@ -331,8 +338,8 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
           />
           <BaseField
             v-model="sugarsG"
-            label="Sucres"
-            hint="Ils font partie des glucides."
+            :label="t('labels.nutrient.sugars')"
+            :hint="t('foods.custom.sugarsHint')"
             type="number"
             suffix="g"
             :min="0"
@@ -340,8 +347,8 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
           />
           <BaseField
             v-model="saturatedFatG"
-            label="Graisses saturées"
-            hint="Elles font partie des lipides."
+            :label="t('labels.nutrient.saturatedFat')"
+            :hint="t('foods.custom.saturatedFatHint')"
             type="number"
             suffix="g"
             :min="0"
@@ -349,7 +356,7 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
           />
           <BaseField
             v-model="saltG"
-            label="Sel"
+            :label="t('labels.nutrient.salt')"
             type="number"
             suffix="g"
             :min="0"
@@ -359,8 +366,8 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
       </BaseCard>
 
       <BaseCard
-        title="Portions"
-        subtitle="Facultatif. Par exemple : 1 part = 120 g. Vous pourrez ensuite noter « 2 parts » au lieu de peser."
+        :title="t('foods.custom.servingsTitle')"
+        :subtitle="t('foods.custom.servingsSubtitle')"
       >
         <ul
           v-if="servings.length > 0"
@@ -373,12 +380,12 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
           >
             <BaseField
               v-model="serving.label"
-              :label="`Nom de la portion ${index + 1}`"
-              hint="Par exemple : part."
+              :label="t('foods.custom.servingName', { n: index + 1 })"
+              :hint="t('foods.custom.servingHint')"
             />
             <BaseField
               v-model="serving.amount"
-              :label="unit === 'ml' ? 'Volume' : 'Poids'"
+              :label="unit === 'ml' ? t('foods.custom.volume') : t('foods.custom.weight')"
               type="number"
               :suffix="unit"
               :min="0"
@@ -390,7 +397,7 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
               @click="removeServing(serving.id)"
             >
               <span aria-hidden="true">×</span>
-              <span class="sr-only">Retirer la portion {{ index + 1 }}</span>
+              <span class="sr-only">{{ t('foods.custom.removeServing', { n: index + 1 }) }}</span>
             </BaseButton>
           </li>
         </ul>
@@ -400,17 +407,17 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
           size="sm"
           @click="addServing"
         >
-          Ajouter une portion
+          {{ t('foods.custom.addServing') }}
         </BaseButton>
       </BaseCard>
 
       <BaseCard
-        title="Régimes"
-        subtitle="Facultatif. L’aliment sera masqué pour les personnes dont le régime ne lui convient pas."
+        :title="t('foods.custom.dietsTitle')"
+        :subtitle="t('foods.custom.dietsSubtitle')"
       >
         <fieldset class="custom__fieldset">
           <legend class="custom__legend">
-            Cet aliment contient :
+            {{ t('foods.custom.contains') }}
           </legend>
           <div class="custom__choices">
             <label
@@ -430,7 +437,7 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
         </fieldset>
         <fieldset class="custom__fieldset">
           <legend class="custom__legend">
-            Cet aliment convient à un régime :
+            {{ t('foods.custom.suits') }}
           </legend>
           <div class="custom__choices">
             <label
@@ -455,7 +462,7 @@ const title = computed(() => (editedId.value === null ? 'Créer un aliment' : 'M
         block
         :loading="submitting"
       >
-        {{ editedId === null ? 'Créer l’aliment' : 'Enregistrer' }}
+        {{ editedId === null ? t('foods.custom.submitCreate') : t('foods.custom.save') }}
       </BaseButton>
     </form>
   </div>

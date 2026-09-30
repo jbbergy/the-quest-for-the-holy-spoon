@@ -5,7 +5,7 @@ import { HOUSEHOLD_APP_LINK } from '@/contract/household'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 
-import { setPageTitle } from './pageTitle'
+import { routeTitle, setPageTitle } from './pageTitle'
 import { useAccountSync } from './useAccountSync'
 
 /**
@@ -74,31 +74,31 @@ export function createAppRouter(): Router {
       {
         path: '/',
         name: ROUTE.splash,
-        meta: { title: 'Chargement' },
+        meta: { title: 'shell.titles.loading' },
         component: () => import('./views/SplashView.vue'),
       },
       {
         path: '/auth',
         name: ROUTE.auth,
-        meta: { title: 'Bienvenue' },
+        meta: { title: 'shell.titles.welcome' },
         component: () => import('./views/AuthView.vue'),
       },
       {
         path: '/profil/creation',
         name: ROUTE.profileSetup,
-        meta: { title: 'Créer mon profil' },
+        meta: { title: 'shell.titles.profileSetup' },
         component: () => import('./views/ProfileSetupView.vue'),
       },
       {
         path: '/tableau-de-bord',
         name: ROUTE.dashboard,
-        meta: { title: 'Accueil' },
+        meta: { title: 'shell.titles.home' },
         component: () => import('./views/DashboardView.vue'),
       },
       {
         path: '/semaine',
         name: ROUTE.weekPlan,
-        meta: { title: 'Semaine' },
+        meta: { title: 'shell.titles.week' },
         component: () => import('./views/WeekPlanView.vue'),
       },
       {
@@ -106,14 +106,14 @@ export function createAppRouter(): Router {
         // le jour et le type. `?aliment=` présélectionne un aliment à ajouter.
         path: '/semaine/repas/:mealId?',
         name: ROUTE.mealEditor,
-        meta: { title: 'Repas' },
+        meta: { title: 'shell.titles.meal' },
         component: () => import('./views/MealEditorView.vue'),
       },
       {
         // `?semaine=` : un jour de la semaine voulue (son lundi, en pratique).
         path: '/semaine/courses',
         name: ROUTE.shoppingList,
-        meta: { title: 'Liste de courses' },
+        meta: { title: 'shell.titles.shoppingList' },
         component: () => import('./views/ShoppingListView.vue'),
       },
       // Anciennes adresses : une PWA installée peut en garder un raccourci.
@@ -123,109 +123,109 @@ export function createAppRouter(): Router {
         // Mes aliments, ouverts depuis les réglages. `?q=` : la recherche en cours.
         path: '/aliments',
         name: ROUTE.foods,
-        meta: { title: 'Mes aliments' },
+        meta: { title: 'shell.titles.foods' },
         component: () => import('./views/FoodCatalogView.vue'),
       },
       {
         // `?retour=` : l'éditeur de repas d'où l'on vient.
         path: '/aliments/nouveau',
         name: ROUTE.customFood,
-        meta: { title: 'Créer un aliment' },
+        meta: { title: 'shell.titles.createFood' },
         component: () => import('./views/CustomFoodView.vue'),
       },
       {
         path: '/aliments/:foodId',
         name: ROUTE.foodDetail,
-        meta: { title: 'Aliment' },
+        meta: { title: 'shell.titles.food' },
         component: () => import('./views/FoodDetailView.vue'),
       },
       {
         path: '/aliments/:foodId/modifier',
         name: ROUTE.foodEdit,
-        meta: { title: 'Modifier l’aliment' },
+        meta: { title: 'shell.titles.editFood' },
         component: () => import('./views/CustomFoodView.vue'),
       },
       {
         path: '/reglages',
         name: ROUTE.settings,
-        meta: { title: 'Réglages' },
+        meta: { title: 'shell.titles.settings' },
         component: () => import('./views/SettingsView.vue'),
       },
       {
         // Mes recettes, ouvertes depuis les réglages.
         path: '/reglages/recettes',
         name: ROUTE.recipes,
-        meta: { title: 'Mes recettes' },
+        meta: { title: 'shell.titles.recipes' },
         component: () => import('./views/RecipeListView.vue'),
       },
       {
         path: '/reglages/recettes/:recipeId',
         name: ROUTE.recipeDetail,
-        meta: { title: 'Recette' },
+        meta: { title: 'shell.titles.recipe' },
         component: () => import('./views/RecipeDetailView.vue'),
       },
       {
         // Comment les repères sont calculés, ouvert depuis les réglages.
         path: '/reglages/calculs',
         name: ROUTE.calculations,
-        meta: { title: 'Comment sont calculés mes repères' },
+        meta: { title: 'shell.titles.calculations' },
         component: () => import('./views/CalculationsView.vue'),
       },
       {
         path: '/reglages/profil',
         name: ROUTE.profileEdit,
-        meta: { title: 'Modifier mon profil' },
+        meta: { title: 'shell.titles.editProfile' },
         component: () => import('./views/ProfileEditView.vue'),
       },
       {
         // Chemin fixé par le contrat : c'est celui du lien de l'e-mail d'invitation.
         path: HOUSEHOLD_APP_LINK,
         name: ROUTE.household,
-        meta: { title: 'Foyer' },
+        meta: { title: 'shell.titles.household' },
         component: () => import('./views/HouseholdView.vue'),
       },
       {
         path: `${HOUSEHOLD_APP_LINK}/invitations/:invitationId`,
         name: ROUTE.invitation,
-        meta: { title: 'Invitation' },
+        meta: { title: 'shell.titles.invitation' },
         component: () => import('./views/InvitationView.vue'),
       },
       {
         // `?jour=AAAA-MM-JJ` : un jour passé ; aujourd'hui par défaut.
         path: `${HOUSEHOLD_APP_LINK}/membres/:playerId`,
         name: ROUTE.memberDay,
-        meta: { title: 'Journée d’un membre' },
+        meta: { title: 'shell.titles.memberDay' },
         component: () => import('./views/MemberDayView.vue'),
       },
       {
         path: '/connexion',
         name: ROUTE.signIn,
-        meta: { title: 'Se connecter' },
+        meta: { title: 'shell.titles.signIn' },
         component: () => import('./views/account/SignInView.vue'),
       },
       {
         path: '/inscription',
         name: ROUTE.signUp,
-        meta: { title: 'Créer un compte' },
+        meta: { title: 'shell.titles.signUp' },
         component: () => import('./views/account/SignUpView.vue'),
       },
       // Chemins fixés par le contrat : ce sont ceux des liens envoyés par e-mail.
       {
         path: APP_LINK.verifyEmail,
         name: ROUTE.verifyEmail,
-        meta: { title: 'Confirmer mon adresse' },
+        meta: { title: 'shell.titles.verifyEmail' },
         component: () => import('./views/account/VerifyEmailView.vue'),
       },
       {
         path: '/mot-de-passe/oublie',
         name: ROUTE.forgotPassword,
-        meta: { title: 'Mot de passe oublié' },
+        meta: { title: 'shell.titles.forgotPassword' },
         component: () => import('./views/account/ForgotPasswordView.vue'),
       },
       {
         path: APP_LINK.resetPassword,
         name: ROUTE.resetPassword,
-        meta: { title: 'Nouveau mot de passe' },
+        meta: { title: 'shell.titles.resetPassword' },
         component: () => import('./views/account/ResetPasswordView.vue'),
       },
       { path: '/:pathMatch(.*)*', redirect: { name: ROUTE.splash } },
@@ -268,7 +268,7 @@ export function createAppRouter(): Router {
 
   // Titre par défaut de chaque écran ; un écran peut le préciser ensuite.
   router.afterEach((to) => {
-    setPageTitle(typeof to.meta.title === 'string' ? to.meta.title : '')
+    setPageTitle(() => routeTitle(to.meta))
   })
 
   return router

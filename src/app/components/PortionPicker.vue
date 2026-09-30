@@ -17,8 +17,9 @@ import {
   formatPortion,
   formatWeight,
   measureOptionLabel,
-  pluralize,
+  measureWord,
 } from '@/app/portionFormat'
+import { t } from '@/i18n'
 import type { RecentPortion } from '@/modules/nutrition_inventory/application'
 import type { FoodItem } from '@/modules/nutrition_inventory/domain/FoodItem'
 import type { Measure } from '@/modules/nutrition_inventory/domain/Measure'
@@ -43,9 +44,7 @@ const grams = computed(() => amount.value * measure.value.grams)
 const valid = computed(() => Number.isFinite(amount.value) && amount.value > 0)
 /** Pas du bouton ± : la demi-portion, ou 10 g / 10 ml. */
 const step = computed(() => (measure.value.countable ? 0.5 : 10))
-const unitWord = computed(() =>
-  measure.value.countable && amount.value >= 2 ? pluralize(measure.value.label) : measure.value.label,
-)
+const unitWord = computed(() => measureWord(measure.value, amount.value))
 
 /** La dernière portion, dans la mesure où elle a été saisie si la fiche la connaît encore. */
 const recentPortion = computed(() => {
@@ -108,7 +107,7 @@ watch(
 <template>
   <fieldset class="portion">
     <legend class="portion__legend">
-      Quantité
+      {{ t('meal.portion.legend') }}
     </legend>
 
     <button
@@ -118,7 +117,7 @@ watch(
       @click="useRecent"
     >
       <span aria-hidden="true">↺</span>
-      Comme la dernière fois : {{ formatPortion(recentPortion.amount, recentPortion.measure) }}
+      {{ t('meal.portion.sameAsLast', { portion: formatPortion(recentPortion.amount, recentPortion.measure) }) }}
     </button>
 
     <!-- Des boutons radio natifs, sous la légende « Quantité » du fieldset :
@@ -151,10 +150,10 @@ watch(
         @click="stepBy(-1)"
       >
         <span aria-hidden="true">−</span>
-        <span class="sr-only">Diminuer la quantité</span>
+        <span class="sr-only">{{ t('meal.portion.decrease') }}</span>
       </button>
       <label class="portion__field">
-        <span class="sr-only">Quantité en {{ measure.label }}</span>
+        <span class="sr-only">{{ t('meal.portion.quantityIn', { unit: measure.label }) }}</span>
         <input
           v-model.number="amount"
           type="number"
@@ -170,7 +169,7 @@ watch(
         @click="stepBy(1)"
       >
         <span aria-hidden="true">+</span>
-        <span class="sr-only">Augmenter la quantité</span>
+        <span class="sr-only">{{ t('meal.portion.increase') }}</span>
       </button>
     </div>
 
@@ -178,7 +177,7 @@ watch(
       v-if="measure.countable && valid"
       class="portion__weight"
     >
-      Soit {{ formatWeight(grams, measure, base) }}
+      {{ t('meal.portion.weight', { weight: formatWeight(grams, measure, base) }) }}
     </p>
   </fieldset>
 </template>

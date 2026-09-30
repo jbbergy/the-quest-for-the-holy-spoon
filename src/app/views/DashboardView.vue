@@ -22,6 +22,7 @@ import { useSyncStatus } from '@/app/sync/useSyncStatus'
 import { useDailyTracking } from '@/app/useDailyTracking'
 import { useReturnQuery } from '@/app/useBackLink'
 import { dateOfDay } from '@/core/day'
+import { t } from '@/i18n'
 import type { MealSummary } from '@/modules/nutrition_inventory/application'
 import { useConsumptionHistoryStore } from '@/modules/nutrition_inventory/presentation/useConsumptionHistoryStore'
 import { useJournalStore } from '@/modules/nutrition_inventory/presentation/useJournalStore'
@@ -81,9 +82,9 @@ const newMeal = computed(() => ({
   <div class="dashboard">
     <header class="dashboard__header">
       <p class="dashboard__eyebrow">
-        Aujourd’hui, {{ formatDay(clock.today) }}
+        {{ t('dashboard.eyebrow', { day: formatDay(clock.today) }) }}
       </p>
-      <h1>{{ players.profileView ? `Bonjour, ${players.profileView.name}` : 'Bonjour' }}</h1>
+      <h1>{{ players.profileView ? t('dashboard.hello', { name: players.profileView.name }) : t('dashboard.helloAnonymous') }}</h1>
     </header>
 
     <ErrorNotice :error="players.error" />
@@ -102,22 +103,20 @@ const newMeal = computed(() => ({
     >
       <template #after-calories>
         <BentoTile
-          title="Repas du jour"
+          :title="t('dashboard.mealsTitle')"
           wide
         >
           <p
             v-if="plannedCount > 0"
             class="dashboard__planned-notice"
           >
-            {{ plannedCount }} repas prévu{{ plannedCount > 1 ? 's' : '' }}, pas encore
-            mangé{{ plannedCount > 1 ? 's' : '' }}. Cochez « Mangé » quand vous
-            {{ plannedCount > 1 ? 'les' : 'le' }} mangez.
+            {{ t('dashboard.plannedNotice', { n: plannedCount }) }}
           </p>
 
           <EmptyState
             v-if="journal.isEmpty"
-            title="Aucun repas prévu aujourd’hui."
-            description="Ajoutez le repas que vous allez manger, ou préparez ceux de la semaine."
+            :title="t('dashboard.emptyTitle')"
+            :description="t('dashboard.emptyDescription')"
           />
 
           <ul
@@ -143,7 +142,7 @@ const newMeal = computed(() => ({
                 <span class="dashboard__meal-foods">
                   {{ meal.entries.map((entry) => entry.foodName).join(', ') }}
                 </span>
-                <span class="sr-only"> — modifier</span>
+                <span class="sr-only">{{ t('dashboard.edit') }}</span>
               </RouterLink>
               <MealConsumedToggle
                 :consumed-at="meal.consumedAt"
@@ -155,20 +154,20 @@ const newMeal = computed(() => ({
 
           <div class="dashboard__actions">
             <BaseButton @click="$router.push(newMeal)">
-              <span aria-hidden="true">＋</span> Ajouter un repas
+              <span aria-hidden="true">＋</span> {{ t('dashboard.addMeal') }}
             </BaseButton>
             <BaseButton
               variant="ghost"
               @click="$router.push({ name: ROUTE.weekPlan })"
             >
-              Voir la semaine <span aria-hidden="true">→</span>
+              {{ t('dashboard.viewWeek') }} <span aria-hidden="true">→</span>
             </BaseButton>
           </div>
         </BentoTile>
 
         <BentoTile
           v-if="advice.length > 0"
-          title="Conseil du jour"
+          :title="t('dashboard.adviceTitle')"
           wide
         >
           <p

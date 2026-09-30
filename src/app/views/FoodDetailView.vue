@@ -16,6 +16,7 @@ import { ROUTE } from '@/app/router'
 import { useReturnQuery } from '@/app/useBackLink'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import type { FoodItemId } from '@/core/identity'
+import { t } from '@/i18n'
 import { FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { servingMeasure } from '@/modules/nutrition_inventory/domain/Measure'
 import { useFoodCatalogStore } from '@/modules/nutrition_inventory/presentation/useFoodCatalogStore'
@@ -26,6 +27,7 @@ import ConfirmButton from '@/ui/ConfirmButton.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 import FoodSourceTag from '@/ui/FoodSourceTag.vue'
+import RichText from '@/ui/RichText.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -39,7 +41,7 @@ const canEdit = computed(() => food.value?.isEditableBy(players.playerId) ?? fal
 const author = computed(() =>
   food.value === null ? null : foodAuthor(household.household, players.playerId, food.value.ownerId),
 )
-usePageTitle(() => food.value?.name ?? 'Aliment')
+usePageTitle(() => food.value?.name ?? t('shell.titles.food'))
 
 const per100 = computed(() => (food.value === null ? '100 g' : per100Label(food.value)))
 
@@ -47,9 +49,11 @@ const per100 = computed(() => (food.value === null ? '100 g' : per100Label(food.
 const readOnlyReason = computed(() => {
   if (food.value === null || canEdit.value) return null
   if (food.value.source !== FoodSource.USER) {
-    return 'Cet aliment vient d’un catalogue. Vous ne pouvez pas le modifier.'
+    return t('foods.detail.readOnlyCatalog')
   }
-  return `${author.value ?? 'Un autre membre du foyer'} a créé cet aliment. Seule cette personne peut le modifier.`
+  return t('foods.detail.readOnlyAuthor', {
+    author: author.value ?? t('foods.detail.anotherMember'),
+  })
 })
 
 onMounted(() => catalog.open(route.params.foodId as FoodItemId))
@@ -62,10 +66,10 @@ async function remove(): Promise<void> {
 }
 
 const NUTRIENTS = [
-  { key: 'fiberG', label: 'Fibres' },
-  { key: 'sugarsG', label: 'Sucres' },
-  { key: 'saturatedFatG', label: 'Graisses saturées' },
-  { key: 'saltG', label: 'Sel' },
+  { key: 'fiberG', label: 'fiber' },
+  { key: 'sugarsG', label: 'sugars' },
+  { key: 'saturatedFatG', label: 'saturatedFat' },
+  { key: 'saltG', label: 'salt' },
 ] as const
 </script>
 
@@ -75,15 +79,15 @@ const NUTRIENTS = [
       class="food__back"
       :to="{ name: ROUTE.foods }"
     >
-      <span aria-hidden="true">←</span> Mes aliments
+      <span aria-hidden="true">←</span> {{ t('foods.catalog.title') }}
     </RouterLink>
 
     <ErrorNotice :error="catalog.error" />
 
     <EmptyState
       v-if="food === null && catalog.status !== 'loading'"
-      title="Cet aliment n’existe plus."
-      description="Il a été supprimé, sur cet appareil ou par un autre membre du foyer."
+      :title="t('foods.detail.notFoundTitle')"
+      :description="t('foods.detail.notFoundDescription')"
     />
 
     <template v-else-if="food">
@@ -96,35 +100,35 @@ const NUTRIENTS = [
       </div>
 
       <BaseCard
-        :title="`Pour ${per100}`"
+        :title="t('foods.detail.per', { per: per100 })"
         :subtitle="`${Math.round(food.macrosPer100g.calories())} kcal`"
       >
         <dl class="food__values">
           <div>
-            <dt>Protéines</dt>
+            <dt>{{ t('labels.nutrient.protein') }}</dt>
             <dd>{{ food.macrosPer100g.proteinG.toFixed(1) }} g</dd>
           </div>
           <div>
-            <dt>Glucides</dt>
+            <dt>{{ t('labels.nutrient.carbs') }}</dt>
             <dd>{{ food.macrosPer100g.carbsG.toFixed(1) }} g</dd>
           </div>
           <div>
-            <dt>Lipides</dt>
+            <dt>{{ t('labels.nutrient.fat') }}</dt>
             <dd>{{ food.macrosPer100g.fatG.toFixed(1) }} g</dd>
           </div>
           <div
             v-for="nutrient in NUTRIENTS"
             :key="nutrient.key"
           >
-            <dt>{{ nutrient.label }}</dt>
+            <dt>{{ t(`labels.nutrient.${nutrient.label}`) }}</dt>
             <dd>{{ food.detailPer100g[nutrient.key].toFixed(nutrient.key === 'saltG' ? 2 : 1) }} g</dd>
           </div>
         </dl>
       </BaseCard>
 
       <BaseCard
-        title="Portions"
-        :subtitle="food.unit === 'ml' ? 'Liquide : se mesure en millilitres.' : 'Solide : se pèse en grammes.'"
+        :title="t('foods.detail.portionsTitle')"
+        :subtitle="food.unit === 'ml' ? t('foods.detail.liquid') : t('foods.detail.solid')"
       >
         <ul
           v-if="food.servings.length > 0"
@@ -134,7 +138,7 @@ const NUTRIENTS = [
             v-for="serving in food.servings"
             :key="serving.label"
           >
-            <span>1 {{ serving.label }}</span>
+            <span>{{ t('foods.detail.serving', { label: serving.label }) }}</span>
             <span class="food__muted">{{ formatWeight(serving.grams, servingMeasure(serving), food.baseMeasure) }}</span>
           </li>
         </ul>
@@ -142,19 +146,23 @@ const NUTRIENTS = [
           v-else
           class="food__muted"
         >
-          Pas de portion. La quantité se note en {{ food.unit === 'ml' ? 'millilitres' : 'grammes' }}.
+          {{ food.unit === 'ml' ? t('foods.detail.noServingsMl') : t('foods.detail.noServingsG') }}
         </p>
       </BaseCard>
 
       <BaseCard
         v-if="food.barcode || food.tags.length > 0"
-        title="Autres informations"
+        :title="t('foods.detail.otherInfo')"
       >
         <p
           v-if="food.barcode"
           class="food__line"
         >
-          Code-barres : <span class="food__code">{{ food.barcode }}</span>
+          <RichText path="foods.detail.barcode">
+            <template #code>
+              <span class="food__code">{{ food.barcode }}</span>
+            </template>
+          </RichText>
         </p>
         <ul
           v-if="food.tags.length > 0"
@@ -180,23 +188,23 @@ const NUTRIENTS = [
         <BaseButton
           @click="router.push({ name: ROUTE.mealEditor, query: { aliment: food.id, ...returnQuery } })"
         >
-          Ajouter à un repas
+          {{ t('foods.detail.addToMeal') }}
         </BaseButton>
         <BaseButton
           v-if="canEdit"
           variant="secondary"
           @click="router.push({ name: ROUTE.foodEdit, params: { foodId: food.id } })"
         >
-          Modifier
+          {{ t('foods.detail.edit') }}
         </BaseButton>
         <ConfirmButton
           v-if="canEdit"
-          :question="`Supprimer « ${food.name} » ? Les repas qui le contiennent ne changent pas.`"
-          confirm-label="Supprimer"
+          :question="t('foods.detail.deleteQuestion', { name: food.name })"
+          :confirm-label="t('foods.detail.delete')"
           :loading="catalog.status === 'loading'"
           @confirm="remove"
         >
-          Supprimer
+          {{ t('foods.detail.delete') }}
         </ConfirmButton>
       </div>
     </template>

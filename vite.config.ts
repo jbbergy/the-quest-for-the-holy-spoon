@@ -111,6 +111,16 @@ const apiProxy = { '/api': { target: API_TARGET } }
 
 export default defineConfig({
   plugins: [vue(), pwa],
+  /**
+   * Drapeaux de vue-i18n : l'API historique (`legacy`, `$t`), l'installation
+   * complète et les outils de développement ne servent pas ici — l'instance est
+   * globale et les composants importent `t` — et alourdiraient le paquet.
+   */
+  define: {
+    __VUE_I18N_FULL_INSTALL__: false,
+    __VUE_I18N_LEGACY_API__: false,
+    __INTLIFY_PROD_DEVTOOLS__: false,
+  },
   server: { proxy: apiProxy },
   preview: { proxy: apiProxy },
   resolve: {
@@ -147,6 +157,7 @@ export default defineConfig({
         'src/app/pwa/serviceWorker.ts',
         'src/app/theme/**/*.ts',
         'src/ui/**/*.ts',
+        'src/i18n/*.ts',
       ],
       exclude: ['**/__tests__/**', '**/index.ts', '**/*.d.ts', 'server/src/main.ts'],
       thresholds: {

@@ -7,6 +7,7 @@
  */
 import { computed, ref } from 'vue'
 
+import { t } from '@/i18n'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 
@@ -26,21 +27,21 @@ async function saveRecipe(): Promise<void> {
 
 <template>
   <BaseCard
-    title="Garder comme recette"
-    subtitle="La prochaine fois, cherchez la recette par son nom pour ajouter tous ses aliments."
+    :title="t('meal.saveRecipe.title')"
+    :subtitle="t('meal.saveRecipe.subtitle')"
   >
     <form
       class="save"
       @submit.prevent="saveRecipe"
     >
       <label class="save__field">
-        <span class="save__label">Nom de la recette</span>
+        <span class="save__label">{{ t('meal.saveRecipe.name') }}</span>
         <input
           v-model="name"
           type="text"
           maxlength="60"
           autocomplete="off"
-          placeholder="Poke bowl"
+          :placeholder="t('meal.saveRecipe.placeholder')"
         >
       </label>
       <BaseButton
@@ -48,7 +49,7 @@ async function saveRecipe(): Promise<void> {
         variant="secondary"
         :disabled="busy || cleanName === ''"
       >
-        Enregistrer la recette
+        {{ t('meal.saveRecipe.save') }}
       </BaseButton>
     </form>
   </BaseCard>

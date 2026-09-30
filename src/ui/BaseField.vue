@@ -9,6 +9,8 @@
  */
 import { computed, useId } from 'vue'
 
+import { t } from '@/i18n'
+
 const props = withDefaults(
   defineProps<{
     label: string
@@ -70,7 +72,7 @@ const onInput = (event: Event): string | number => {
       <span
         v-if="required"
         class="sr-only"
-      >(obligatoire)</span>
+      >{{ t('ui.required') }}</span>
     </label>
 
     <div

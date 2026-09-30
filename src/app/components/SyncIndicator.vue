@@ -10,25 +10,27 @@
 import { computed, ref, watch } from 'vue'
 
 import { useContainer } from '@/app/container'
+import { t } from '@/i18n'
 import { useSyncStatus } from '@/app/sync/useSyncStatus'
 
 const { status } = useSyncStatus()
 const announcement = ref('')
 
-const plural = (count: number): string =>
-  `${count} changement${count > 1 ? 's' : ''} à envoyer`
+const plural = (count: number): string => t('shell.sync.pending', { n: count })
 
 const label = computed(() => {
   const { phase, pending } = status.value
   switch (phase) {
     case 'syncing':
-      return 'Envoi en cours…'
+      return t('shell.sync.syncing')
     case 'offline':
-      return pending > 0 ? `Pas d’Internet : ${plural(pending)}` : 'Pas d’Internet'
+      return pending > 0
+        ? t('shell.sync.offlineWithPending', { pending: plural(pending) })
+        : t('shell.sync.offline')
     case 'error':
-      return 'Envoi impossible'
+      return t('shell.sync.error')
     default:
-      return pending > 0 ? plural(pending) : 'Tout est enregistré'
+      return pending > 0 ? plural(pending) : t('shell.sync.saved')
   }
 })
 
@@ -36,12 +38,11 @@ watch(
   () => status.value.phase,
   (phase, previous) => {
     if (phase === 'offline') {
-      announcement.value =
-        'Pas d’Internet. Vos changements partiront quand la connexion reviendra.'
+      announcement.value = t('shell.sync.offlineAnnouncement')
     } else if (phase === 'error') {
-      announcement.value = 'L’envoi de vos changements n’a pas marché.'
+      announcement.value = t('shell.sync.errorAnnouncement')
     } else if (phase === 'idle' && (previous === 'offline' || previous === 'error')) {
-      announcement.value = 'Vos changements sont de nouveau envoyés.'
+      announcement.value = t('shell.sync.backOnline')
     }
   },
 )
@@ -68,7 +69,7 @@ function retry(): void {
       class="sync__retry"
       @click="retry"
     >
-      Réessayer
+      {{ t('shell.sync.retry') }}
     </button>
     <p
       class="sr-only"

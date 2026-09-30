@@ -1,0 +1,93 @@
+import type { Messages } from '../schema'
+import type { shell as fr } from '../fr/shell'
+
+export const shell: Messages<typeof fr> = {
+  skipLink: 'Skip to content',
+  pageShown: '{title}, page shown',
+  nav: {
+    label: 'Main navigation',
+    home: 'Home',
+    week: 'Week',
+    household: 'Household',
+    settings: 'Settings',
+    pendingInvitations: ', {n} pending invitation | , {n} pending invitations',
+  },
+  titles: {
+    loading: 'Loading',
+    welcome: 'Welcome',
+    profileSetup: 'Create my profile',
+    home: 'Home',
+    week: 'Week',
+    meal: 'Meal',
+    shoppingList: 'Shopping list',
+    foods: 'My foods',
+    createFood: 'Create a food',
+    food: 'Food',
+    editFood: 'Edit the food',
+    settings: 'Settings',
+    recipes: 'My recipes',
+    recipe: 'Recipe',
+    calculations: 'How my figures are calculated',
+    editProfile: 'Edit my profile',
+    household: 'Household',
+    invitation: 'Invitation',
+    memberDay: 'A member’s day',
+    signIn: 'Sign in',
+    signUp: 'Create an account',
+    verifyEmail: 'Confirm my email address',
+    forgotPassword: 'Forgot password',
+    resetPassword: 'New password',
+  },
+  sync: {
+    syncing: 'Sending…',
+    offline: 'No internet',
+    offlineWithPending: 'No internet: {pending}',
+    error: 'Could not send',
+    saved: 'Everything is saved',
+    pending: '{n} change to send | {n} changes to send',
+    offlineAnnouncement: 'No internet. Your changes will be sent when the connection is back.',
+    errorAnnouncement: 'Your changes could not be sent.',
+    backOnline: 'Your changes are being sent again.',
+    retry: 'Try again',
+  },
+  update: {
+    ready: 'A new version of the app is ready.',
+    apply: 'Update',
+    later: 'Later',
+    offlineReady: 'The app now works without internet.',
+    close: 'Close',
+  },
+  onlineSearch: {
+    unavailable:
+      'The search for brand products is not responding. It is often overloaded. The list only shows foods from the public catalogue: some may be missing.',
+    offline:
+      'You are not connected to the internet. The list only shows foods from the public catalogue. Brand products will come back with the connection.',
+    barcodeHint:
+      'Looking for a brand product? Try its barcode number: it goes through another service, which almost always responds.',
+    retry: 'Search again',
+  },
+  account: {
+    otherOptions: 'Other options',
+  },
+  splash: {
+    loading: 'Loading…',
+  },
+  welcome: {
+    title: 'Welcome to',
+    intro:
+      'Plan your meals for the week. See what you eat every day. Learn to eat a balanced diet.',
+    resumeTitle: 'Pick up where you left off',
+    resumeSubtitle: '{name}’s profile is on this device.',
+    resume: 'Continue',
+    startTitle: 'Start without an account',
+    startSubtitle: 'Your data stays on this device.',
+    start: 'Create my profile',
+    accountTitle: 'Account',
+    signedInAs: 'You are signed in as {email}.',
+    withAccountTitle: 'With an account',
+    withAccountSubtitle:
+      'You find your meals on your other devices. You can share them with your household.',
+    signIn: 'Sign in',
+    signUp: 'Create an account',
+  },
+}

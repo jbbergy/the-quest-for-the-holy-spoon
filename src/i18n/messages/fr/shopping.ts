@@ -1,0 +1,36 @@
+/** Liste de courses. */
+export const shopping = {
+  weekOf: 'Semaine du {range}',
+  title: 'Liste de courses',
+  scopePersonal: 'Cette liste est à vous seulement.',
+  scopeHousehold: 'Cette liste est commune au foyer. Chaque membre la voit et peut cocher.',
+  scopeHouseholdNamed:
+    'Cette liste est commune au foyer « {name} ». Chaque membre la voit et peut cocher.',
+  fillTitle: 'Remplir avec les repas',
+  fillSubtitle:
+    'La liste reprend les aliments des repas de la semaine qui ne sont pas encore mangés. Elle ajoute ou change des articles, mais n’en retire jamais : c’est vous qui retirez, avec la croix.',
+  fill: 'Remplir la liste',
+  added: '{n} article ajouté | {n} articles ajoutés',
+  updated: '{n} article changé | {n} articles changés',
+  upToDate: 'La liste était déjà à jour.',
+  updatedList: 'La liste est à jour : {changes}.',
+  ownMealsOnly: 'Pas de connexion : seuls vos repas sont comptés.',
+  skippedNotShared:
+    'Les repas de {name} ne sont pas comptés : {name} ne partage pas ses journées. {name} peut remplir la liste de son côté.',
+  skippedOffline: 'Les repas de {name} ne sont pas comptés : pas de connexion. Réessayez plus tard.',
+  itemsTitle: 'Articles',
+  itemCount: '{n} article | {n} articles',
+  itemCountChecked: '{count}, dont {checked} dans le panier',
+  emptyTitle: 'La liste est vide.',
+  emptyDescription: 'Remplissez-la avec les repas de la semaine, ou ajoutez un article.',
+  noLongerInMeals: 'plus dans les repas',
+  removeItem: 'Retirer {name} de la liste',
+  addTitle: 'Ajouter un article',
+  addSubtitle: 'Cherchez un aliment, puis choisissez la quantité.',
+  notFood: 'Ce n’est pas un aliment, ou vous ne le trouvez pas ?',
+  quantityLabel: 'Quantité (facultatif)',
+  quantityHint: 'Par exemple : 200 g, 1 paquet, x3.',
+  addAsIs: 'Ajouter « {name} » tel quel',
+  nameAdded: '{name} ajouté.',
+  nameAddedQuantity: '{name} ajouté ({quantity}).',
+} as const

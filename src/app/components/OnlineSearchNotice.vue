@@ -12,6 +12,7 @@
 import { computed } from 'vue'
 
 import { useContainer } from '@/app/container'
+import { t } from '@/i18n'
 import BaseButton from '@/ui/BaseButton.vue'
 
 defineProps<{ busy: boolean }>()
@@ -27,18 +28,15 @@ const online = computed(() => useContainer().network.isOnline())
     <p class="online-notice__text">
       <span aria-hidden="true">⌁</span>
       <template v-if="online">
-        La recherche des produits de marque ne répond pas. Elle est souvent surchargée. La
-        liste montre seulement les aliments du catalogue public : il peut en manquer.
+        {{ t('shell.onlineSearch.unavailable') }}
       </template>
       <template v-else>
-        Vous n’êtes pas connecté à Internet. La liste montre seulement les aliments du catalogue
-        public. Les produits de marque reviendront avec la connexion.
+        {{ t('shell.onlineSearch.offline') }}
       </template>
     </p>
     <template v-if="online">
       <p class="online-notice__hint">
-        Vous cherchez un produit de marque ? Essayez avec le numéro du code-barres : il passe par
-        un autre service, qui répond presque toujours.
+        {{ t('shell.onlineSearch.barcodeHint') }}
       </p>
       <BaseButton
         variant="secondary"
@@ -46,7 +44,7 @@ const online = computed(() => useContainer().network.isOnline())
         :loading="busy"
         @click="emit('retry')"
       >
-        Chercher de nouveau
+        {{ t('shell.onlineSearch.retry') }}
       </BaseButton>
     </template>
   </div>

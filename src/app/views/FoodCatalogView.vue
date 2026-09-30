@@ -16,6 +16,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { per100Label } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
+import { t } from '@/i18n'
 import { useFoodCatalogStore } from '@/modules/nutrition_inventory/presentation/useFoodCatalogStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import BaseButton from '@/ui/BaseButton.vue'
@@ -69,16 +70,16 @@ onMounted(async () => {
       class="catalog__back"
       :to="{ name: ROUTE.settings }"
     >
-      <span aria-hidden="true">←</span> Réglages
+      <span aria-hidden="true">←</span> {{ t('shell.nav.settings') }}
     </RouterLink>
 
     <div class="catalog__header">
-      <h1>Mes aliments</h1>
+      <h1>{{ t('foods.catalog.title') }}</h1>
       <BaseButton
         size="sm"
         @click="router.push({ name: ROUTE.customFood })"
       >
-        <span aria-hidden="true">+</span> Créer un aliment
+        <span aria-hidden="true">+</span> {{ t('foods.catalog.create') }}
       </BaseButton>
     </div>
 
@@ -91,8 +92,8 @@ onMounted(async () => {
     >
       <BaseField
         v-model="query"
-        label="Chercher dans mes aliments"
-        hint="Par exemple : tarte de mamie."
+        :label="t('foods.catalog.searchLabel')"
+        :hint="t('foods.catalog.searchHint')"
       />
     </form>
 
@@ -101,7 +102,7 @@ onMounted(async () => {
       role="status"
       aria-live="polite"
     >
-      {{ catalog.status === 'ready' ? `${catalog.items.length} aliment${catalog.items.length > 1 ? 's' : ''} trouvé${catalog.items.length > 1 ? 's' : ''}.` : '' }}
+      {{ catalog.status === 'ready' ? t('foods.catalog.found', { n: catalog.items.length }) : '' }}
     </p>
 
     <ul
@@ -122,9 +123,9 @@ onMounted(async () => {
               :source="item.source"
               :author="foodAuthor(household.household, players.playerId, item.ownerId)"
             />
-            {{ Math.round(item.macrosPer100g.calories()) }} kcal pour {{ per100Label(item) }}
+            {{ t('meal.picker.kcalPer', { kcal: Math.round(item.macrosPer100g.calories()), per: per100Label(item) }) }}
             <template v-if="item.servings.length > 0">
-              · {{ item.servings.length }} portion{{ item.servings.length > 1 ? 's' : '' }}
+              · {{ t('foods.catalog.portions', { n: item.servings.length }) }}
             </template>
           </span>
         </RouterLink>
@@ -133,15 +134,15 @@ onMounted(async () => {
 
     <EmptyState
       v-else-if="catalog.status === 'ready'"
-      :title="query.trim() === '' ? 'Vous n’avez pas encore créé d’aliment.' : 'Aucun aliment ne porte ce nom.'"
-      description="Créez ici un plat maison, ou un produit que vous ne trouvez pas dans la recherche."
+      :title="query.trim() === '' ? t('foods.catalog.emptyNone') : t('foods.catalog.emptyNoMatch')"
+      :description="t('foods.catalog.emptyDescription')"
     >
       <BaseButton
         size="sm"
         variant="secondary"
         @click="router.push({ name: ROUTE.customFood })"
       >
-        Créer un aliment
+        {{ t('foods.catalog.create') }}
       </BaseButton>
     </EmptyState>
   </div>

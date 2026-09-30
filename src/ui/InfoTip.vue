@@ -16,6 +16,8 @@
  */
 import { computed, nextTick, onBeforeUnmount, ref, useId } from 'vue'
 
+import { t } from '@/i18n'
+
 const props = defineProps<{
   /** Le mot expliqué, pour nommer le bouton. */
   term: string
@@ -31,7 +33,7 @@ const bubble = ref<HTMLElement | null>(null)
 const position = ref({ top: 0, left: 0 })
 const bubbleId = useId()
 
-const label = computed(() => `Explication : ${props.term}`)
+const label = computed(() => t('ui.infoTip', { term: props.term }))
 
 /** Marge au bord de l'écran, la même que la gouttière des pages. */
 const EDGE = 16

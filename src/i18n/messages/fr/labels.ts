@@ -1,0 +1,108 @@
+/** Libellés partagés : repas, profil, régimes, marqueurs d'aliments. */
+export const labels = {
+  portion: {
+    approximate: 'environ {weight}',
+  },
+  nutrient: {
+    calories: 'Calories',
+    protein: 'Protéines',
+    carbs: 'Glucides',
+    fat: 'Lipides',
+    fiber: 'Fibres',
+    sugars: 'Sucres',
+    saturatedFat: 'Graisses saturées',
+    salt: 'Sel',
+  },
+  term: {
+    barcode: 'code-barres',
+    publicCatalogue: 'catalogue public',
+    brandProducts: 'produits de marque',
+    need: 'besoin',
+    restingEnergy: 'énergie au repos',
+    howCalculated: 'comment c’est calculé',
+  },
+  meal: {
+    breakfast: 'Petit-déjeuner',
+    lunch: 'Déjeuner',
+    snack: 'Collation',
+    dinner: 'Dîner',
+    today: 'Aujourd’hui',
+  },
+  sex: {
+    female: 'Femme',
+    male: 'Homme',
+  },
+  activity: {
+    sedentary: { label: 'Très peu actif', hint: 'Peu ou pas de sport' },
+    light: { label: 'Un peu actif', hint: 'Sport 1 à 3 fois par semaine' },
+    moderate: { label: 'Actif', hint: 'Sport 3 à 5 fois par semaine' },
+    active: { label: 'Très actif', hint: 'Sport 6 ou 7 fois par semaine' },
+    veryActive: {
+      label: 'Extrêmement actif',
+      hint: 'Métier physique, ou sport 2 fois par jour',
+    },
+  },
+  diet: {
+    vegetarian: { label: 'Végétarien', hint: 'Ni viande, ni poisson, ni fruits de mer' },
+    pescatarian: {
+      label: 'Pescétarien',
+      hint: 'Du poisson et des fruits de mer, mais pas de viande',
+    },
+    vegan: {
+      label: 'Végan',
+      hint: 'Aucun produit animal : ni viande, ni poisson, ni lait, ni œufs',
+    },
+    glutenFree: { label: 'Sans gluten', hint: 'Ni blé, ni orge, ni seigle' },
+    lactoseFree: { label: 'Sans lactose', hint: 'Pas de lait ni de produits laitiers' },
+    porkFree: {
+      label: 'Sans porc',
+      hint: 'Ni porc, ni jambon, ni lardons, ni sanglier. Par exemple pour manger halal ou casher.',
+    },
+    beefFree: {
+      label: 'Sans bœuf',
+      hint: 'Ni bœuf, ni veau. Par exemple pour beaucoup d’hindous.',
+    },
+    shellfishFree: {
+      label: 'Sans fruits de mer',
+      hint: 'Ni crevettes, ni moules, ni huîtres, ni calamars, ni escargots. Par exemple pour manger casher.',
+    },
+    alcoholFree: {
+      label: 'Sans alcool',
+      hint: 'Ni boissons alcoolisées, ni plats cuits au vin ou à la bière. Par exemple pour manger halal.',
+    },
+  },
+  contains: {
+    meat: 'De la viande',
+    pork: 'Du porc',
+    beef: 'Du bœuf ou du veau',
+    fish: 'Du poisson',
+    shellfish: 'Des fruits de mer (crevettes, moules…)',
+    milk: 'Du lait',
+    egg: 'Des œufs',
+    gluten: 'Du gluten (blé, orge, seigle)',
+    nuts: 'Des fruits à coque',
+    alcohol: 'De l’alcool',
+  },
+  suits: {
+    vegetarian: 'Végétarien',
+    vegan: 'Végan',
+    glutenFree: 'Sans gluten',
+    lactoseFree: 'Sans lactose',
+  },
+  tag: {
+    meat: 'Contient de la viande',
+    pork: 'Contient du porc',
+    beef: 'Contient du bœuf ou du veau',
+    fish: 'Contient du poisson',
+    shellfish: 'Contient des fruits de mer',
+    milk: 'Contient du lait',
+    egg: 'Contient des œufs',
+    gluten: 'Contient du gluten',
+    nuts: 'Contient des fruits à coque',
+    alcohol: 'Contient de l’alcool',
+    vegetarian: 'Végétarien',
+    vegan: 'Végan',
+    glutenFree: 'Sans gluten',
+    lactoseFree: 'Sans lactose',
+  },
+} as const

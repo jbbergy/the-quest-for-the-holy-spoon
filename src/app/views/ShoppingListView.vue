@@ -28,6 +28,7 @@ import { useTodayStore } from '@/app/day/useTodayStore'
 import { addDays, type DayKey, parseDayKey, startOfWeek } from '@/core/day'
 import { type ErrorView, toErrorView } from '@/core/errors'
 import { type FoodItemId, type HouseholdId, idFrom, type ShoppingItemId } from '@/core/identity'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import type { ShoppingItemView } from '@/modules/shopping/application'
@@ -48,7 +49,7 @@ const account = useAccountStore()
 const household = useHousehold()
 const shopping = useShoppingListStore()
 const clock = useTodayStore()
-const back = useBackLink({ to: { name: ROUTE.weekPlan }, label: 'Semaine' })
+const back = useBackLink({ to: { name: ROUTE.weekPlan }, label: t('week.title') })
 
 /** Lundi de la semaine, `?semaine=` ; la semaine en cours par défaut. */
 const week = computed<DayKey>(() => {
@@ -106,11 +107,11 @@ onBeforeUnmount(() => {
 })
 
 const scopeText = computed(() => {
-  if (householdId.value === null) return 'Cette liste est à vous seulement.'
+  if (householdId.value === null) return t('shopping.scopePersonal')
   const name = household.household?.name
   return name === undefined
-    ? 'Cette liste est commune au foyer. Chaque membre la voit et peut cocher.'
-    : `Cette liste est commune au foyer « ${name} ». Chaque membre la voit et peut cocher.`
+    ? t('shopping.scopeHousehold')
+    : t('shopping.scopeHouseholdNamed', { name })
 })
 
 // --- Remplir ---------------------------------------------------------------
@@ -119,10 +120,6 @@ const filling = ref(false)
 const fillMessage = ref('')
 const skipped = ref<readonly SkippedMember[]>([])
 const fillError = ref<ErrorView | null>(null)
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count > 1 ? many : one}`
-}
 
 async function fill(): Promise<void> {
   const playerId = players.playerId
@@ -145,11 +142,13 @@ async function fill(): Promise<void> {
 
   skipped.value = report.value.skipped
   const changes = [
-    outcome.added > 0 ? plural(outcome.added, 'article ajouté', 'articles ajoutés') : null,
-    outcome.updated > 0 ? plural(outcome.updated, 'article changé', 'articles changés') : null,
+    outcome.added > 0 ? t('shopping.added', { n: outcome.added }) : null,
+    outcome.updated > 0 ? t('shopping.updated', { n: outcome.updated }) : null,
   ].filter((part): part is string => part !== null)
   fillMessage.value =
-    changes.length === 0 ? 'La liste était déjà à jour.' : `La liste est à jour : ${changes.join(', ')}.`
+    changes.length === 0
+      ? t('shopping.upToDate')
+      : t('shopping.updatedList', { changes: changes.join(', ') })
 }
 
 /** Le foyer n'a pas pu être lu (hors ligne) : seuls ses propres repas comptent. */
@@ -157,8 +156,8 @@ const ownMealsOnly = computed(() => householdId.value !== null && household.hous
 
 function skippedText(member: SkippedMember): string {
   return member.reason === 'not-shared'
-    ? `Les repas de ${member.name} ne sont pas comptés : ${member.name} ne partage pas ses journées. ${member.name} peut remplir la liste de son côté.`
-    : `Les repas de ${member.name} ne sont pas comptés : pas de connexion. Réessayez plus tard.`
+    ? t('shopping.skippedNotShared', { name: member.name })
+    : t('shopping.skippedOffline', { name: member.name })
 }
 
 // --- Articles ----------------------------------------------------------------
@@ -179,7 +178,10 @@ async function addFood(choice: FoodChoice): Promise<boolean> {
     unit: choice.measure,
   })
   if (done) {
-    added.value = `${choice.food.name} ajouté (${formatPortion(choice.grams / choice.measure.grams, choice.measure)}).`
+    added.value = t('meal.editor.foodAdded', {
+      food: choice.food.name,
+      portion: formatPortion(choice.grams / choice.measure.grams, choice.measure),
+    })
   }
   return done
 }
@@ -201,7 +203,10 @@ async function addName(name: string, reset: () => void): Promise<void> {
   const done = await shopping.add(name, quantity === '' ? null : quantity)
   addingName.value = false
   if (!done) return
-  added.value = quantity === '' ? `${name.trim()} ajouté.` : `${name.trim()} ajouté (${quantity}).`
+  added.value =
+    quantity === ''
+      ? t('shopping.nameAdded', { name: name.trim() })
+      : t('shopping.nameAddedQuantity', { name: name.trim(), quantity })
   quantityText.value = ''
   reset()
 }
@@ -223,8 +228,8 @@ const summary = computed(() => {
   const total = shopping.items.length
   if (total === 0) return ''
   const checked = shopping.items.filter((item) => item.checked).length
-  const count = plural(total, 'article', 'articles')
-  return checked === 0 ? count : `${count}, dont ${checked} dans le panier`
+  const count = t('shopping.itemCount', { n: total })
+  return checked === 0 ? count : t('shopping.itemCountChecked', { count, checked })
 })
 </script>
 
@@ -238,9 +243,9 @@ const summary = computed(() => {
 
     <header>
       <p class="shopping__eyebrow">
-        Semaine du {{ range }}
+        {{ t('shopping.weekOf', { range }) }}
       </p>
-      <h1>Liste de courses</h1>
+      <h1>{{ t('shopping.title') }}</h1>
       <p
         v-if="resolved"
         class="shopping__scope"
@@ -250,15 +255,15 @@ const summary = computed(() => {
     </header>
 
     <BaseCard
-      title="Remplir avec les repas"
-      subtitle="La liste reprend les aliments des repas de la semaine qui ne sont pas encore mangés. Elle ajoute ou change des articles, mais n’en retire jamais : c’est vous qui retirez, avec la croix."
+      :title="t('shopping.fillTitle')"
+      :subtitle="t('shopping.fillSubtitle')"
     >
       <ErrorNotice :error="fillError" />
       <BaseButton
         :loading="filling"
         @click="fill"
       >
-        Remplir la liste
+        {{ t('shopping.fill') }}
       </BaseButton>
       <div
         class="shopping__report"
@@ -275,7 +280,7 @@ const summary = computed(() => {
           v-if="fillMessage && ownMealsOnly"
           class="shopping__note"
         >
-          Pas de connexion : seuls vos repas sont comptés.
+          {{ t('shopping.ownMealsOnly') }}
         </p>
         <p
           v-for="member in skipped"
@@ -290,13 +295,13 @@ const summary = computed(() => {
     <ErrorNotice :error="shopping.error" />
 
     <BaseCard
-      title="Articles"
+      :title="t('shopping.itemsTitle')"
       :subtitle="summary"
     >
       <EmptyState
         v-if="shopping.items.length === 0"
-        title="La liste est vide."
-        description="Remplissez-la avec les repas de la semaine, ou ajoutez un article."
+        :title="t('shopping.emptyTitle')"
+        :description="t('shopping.emptyDescription')"
       />
       <ul
         v-else
@@ -321,7 +326,7 @@ const summary = computed(() => {
             </template>
             <template v-else-if="item.foodItemId !== null">
               <span class="sr-only">, </span>
-              <span class="shopping__quantity">plus dans les repas</span>
+              <span class="shopping__quantity">{{ t('shopping.noLongerInMeals') }}</span>
             </template>
           </label>
           <BaseButton
@@ -330,15 +335,15 @@ const summary = computed(() => {
             @click="remove(item.id)"
           >
             <span aria-hidden="true">✕</span>
-            <span class="sr-only">Retirer {{ item.name }} de la liste</span>
+            <span class="sr-only">{{ t('shopping.removeItem', { name: item.name }) }}</span>
           </BaseButton>
         </li>
       </ul>
     </BaseCard>
 
     <BaseCard
-      title="Ajouter un article"
-      subtitle="Cherchez un aliment, puis choisissez la quantité."
+      :title="t('shopping.addTitle')"
+      :subtitle="t('shopping.addSubtitle')"
     >
       <FoodPicker
         :add="addFood"
@@ -348,12 +353,12 @@ const summary = computed(() => {
         <template #after="{ query: searched, reset }">
           <div class="shopping__as-is">
             <p class="shopping__note">
-              Ce n’est pas un aliment, ou vous ne le trouvez pas ?
+              {{ t('shopping.notFood') }}
             </p>
             <BaseField
               v-model="quantityText"
-              label="Quantité (facultatif)"
-              hint="Par exemple : 200 g, 1 paquet, x3."
+              :label="t('shopping.quantityLabel')"
+              :hint="t('shopping.quantityHint')"
             />
             <BaseButton
               size="sm"
@@ -361,7 +366,7 @@ const summary = computed(() => {
               :loading="addingName"
               @click="addName(searched, reset)"
             >
-              Ajouter « {{ searched.trim() }} » tel quel
+              {{ t('shopping.addAsIs', { name: searched.trim() }) }}
             </BaseButton>
           </div>
         </template>

@@ -16,6 +16,7 @@ import SyncIndicator from '@/app/components/SyncIndicator.vue'
 import { ACCOUNT_ROUTES, ROUTE } from '@/app/router'
 import { pageTitle } from '@/app/pageTitle'
 import { useHousehold } from '@/app/useHousehold'
+import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 
 const route = useRoute()
@@ -45,12 +46,12 @@ interface NavLink {
   readonly also: readonly string[]
 }
 
-const HOME: NavLink = { name: ROUTE.dashboard, label: 'Accueil', icon: '◎', also: [] }
-const WEEK: NavLink = { name: ROUTE.weekPlan, label: 'Semaine', icon: '▦', also: [ROUTE.mealEditor] }
-const HOUSEHOLD: NavLink = { name: ROUTE.household, label: 'Foyer', icon: '⌂', also: [ROUTE.invitation, ROUTE.memberDay] }
+const HOME: NavLink = { name: ROUTE.dashboard, label: 'shell.nav.home', icon: '◎', also: [] }
+const WEEK: NavLink = { name: ROUTE.weekPlan, label: 'shell.nav.week', icon: '▦', also: [ROUTE.mealEditor] }
+const HOUSEHOLD: NavLink = { name: ROUTE.household, label: 'shell.nav.household', icon: '⌂', also: [ROUTE.invitation, ROUTE.memberDay] }
 const SETTINGS: NavLink = {
   name: ROUTE.settings,
-  label: 'Réglages',
+  label: 'shell.nav.settings',
   icon: '⚙',
   also: [ROUTE.foods, ROUTE.foodDetail, ROUTE.foodEdit, ROUTE.customFood, ROUTE.profileEdit, ROUTE.recipes, ROUTE.recipeDetail],
 }
@@ -97,7 +98,7 @@ watch(
   async (_name, previous) => {
     announcement.value = ''
     await nextTick()
-    announcement.value = pageTitle.value === '' ? '' : `${pageTitle.value}, page affichée`
+    announcement.value = pageTitle.value === '' ? '' : t('shell.pageShown', { title: pageTitle.value })
 
     /**
      * Replace le focus au début du contenu après une navigation **de
@@ -126,7 +127,7 @@ watch(
     <a
       class="skip-link"
       href="#contenu"
-    >Aller au contenu</a>
+    >{{ t('shell.skipLink') }}</a>
 
     <p
       class="sr-only"
@@ -153,7 +154,7 @@ watch(
     <nav
       v-if="!isBare"
       class="shell__nav"
-      aria-label="Navigation principale"
+      :aria-label="t('shell.nav.label')"
     >
       <RouterLink
         v-for="link in links"
@@ -166,14 +167,14 @@ watch(
           class="shell__icon"
           aria-hidden="true"
         >{{ link.icon }}</span>
-        <span class="shell__label">{{ link.label }}</span>
+        <span class="shell__label">{{ t(link.label) }}</span>
         <span
           v-if="link === HOUSEHOLD && pendingInvitations > 0"
           class="shell__badge"
         >
           <span aria-hidden="true">{{ pendingInvitations }}</span>
           <span class="sr-only">
-            , {{ pendingInvitations }} invitation{{ pendingInvitations > 1 ? 's' : '' }} en attente
+            {{ t('shell.nav.pendingInvitations', { n: pendingInvitations }) }}
           </span>
         </span>
       </RouterLink>

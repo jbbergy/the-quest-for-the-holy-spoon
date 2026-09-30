@@ -10,6 +10,7 @@ import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ROUTE } from '@/app/router'
+import { t } from '@/i18n'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 
 const router = useRouter()
@@ -41,7 +42,7 @@ onMounted(async () => {
       role="status"
       aria-live="polite"
     >
-      Chargement…
+      {{ t('shell.splash.loading') }}
     </p>
   </div>
 </template>

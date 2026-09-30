@@ -9,6 +9,8 @@
  */
 import { nextTick, ref } from 'vue'
 
+import { t } from '@/i18n'
+
 import BaseButton from './BaseButton.vue'
 
 withDefaults(
@@ -20,7 +22,7 @@ withDefaults(
     size?: 'md' | 'sm'
     loading?: boolean
   }>(),
-  { cancelLabel: 'Annuler', size: 'md', loading: false },
+  { size: 'md', loading: false },
 )
 
 const emit = defineEmits<{ confirm: [] }>()
@@ -87,7 +89,7 @@ function confirm(): void {
           :size="size"
           @click="cancel"
         >
-          {{ cancelLabel }}
+          {{ cancelLabel ?? t('ui.cancel') }}
         </BaseButton>
       </div>
     </div>

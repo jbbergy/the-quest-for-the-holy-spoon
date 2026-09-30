@@ -12,6 +12,7 @@ import { computed, nextTick, ref } from 'vue'
 import ProfileForm, { type ProfileFormValues } from '@/app/components/ProfileForm.vue'
 import { ROUTE } from '@/app/router'
 import { useProfileEditing } from '@/app/useProfileEditing'
+import { t } from '@/i18n'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
@@ -41,16 +42,13 @@ async function submit(values: ProfileFormValues): Promise<void> {
   if (outcome === null) return
 
   const after = Math.round(players.profileView?.targetCalories ?? 0)
-  const lines = ['Votre profil est enregistré.']
+  const lines = [t('profile.edit.saved')]
   if (after !== before) {
-    lines.push(`Votre besoin passe de ${before} à ${after} kcal par jour.`)
-    lines.push('Les jours passés gardent l’ancien besoin.')
+    lines.push(t('profile.edit.targetChanged', { before, after }))
+    lines.push(t('profile.edit.pastDays'))
   }
   if (outcome.rescaledMeals > 0) {
-    const count = outcome.rescaledMeals
-    lines.push(
-      `Les portions de ${count} repas prévu${count > 1 ? 's' : ''} ont été ajustées. Les repas déjà mangés ne changent pas.`,
-    )
+    lines.push(t('profile.edit.rescaled', { n: outcome.rescaledMeals }))
   }
   message.value = lines.join(' ')
   // Le bouton est en bas, le message en haut : on l'amène sous les yeux.
@@ -65,13 +63,12 @@ async function submit(values: ProfileFormValues): Promise<void> {
       class="profile-edit__back"
       :to="{ name: ROUTE.settings }"
     >
-      <span aria-hidden="true">←</span> Réglages
+      <span aria-hidden="true">←</span> {{ t('shell.nav.settings') }}
     </RouterLink>
 
-    <h1>Modifier mon profil</h1>
+    <h1>{{ t('profile.edit.title') }}</h1>
     <p class="profile-edit__intro">
-      Si vous changez votre corps ou votre activité, votre besoin est recalculé. Les portions de
-      vos repas prévus s’ajustent aussi.
+      {{ t('profile.edit.intro') }}
     </p>
 
     <ErrorNotice :error="players.error" />
@@ -90,7 +87,7 @@ async function submit(values: ProfileFormValues): Promise<void> {
       v-if="initial"
       :key="players.playerId ?? ''"
       :initial="initial"
-      submit-label="Enregistrer"
+      :submit-label="t('profile.edit.save')"
       :busy="editing.saving.value"
       @submit="submit"
     />
