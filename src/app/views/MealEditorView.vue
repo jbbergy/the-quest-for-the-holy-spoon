@@ -668,6 +668,14 @@ async function remove(): Promise<void> {
   background: var(--color-track);
 }
 
+/* Sur un téléphone, quatre colonnes coupent « Petit-déjeuner » et collent les
+   mots entre eux : deux rangées de deux, chaque libellé sur une ligne. */
+@media (width < 26rem) {
+  .editor__types {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* Un vrai bouton radio, masqué, sous une étiquette : clavier et annonce natifs. */
 .editor__type {
   position: relative;
