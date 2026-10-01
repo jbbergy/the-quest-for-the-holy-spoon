@@ -495,6 +495,20 @@ function describeDay(day: DayBalance): string {
   gap: var(--space-1);
 }
 
+/* Trop étroit pour la jauge et le texte côte à côte (8,5 rem + écart + 7,5
+   rem) : le texte passe dessous, et la jauge se centre au lieu de rester
+   collée à gauche, seule sur sa ligne. */
+@container (width < 17.25rem) {
+  .day__energy {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .day__energy > :first-child {
+    align-self: center;
+  }
+}
+
 .day .day__remaining-label {
   color: var(--color-text-muted);
   font-family: var(--font-sans);
