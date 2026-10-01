@@ -5,7 +5,7 @@ export const shopping = {
   scopePersonal: 'Cette liste est à vous seulement.',
   scopeHousehold: 'Cette liste est commune au foyer. Chaque membre la voit et peut cocher.',
   scopeHouseholdNamed:
-    'Cette liste est commune au foyer « {name} ». Chaque membre la voit et peut cocher.',
+    'Cette liste est commune au foyer «\u00A0{name}\u00A0». Chaque membre la voit et peut cocher.',
   fillTitle: 'Remplir avec les repas',
   fillSubtitle:
     'La liste reprend les aliments des repas de la semaine qui ne sont pas encore mangés. Elle ajoute ou change des articles, mais n’en retire jamais : c’est vous qui retirez, avec la croix.',
@@ -30,7 +30,7 @@ export const shopping = {
   notFood: 'Ce n’est pas un aliment, ou vous ne le trouvez pas ?',
   quantityLabel: 'Quantité (facultatif)',
   quantityHint: 'Par exemple : 200 g, 1 paquet, x3.',
-  addAsIs: 'Ajouter « {name} » tel quel',
+  addAsIs: 'Ajouter «\u00A0{name}\u00A0» tel quel',
   nameAdded: '{name} ajouté.',
   nameAddedQuantity: '{name} ajouté ({quantity}).',
 } as const

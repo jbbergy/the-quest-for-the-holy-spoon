@@ -165,7 +165,10 @@ const rows = (wrapper: Awaited<ReturnType<typeof mountAt>>) =>
     .map((row) => row.find('.shopping__check').text().replace(/\s+/g, ' ').replace(' ,', ',').trim())
 
 const button = (wrapper: Awaited<ReturnType<typeof mountAt>>, label: string) => {
-  const found = wrapper.findAll('button').find((candidate) => candidate.text().includes(label))
+  // Les espaces insécables des guillemets comptent comme des espaces.
+  const found = wrapper
+    .findAll('button')
+    .find((candidate) => candidate.text().replace(/\u00A0/gu, ' ').includes(label))
   if (found === undefined) throw new Error(`Bouton introuvable : ${label}`)
   return found
 }
@@ -231,7 +234,7 @@ describe('Liste de courses du foyer', () => {
     const wrapper = await mountAt(ShoppingListView, `/semaine/courses?semaine=${WEEK}`)
 
     expect(wrapper.text()).toContain('Semaine du 28 septembre – 4 octobre')
-    expect(wrapper.text()).toContain('commune au foyer « Les Martin »')
+    expect(wrapper.text()).toContain('commune au foyer «\u00A0Les Martin\u00A0»')
     expect(wrapper.text()).toContain('La liste est vide.')
   })
 

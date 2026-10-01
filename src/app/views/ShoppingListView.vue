@@ -33,11 +33,12 @@ import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import type { ShoppingItemView } from '@/modules/shopping/application'
 import { useShoppingListStore } from '@/modules/shopping/presentation/useShoppingListStore'
+import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
-import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import MeterBar from '@/ui/MeterBar.vue'
 
 /** Pendant que la liste est ouverte, on relit souvent : au magasin, on est parfois deux. */
 const SHOPPING_SYNC_INTERVAL_MS = 20_000
@@ -243,23 +244,28 @@ function remove(id: ShoppingItemId): void {
   void shopping.remove([id])
 }
 
+const checkedCount = computed(() => shopping.items.filter((item) => item.checked).length)
+
 /** « 4 articles, dont 1 dans le panier ». */
 const summary = computed(() => {
   const total = shopping.items.length
   if (total === 0) return ''
-  const checked = shopping.items.filter((item) => item.checked).length
   const count = t('shopping.itemCount', { n: total })
-  return checked === 0 ? count : t('shopping.itemCountChecked', { count, checked })
+  return checkedCount.value === 0
+    ? count
+    : t('shopping.itemCountChecked', { count, checked: checkedCount.value })
 })
 </script>
 
 <template>
   <div class="shopping">
-    <p class="shopping__back">
-      <RouterLink :to="back.to">
-        <span aria-hidden="true">←</span> {{ back.label }}
-      </RouterLink>
-    </p>
+    <RouterLink
+      class="shopping__back"
+      :to="back.to"
+    >
+      <AppIcon name="chevron-left" />
+      {{ back.label }}
+    </RouterLink>
 
     <header>
       <p class="shopping__eyebrow">
@@ -274,50 +280,86 @@ const summary = computed(() => {
       </p>
     </header>
 
-    <BaseCard
-      :title="t('shopping.fillTitle')"
-      :subtitle="t('shopping.fillSubtitle')"
+    <!-- Remplir : l'encart foncé de la semaine, ici avec son compte rendu. -->
+    <section
+      class="fill"
+      aria-labelledby="remplir-la-liste"
     >
+      <div class="fill__head">
+        <span
+          class="fill__icon"
+          aria-hidden="true"
+        >
+          <AppIcon name="basket" />
+        </span>
+        <h2 id="remplir-la-liste">
+          {{ t('shopping.fillTitle') }}
+        </h2>
+      </div>
+      <p class="fill__text">
+        {{ t('shopping.fillSubtitle') }}
+      </p>
       <ErrorNotice :error="fillError" />
       <BaseButton
+        class="fill__button"
         :loading="filling"
         @click="fill"
       >
         {{ t('shopping.fill') }}
       </BaseButton>
       <div
-        class="shopping__report"
+        class="fill__report"
         role="status"
         aria-live="polite"
       >
         <p
           v-if="fillMessage"
-          class="shopping__done"
+          class="fill__done"
         >
-          {{ fillMessage }}
+          <AppIcon
+            name="check"
+            class="fill__done-icon"
+          />{{ fillMessage }}
         </p>
         <p
           v-if="fillMessage && ownMealsOnly"
-          class="shopping__note"
+          class="fill__note"
         >
           {{ t('shopping.ownMealsOnly') }}
         </p>
         <p
           v-for="member in skipped"
           :key="member.name"
-          class="shopping__note"
+          class="fill__note"
         >
           {{ skippedText(member) }}
         </p>
       </div>
-    </BaseCard>
+    </section>
 
     <ErrorNotice :error="shopping.error" />
 
-    <BaseCard
-      :title="t('shopping.itemsTitle')"
-      :subtitle="summary"
+    <section
+      class="items"
+      aria-labelledby="articles"
     >
+      <div class="items__head">
+        <h2 id="articles">
+          {{ t('shopping.itemsTitle') }}
+        </h2>
+        <p
+          v-if="summary"
+          class="items__summary"
+        >
+          {{ summary }}
+        </p>
+      </div>
+      <MeterBar
+        v-if="shopping.items.length > 0"
+        :value="checkedCount"
+        :target="shopping.items.length"
+      />
+
       <EmptyState
         v-if="shopping.items.length === 0"
         :title="t('shopping.emptyTitle')"
@@ -351,22 +393,28 @@ const summary = computed(() => {
               </template>
             </span>
           </label>
-          <BaseButton
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
+            class="shopping__remove"
             @click="remove(item.id)"
           >
-            <span aria-hidden="true">✕</span>
+            <AppIcon name="close" />
             <span class="sr-only">{{ t('shopping.removeItem', { name: item.name }) }}</span>
-          </BaseButton>
+          </button>
         </li>
       </ul>
-    </BaseCard>
+    </section>
 
-    <BaseCard
-      :title="t('shopping.addTitle')"
-      :subtitle="t('shopping.addSubtitle')"
+    <section
+      class="add"
+      aria-labelledby="ajouter-un-article"
     >
+      <h2 id="ajouter-un-article">
+        {{ t('shopping.addTitle') }}
+      </h2>
+      <p class="add__text">
+        {{ t('shopping.addSubtitle') }}
+      </p>
       <FoodPicker
         :add="addFood"
         :preselect="preselect"
@@ -383,7 +431,6 @@ const summary = computed(() => {
               :hint="t('shopping.quantityHint')"
             />
             <BaseButton
-              size="sm"
               variant="secondary"
               :loading="addingName"
               @click="addName(searched, reset)"
@@ -400,7 +447,7 @@ const summary = computed(() => {
       >
         {{ added }}
       </p>
-    </BaseCard>
+    </section>
   </div>
 </template>
 
@@ -408,86 +455,186 @@ const summary = computed(() => {
 .shopping {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
+  gap: var(--space-6);
 
-.shopping h1 {
-  margin: 0;
+  h1 {
+    margin: 0;
+  }
+
+  h2 {
+    margin: 0;
+  }
 }
 
 .shopping__back {
-  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin: calc(-1 * var(--space-3)) 0 calc(-1 * var(--space-4)) calc(-1 * var(--space-2));
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
   font-size: var(--font-size-sm);
+
+  &:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
 }
 
 .shopping__eyebrow {
-  margin: 0;
+  margin: 0 0 var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
 .shopping__scope {
-  margin: var(--space-1) 0 0;
+  margin: var(--space-2) 0 0;
   color: var(--color-text-muted);
 }
 
-.shopping__report {
-  margin-top: var(--space-3);
-}
-
-.shopping__done {
-  margin: 0 0 var(--space-2);
-  color: var(--color-success);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-}
-
-.shopping__as-is {
+/* Remplir : encart foncé, boutons inversés. */
+.fill {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--card-padding);
+  background: var(--color-inverse);
+  border-radius: var(--radius-xl);
+  color: var(--color-on-inverse);
+
+  h2 {
+    color: var(--color-on-inverse);
+    font-size: var(--font-size-lg);
+  }
+
+  :focus-visible {
+    outline-color: var(--color-on-inverse);
+  }
+}
+
+.fill__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fill__icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--color-saffron);
+  color: var(--color-on-saffron);
+}
+
+.fill__text,
+.fill__note {
+  margin: 0;
+  color: var(--color-on-inverse-muted);
+  font-size: var(--font-size-sm);
+}
+
+.fill .fill__button {
+  background: var(--color-on-inverse);
+  color: var(--color-inverse);
+
+  &:hover:not([aria-disabled='true']) {
+    background: var(--color-on-inverse-muted);
+  }
+}
+
+.fill__report {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  &:empty {
+    display: none;
+  }
+}
+
+.fill__done {
+  display: flex;
   align-items: flex-start;
   gap: var(--space-2);
+  margin: 0;
+  font-weight: 700;
 }
 
-.shopping__as-is > :deep(.field) {
-  align-self: stretch;
+.fill__done-icon {
+  flex-shrink: 0;
+  margin-top: 0.15em;
 }
 
-.shopping__note {
-  margin: 0 0 var(--space-2);
+/* Les articles : le titre et le compte, la barre du panier, puis une carte. */
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.items__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.items__summary {
+  margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
 .shopping__items {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  margin: 0 0 var(--space-3);
+  margin: 0;
   padding: 0;
   list-style: none;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 .shopping__item {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
+  padding: 0 var(--space-2) 0 0;
+
+  & + & {
+    border-top: 1px solid var(--color-divider);
+  }
 }
 
 .shopping__check {
-  flex: 1;
   display: flex;
+  flex: 1;
   align-items: center;
   gap: var(--space-3);
-  min-height: 44px;
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: var(--space-2) 0 var(--space-2) var(--space-4);
   cursor: pointer;
-}
 
-.shopping__check input {
-  flex: none;
-  width: 1.25rem;
-  height: 1.25rem;
-  accent-color: var(--color-accent);
+  &:hover {
+    background: var(--color-surface);
+  }
+
+  input {
+    flex: none;
+    width: 1.375rem;
+    height: 1.375rem;
+    margin: 0;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+  }
 }
 
 /* Le nom, puis la quantité dessous : sur un écran étroit, le nom garde
@@ -509,8 +656,66 @@ const summary = computed(() => {
   font-variant-numeric: tabular-nums;
 }
 
+/* Dans le panier : case cochée **et** nom barré, en retrait. */
 .shopping__item--done .shopping__name {
   color: var(--color-text-muted);
   text-decoration: line-through;
+}
+
+.shopping__remove {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface);
+    color: var(--color-danger);
+  }
+}
+
+/* Ajouter : le titre, une phrase, puis la recherche. */
+.add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.add__text {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.shopping__as-is {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--card-padding);
+  border: 1.5px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.shopping__note {
+  margin: 0;
+  font-weight: 700;
+}
+
+.shopping__done {
+  margin: 0;
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+
+  &:empty {
+    display: none;
+  }
 }
 </style>
