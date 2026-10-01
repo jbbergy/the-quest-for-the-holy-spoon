@@ -65,6 +65,23 @@ export const ICONS = {
     strokeWidth: 1.8,
   },
   trash: { elements: [path('M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13')], strokeWidth: 1.8 },
+  /**
+   * La marque : une cuillère penchée, en silhouette pleine. Au trait, le
+   * cuilleron et le manche ressemblaient à une loupe — celle de la recherche.
+   */
+  spoon: {
+    elements: [
+      {
+        tag: 'path',
+        attrs: {
+          d: 'M12 1.8c2.5 0 4 2.5 4 5.1 0 2.2-1.2 3.9-3 4.5l-.5 9.8h-1L11 11.4c-1.8-.6-3-2.3-3-4.5 0-2.6 1.5-5.1 4-5.1z',
+          fill: 'currentColor',
+          transform: 'rotate(35 12 12)',
+        },
+      },
+    ],
+    strokeWidth: 1,
+  },
   offline: {
     elements: [
       path('M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0'),

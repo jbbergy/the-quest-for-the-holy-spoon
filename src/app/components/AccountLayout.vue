@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { t } from '@/i18n'
+import BrandMark from '@/ui/BrandMark.vue'
 
 /**
  * Mise en page des écrans de compte : connexion, inscription, liens reçus par
@@ -13,12 +14,7 @@ defineProps<{ title: string; intro?: string }>()
 <template>
   <div class="account">
     <header class="account__header">
-      <p
-        class="account__mark"
-        aria-hidden="true"
-      >
-        🥄
-      </p>
+      <BrandMark class="account__mark" />
       <h1 class="account__title">
         {{ title }}
       </h1>
@@ -50,21 +46,25 @@ defineProps<{ title: string; intro?: string }>()
   justify-content: center;
   gap: var(--space-5);
   max-width: 28rem;
+  width: 100%;
   margin: 0 auto;
 }
 
 .account__header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
   text-align: center;
 }
 
 .account__mark {
-  margin: 0;
-  font-size: 3rem;
-  line-height: 1;
+  margin-bottom: var(--space-3);
 }
 
 .account__title {
-  margin: var(--space-2) 0;
+  margin: 0;
+  overflow-wrap: break-word;
 }
 
 .account__intro {
@@ -72,11 +72,12 @@ defineProps<{ title: string; intro?: string }>()
   color: var(--color-text-muted);
 }
 
+/* Les autres chemins : une colonne de liens, chacun sur sa ligne. */
 .account__links {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-2) var(--space-4);
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 /* Cibles d'au moins 44 px, comme les boutons (critère 2.5.8, au-delà du minimum). */
@@ -84,5 +85,6 @@ defineProps<{ title: string; intro?: string }>()
   display: inline-flex;
   align-items: center;
   min-height: 44px;
+  text-align: center;
 }
 </style>

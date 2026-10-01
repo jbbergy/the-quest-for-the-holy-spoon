@@ -12,6 +12,8 @@ import { useRouter } from 'vue-router'
 import { ROUTE } from '@/app/router'
 import { t } from '@/i18n'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
+import BrandMark from '@/ui/BrandMark.vue'
 
 const router = useRouter()
 const players = usePlayerStore()
@@ -24,12 +26,10 @@ onMounted(async () => {
 
 <template>
   <div class="splash">
-    <p
-      class="splash__mark"
-      aria-hidden="true"
-    >
-      🥄
-    </p>
+    <BrandMark
+      size="lg"
+      :with-name="false"
+    />
     <!-- Nom en anglais : `lang` le fait prononcer comme tel (critère 3.1.2). -->
     <h1
       class="splash__title"
@@ -42,6 +42,10 @@ onMounted(async () => {
       role="status"
       aria-live="polite"
     >
+      <AppIcon
+        name="spinner"
+        class="splash__spinner"
+      />
       {{ t('shell.splash.loading') }}
     </p>
   </div>
@@ -54,24 +58,37 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   text-align: center;
 }
 
-.splash__mark {
-  margin: 0;
-  font-size: 3.5rem;
-  line-height: 1;
-}
-
 .splash__title {
-  margin: 0;
+  margin: var(--space-2) 0 0;
   font-size: var(--font-size-xl);
 }
 
 .splash__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+.splash__spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash__spinner {
+    animation: none;
+  }
 }
 </style>
