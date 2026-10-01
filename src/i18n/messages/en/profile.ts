@@ -22,8 +22,7 @@ export const profile: Messages<typeof fr> = {
       'The portions of {n} planned meal have been adjusted. Meals already eaten do not change. | The portions of {n} planned meals have been adjusted. Meals already eaten do not change.',
   },
   form: {
-    summary:
-      '{n} piece of information is missing. It is marked below. | {n} pieces of information are missing. They are marked below.',
+    summary: '{n} piece of information is missing: | {n} pieces of information are missing:',
     you: 'You',
     name: 'First name or nickname',
     nameHint: 'It is shown on the home screen, and in the household if you have one.',

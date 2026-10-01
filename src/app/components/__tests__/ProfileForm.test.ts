@@ -80,6 +80,23 @@ describe('ProfileForm', () => {
     expect(form.find('[role="alert"]').text()).toContain('Il manque 4 informations')
   })
 
+  it('liste ce qui manque, et mène à chaque champ depuis le résumé', async () => {
+    const form = mountForm()
+    await form.find('form').trigger('submit')
+
+    const links = form.findAll('.profile-form__summary-link')
+    expect(links.map((link) => link.text())).toEqual([
+      'Prénom ou surnom',
+      'Taille',
+      'Poids',
+      'Âge',
+      'Sexe',
+      'Votre activité',
+    ])
+    await links[2]!.trigger('click')
+    expect(document.activeElement).toBe(field(form, 'Poids').element)
+  })
+
   it('renvoie les valeurs saisies, prénom nettoyé et régimes cochés', async () => {
     const form = mountForm()
 

@@ -20,8 +20,7 @@ export const profile = {
       'Les portions de {n} repas prévu ont été ajustées. Les repas déjà mangés ne changent pas. | Les portions de {n} repas prévus ont été ajustées. Les repas déjà mangés ne changent pas.',
   },
   form: {
-    summary:
-      'Il manque {n} information. Elle est signalée plus bas. | Il manque {n} informations. Elles sont signalées plus bas.',
+    summary: 'Il manque {n} information : | Il manque {n} informations :',
     you: 'Vous',
     name: 'Prénom ou surnom',
     nameHint: 'Il s’affiche sur l’accueil, et dans le foyer si vous en avez un.',

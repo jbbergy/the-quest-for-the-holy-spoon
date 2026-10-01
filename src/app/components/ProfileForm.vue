@@ -23,6 +23,7 @@ import { t } from '@/i18n'
 import type { ActivityLevel } from '@/modules/player_profile/domain/ActivityLevel'
 import type { BiologicalSex } from '@/modules/player_profile/domain/BodyMeasurements'
 import type { DietaryRestriction } from '@/modules/player_profile/domain/DietaryPreferences'
+import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
@@ -72,6 +73,24 @@ const errors = ref<Partial<Record<Field, string>>>({})
 const root = ref<HTMLElement | null>(null)
 
 const missingCount = computed(() => Object.keys(errors.value).length)
+
+/** Les champs dans l'ordre de la page, et le nom sous lequel le résumé les cite. */
+const FIELD_LABEL: Readonly<Record<Field, string>> = {
+  name: 'profile.form.name',
+  heightCm: 'profile.form.height',
+  weightKg: 'profile.form.weight',
+  ageYears: 'profile.form.age',
+  biologicalSex: 'profile.form.sex',
+  activityLevel: 'profile.form.activityTitle',
+}
+const missingFields = computed(() =>
+  (Object.keys(FIELD_LABEL) as Field[]).filter((field) => errors.value[field] !== undefined),
+)
+
+/** Du résumé au champ : on y va d'un geste, sans chercher dans la page. */
+function goTo(field: Field): void {
+  root.value?.querySelector<HTMLElement>(`[data-field="${field}"] input`)?.focus()
+}
 
 function isEmptyNumber(value: number): boolean {
   return !Number.isFinite(value) || value <= 0
@@ -128,17 +147,38 @@ function clear(field: Field): void {
     novalidate
     @submit.prevent="submit"
   >
-    <p
+    <div
       v-if="missingCount > 0"
       class="profile-form__summary"
       role="alert"
     >
-      {{ t('profile.form.summary', { n: missingCount }) }}
-    </p>
+      <p class="profile-form__summary-title">
+        <AppIcon
+          name="alert"
+          class="profile-form__summary-icon"
+        />
+        {{ t('profile.form.summary', { n: missingCount }) }}
+      </p>
+      <ul class="profile-form__summary-list">
+        <li
+          v-for="field in missingFields"
+          :key="field"
+        >
+          <button
+            type="button"
+            class="profile-form__summary-link"
+            @click="goTo(field)"
+          >
+            {{ t(FIELD_LABEL[field]) }}
+          </button>
+        </li>
+      </ul>
+    </div>
 
     <BaseCard :title="t('profile.form.you')">
       <BaseField
         v-model="form.name"
+        data-field="name"
         :label="t('profile.form.name')"
         :hint="t('profile.form.nameHint')"
         required
@@ -155,6 +195,7 @@ function clear(field: Field): void {
       <div class="profile-form__grid">
         <BaseField
           v-model="form.heightCm"
+          data-field="heightCm"
           :label="t('profile.form.height')"
           type="number"
           suffix="cm"
@@ -166,6 +207,7 @@ function clear(field: Field): void {
         />
         <BaseField
           v-model="form.weightKg"
+          data-field="weightKg"
           :label="t('profile.form.weight')"
           type="number"
           suffix="kg"
@@ -178,6 +220,7 @@ function clear(field: Field): void {
         />
         <BaseField
           v-model="form.ageYears"
+          data-field="ageYears"
           :label="t('profile.form.age')"
           type="number"
           :suffix="t('profile.form.ageSuffix')"
@@ -191,6 +234,7 @@ function clear(field: Field): void {
 
       <fieldset
         class="profile-form__fieldset"
+        data-field="biologicalSex"
         :aria-describedby="errors.biologicalSex ? 'profile-sex-error' : undefined"
       >
         <legend class="profile-form__legend">
@@ -231,6 +275,7 @@ function clear(field: Field): void {
     <BaseCard :title="t('profile.form.activityTitle')">
       <fieldset
         class="profile-form__fieldset"
+        data-field="activityLevel"
         :aria-describedby="errors.activityLevel ? 'profile-activity-error' : undefined"
       >
         <legend class="sr-only">
@@ -320,14 +365,48 @@ function clear(field: Field): void {
   gap: var(--space-4);
 }
 
+/* Le résumé des erreurs : un cadre Tomate, l'icône et le compte, puis
+   chaque champ manquant, qui y mène d'un geste. */
 .profile-form__summary {
-  margin: 0;
   padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--color-danger);
+  border: 2px solid var(--color-danger);
   border-radius: var(--radius-md);
-  background: var(--color-danger-soft);
-  color: var(--color-danger);
-  font-weight: 600;
+  background: var(--color-surface-raised);
+}
+
+.profile-form__summary-title {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  color: var(--color-danger-strong);
+  font-weight: 700;
+}
+
+.profile-form__summary-icon {
+  flex-shrink: 0;
+  margin-top: 0.15em;
+}
+
+.profile-form__summary-list {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.profile-form__summary-link {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-accent-strong);
+  }
 }
 
 .profile-form__grid {
@@ -382,25 +461,27 @@ function clear(field: Field): void {
   gap: var(--space-2);
   min-height: 44px;
   padding: var(--space-2) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
   cursor: pointer;
 }
 
 .choice--wide {
   width: 100%;
+  padding-block: var(--space-3);
   border-radius: var(--radius-md);
 }
 
 .choice span {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .choice small {
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
+  font-weight: 400;
 }
 
 /* Le bouton natif reste visible : le remplacer priverait l'utilisateur de
@@ -410,11 +491,24 @@ function clear(field: Field): void {
   accent-color: var(--color-accent);
   width: 1.15rem;
   height: 1.15rem;
+  margin: 0;
 }
 
+/* Choisi : bordure Feuille épaisse **et** texte en gras (critère 1.4.1). */
 .choice:has(input:checked) {
+  padding-inline: calc(var(--space-4) - 1px);
   background: var(--color-accent-soft);
-  border-color: var(--color-accent);
-  font-weight: 600;
+  border: 2px solid var(--color-accent);
+  color: var(--color-accent-strong);
+  font-weight: 700;
+}
+
+.choice--wide:has(input:checked) {
+  padding-block: calc(var(--space-3) - 1px);
+}
+
+/* Erreur sur un groupe de choix : les cadres passent en Tomate. */
+.profile-form__fieldset:has(input[aria-invalid='true']) .choice {
+  border-color: var(--color-danger);
 }
 </style>

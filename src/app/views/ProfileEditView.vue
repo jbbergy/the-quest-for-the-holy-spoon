@@ -14,6 +14,7 @@ import { ROUTE } from '@/app/router'
 import { useProfileEditing } from '@/app/useProfileEditing'
 import { t } from '@/i18n'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import BackLink from '@/ui/BackLink.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
 const players = usePlayerStore()
@@ -59,12 +60,10 @@ async function submit(values: ProfileFormValues): Promise<void> {
 
 <template>
   <div class="profile-edit">
-    <RouterLink
-      class="profile-edit__back"
+    <BackLink
       :to="{ name: ROUTE.settings }"
-    >
-      <span aria-hidden="true">←</span> {{ t('shell.nav.settings') }}
-    </RouterLink>
+      :label="t('shell.nav.settings')"
+    />
 
     <h1>{{ t('profile.edit.title') }}</h1>
     <p class="profile-edit__intro">
@@ -98,11 +97,7 @@ async function submit(values: ProfileFormValues): Promise<void> {
 .profile-edit {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-
-.profile-edit__back {
-  align-self: flex-start;
+  gap: var(--space-5);
 }
 
 .profile-edit h1,
@@ -112,18 +107,24 @@ async function submit(values: ProfileFormValues): Promise<void> {
 }
 
 .profile-edit__intro {
+  margin-top: calc(-1 * var(--space-3));
   color: var(--color-text-muted);
 }
 
+/* Ce qui a changé : un encart Feuille pâle, bordé, pour qu'il se voie. */
 .profile-edit__message {
   padding: var(--space-3) var(--space-4);
+  border: 2px solid var(--color-accent);
   border-radius: var(--radius-md);
   background: var(--color-accent-soft);
+  color: var(--color-accent-strong);
+  font-weight: 700;
 }
 
 /* Vide, la région reste dans la page — sinon certains lecteurs d'écran ne
    l'annonceraient pas en se remplissant —, mais sans rien occuper. */
 .profile-edit__message:empty {
   padding: 0;
+  border: 0;
 }
 </style>

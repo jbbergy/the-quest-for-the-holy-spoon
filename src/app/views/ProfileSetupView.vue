@@ -13,6 +13,7 @@ import { ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
 import { t } from '@/i18n'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import BrandMark from '@/ui/BrandMark.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
 const router = useRouter()
@@ -30,7 +31,11 @@ async function submit(values: ProfileFormValues): Promise<void> {
 
 <template>
   <div class="setup">
-    <header>
+    <header class="setup__header">
+      <BrandMark
+        :with-name="false"
+        class="setup__mark"
+      />
       <h1>{{ t('profile.setup.title') }}</h1>
       <p class="setup__intro">
         {{ t('profile.setup.intro1') }}
@@ -54,10 +59,26 @@ async function submit(values: ProfileFormValues): Promise<void> {
 .setup {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
+}
+
+.setup__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  h1 {
+    margin: 0;
+  }
+}
+
+.setup__mark {
+  align-self: flex-start;
+  margin-bottom: var(--space-2);
 }
 
 .setup__intro {
+  margin: 0;
   color: var(--color-text-muted);
 }
 </style>
