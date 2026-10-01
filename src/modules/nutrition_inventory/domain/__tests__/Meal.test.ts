@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { type DayKey, dayKeyOf, parseDayKey } from '@/core/day'
+import { dateOfDay, type DayKey, dayKeyOf, parseDayKey } from '@/core/day'
 import { idFrom, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
@@ -587,7 +587,9 @@ describe('repas prévu pour un autre membre', () => {
   it('garde sa signature quand le membre le modifie', () => {
     const copy = planned(1)
     const edited = copy.changeEntryQuantity(copy.entries[0]!.id, quantityOf(90))
-    const eaten = copy.markConsumed(new Date(2026, 8, 30))
+    // Le jour même du repas : une date écrite en dur cesserait de valoir une
+    // fois dépassée, le repas étant daté du jour où le test tourne.
+    const eaten = copy.markConsumed(dateOfDay(copy.plannedFor))
 
     expect(isOk(edited) && edited.value.plannedBy).toBe(playerId)
     expect(isOk(eaten) && eaten.value.plannedBy).toBe(playerId)
