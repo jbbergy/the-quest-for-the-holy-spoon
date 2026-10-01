@@ -926,4 +926,20 @@ async function remove(): Promise<void> {
     scroll-padding-bottom: 9rem;
   }
 }
+
+/* Écran bas — un téléphone à l'affichage agrandi, ou tenu à l'horizontale :
+   collé, le pied de page et la barre d'onglets mangeraient plus de la moitié
+   de l'écran. Il reprend sa place, à la fin de l'éditeur (critère 1.4.10). */
+@media (max-height: 40rem) {
+  .editor__footer {
+    position: static;
+    margin-inline: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+  }
+
+  :global(html:has(.editor__footer)) {
+    scroll-padding-bottom: 0;
+  }
+}
 </style>

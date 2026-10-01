@@ -88,5 +88,13 @@ export const meal = {
     conflict: 'Ne convient pas : {diets}',
     add: 'Ajouter {food}',
     none: 'Aucun de ces aliments',
+    found: '{n} aliment trouvé. | {n} aliments trouvés.',
+    more: 'Afficher {n} de plus',
+    filterLegend: 'Filtrer les résultats',
+    filterAll: 'Tout',
+    filterCatalogue: 'Catalogue public',
+    filterBrands: 'Produits de marque',
+    filterCreated: 'Aliments créés',
+    filterRecipes: 'Recettes',
   },
 } as const

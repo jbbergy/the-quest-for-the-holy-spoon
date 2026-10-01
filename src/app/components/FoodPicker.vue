@@ -11,7 +11,7 @@
  * et répond s'il a été ajouté. La sélection s'efface alors, prête pour le
  * suivant.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import OnlineSearchNotice from '@/app/components/OnlineSearchNotice.vue'
@@ -30,14 +30,16 @@ import {
   type RecipeSummary,
   recipesMatching,
 } from '@/modules/nutrition_inventory/application'
-import type { FoodItem } from '@/modules/nutrition_inventory/domain/FoodItem'
+import { type FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 import type { Measure } from '@/modules/nutrition_inventory/domain/Measure'
 import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseField from '@/ui/BaseField.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
+import FilterChips from '@/ui/FilterChips.vue'
 import FoodSourceTag from '@/ui/FoodSourceTag.vue'
 import InfoTip from '@/ui/InfoTip.vue'
 import RichText from '@/ui/RichText.vue'
@@ -103,6 +105,58 @@ const matchingRecipes = computed(() =>
     : recipesMatching(props.recipes, search.query),
 )
 
+/**
+ * Filtre par provenance. Les pastilles n'apparaissent que si les résultats en
+ * mêlent au moins deux : un filtre qui ne trie rien n'est qu'un bruit de plus.
+ */
+type Filter = 'all' | 'catalogue' | 'brands' | 'created' | 'recipes'
+const KIND: Readonly<Record<string, Filter>> = {
+  [FoodSource.CIQUAL]: 'catalogue',
+  [FoodSource.OPEN_FOOD_FACTS]: 'brands',
+  [FoodSource.USER]: 'created',
+}
+const FILTER_LABEL: Readonly<Record<Filter, string>> = {
+  all: 'meal.picker.filterAll',
+  catalogue: 'meal.picker.filterCatalogue',
+  brands: 'meal.picker.filterBrands',
+  created: 'meal.picker.filterCreated',
+  recipes: 'meal.picker.filterRecipes',
+}
+const filter = ref<Filter>('all')
+
+const filterOptions = computed(() => {
+  const kinds = new Set(shownResults.value.map((item) => KIND[item.source]))
+  if (matchingRecipes.value.length > 0) kinds.add('recipes')
+  const order: readonly Filter[] = ['catalogue', 'brands', 'created', 'recipes']
+  const present = order.filter((kind) => kinds.has(kind))
+  return present.length < 2
+    ? []
+    : (['all', ...present] as const).map((value) => ({ value, label: t(FILTER_LABEL[value]) }))
+})
+
+const filteredFoods = computed(() =>
+  filter.value === 'all'
+    ? shownResults.value
+    : shownResults.value.filter((item) => KIND[item.source] === filter.value),
+)
+const shownRecipes = computed(() =>
+  filter.value === 'all' || filter.value === 'recipes' ? matchingRecipes.value : [],
+)
+
+/** Une recherche courte peut trouver des dizaines d'aliments : on les montre par paquets. */
+const PAGE = 8
+const limit = ref(PAGE)
+const visibleFoods = computed(() => filteredFoods.value.slice(0, limit.value))
+const remaining = computed(() => filteredFoods.value.length - visibleFoods.value.length)
+
+watch(filterOptions, (options) => {
+  if (!options.some((option) => option.value === filter.value)) filter.value = 'all'
+})
+watch(filter, () => {
+  limit.value = PAGE
+  selectedId.value = null
+})
+
 const selected = computed(
   () => shownResults.value.find((item) => item.id === selectedId.value) ?? null,
 )
@@ -130,6 +184,29 @@ watch(
     if (id !== null) selectedId.value = id
   },
 )
+
+/** L'aliment présélectionné — celui qu'on vient de créer — doit être visible. */
+watch([selectedId, filteredFoods], ([id, foods]) => {
+  const index = foods.findIndex((item) => item.id === id)
+  if (index >= limit.value) limit.value = index + 1
+})
+
+/** Chaque résultat s'ouvre sur sa portion ; son bouton et son panneau se répondent. */
+const baseId = useId()
+const toggleId = (id: FoodItemId) => `${baseId}-${id}`
+const panelId = (id: FoodItemId) => `${baseId}-${id}-portion`
+
+/** Ouvre la portion d'un aliment, ou la referme s'il était déjà choisi. */
+function toggle(id: FoodItemId): void {
+  selectedId.value = selectedId.value === id ? null : id
+}
+
+/** Le panneau disparaît : le focus revient au résultat, pas en haut de la page. */
+async function collapse(id: FoodItemId): Promise<void> {
+  selectedId.value = null
+  await nextTick()
+  document.getElementById(toggleId(id))?.focus()
+}
 
 /** Pourquoi un aliment est masqué : « Ne convient pas : végétarien ». */
 function conflictNote(item: FoodItem): string | null {
@@ -160,6 +237,8 @@ const emptyDescription = computed(() => {
 
 function runSearch(text: string): void {
   showExcluded.value = false
+  filter.value = 'all'
+  limit.value = PAGE
   void search.find(text, diets.value)
 }
 
@@ -167,7 +246,7 @@ async function confirm(): Promise<void> {
   const food = selected.value
   const chosen = portion.value
   if (food === null || chosen === null) return
-  if (await props.add({ food, grams: chosen.grams, measure: chosen.measure })) selectedId.value = null
+  if (await props.add({ food, grams: chosen.grams, measure: chosen.measure })) await collapse(food.id)
 }
 
 /** Vide la recherche : le terme, les résultats et la sélection. */
@@ -175,6 +254,8 @@ function clear(): void {
   query.value = ''
   selectedId.value = null
   showExcluded.value = false
+  filter.value = 'all'
+  limit.value = PAGE
   search.reset()
 }
 
@@ -209,6 +290,10 @@ async function createFood(): Promise<void> {
         </template>
       </RichText>
     </p>
+
+    <!-- La recherche part à la validation, pas à chaque lettre : elle
+         interroge aussi un service en ligne, qu'on ne sollicite pas pour
+         « p », « po », « pou ». -->
     <form
       class="picker__search"
       role="search"
@@ -216,9 +301,18 @@ async function createFood(): Promise<void> {
     >
       <BaseField
         v-model="query"
+        type="search"
+        enterkeyhint="search"
         :label="t('meal.picker.searchLabel')"
         :hint="t('meal.picker.searchHint')"
-      />
+      >
+        <template #leading>
+          <AppIcon
+            name="search"
+            class="picker__search-icon"
+          />
+        </template>
+      </BaseField>
       <BaseButton
         type="submit"
         variant="secondary"
@@ -227,6 +321,14 @@ async function createFood(): Promise<void> {
         {{ t('meal.picker.search') }}
       </BaseButton>
     </form>
+
+    <p
+      class="sr-only"
+      role="status"
+      aria-live="polite"
+    >
+      {{ search.status === 'ready' ? t('meal.picker.found', { n: shownResults.length }) : '' }}
+    </p>
 
     <OnlineSearchNotice
       v-if="search.onlineSearchUnavailable"
@@ -239,7 +341,7 @@ async function createFood(): Promise<void> {
       v-if="search.status === 'ready' && search.excluded.length > 0"
       class="picker__excluded"
     >
-      <p role="status">
+      <p>
         <template v-if="!showExcluded">
           {{ t('meal.picker.hidden', { n: search.excluded.length }) }}
         </template>
@@ -257,9 +359,17 @@ async function createFood(): Promise<void> {
       </BaseButton>
     </div>
 
+    <FilterChips
+      v-if="filterOptions.length > 0"
+      v-model="filter"
+      class="picker__filters"
+      :legend="t('meal.picker.filterLegend')"
+      :options="filterOptions"
+    />
+
     <RecipeResults
-      v-if="matchingRecipes.length > 0 && addRecipe && removeRecipe"
-      :recipes="matchingRecipes"
+      v-if="shownRecipes.length > 0 && addRecipe && removeRecipe"
+      :recipes="shownRecipes"
       :busy="busy"
       :add="addRecipe"
       :remove="removeRecipe"
@@ -279,43 +389,120 @@ async function createFood(): Promise<void> {
       </BaseButton>
     </EmptyState>
 
-    <fieldset
-      v-else-if="shownResults.length > 0"
-      class="picker__fieldset"
+    <section
+      v-else-if="visibleFoods.length > 0"
+      class="picker__found"
+      :aria-label="t('meal.picker.results')"
     >
-      <legend class="sr-only">
-        {{ t('meal.picker.results') }}
-      </legend>
       <ul class="picker__results">
         <li
-          v-for="item in shownResults"
+          v-for="item in visibleFoods"
           :key="item.id"
+          class="picker__item"
+          :class="{ 'picker__item--open': selectedId === item.id }"
         >
-          <label class="picker__choice">
-            <input
-              v-model="selectedId"
-              type="radio"
-              name="food"
-              :value="item.id"
-            >
+          <!-- Toute la carte ouvre la portion : une cible large, et le nom
+               de l'aliment comme nom du bouton. -->
+          <button
+            :id="toggleId(item.id)"
+            type="button"
+            class="picker__toggle"
+            :data-food="item.id"
+            :aria-expanded="selectedId === item.id ? 'true' : 'false'"
+            :aria-controls="selectedId === item.id ? panelId(item.id) : undefined"
+            @click="toggle(item.id)"
+          >
             <span class="picker__result">
-              <strong>{{ item.name }}</strong>
-              <small class="picker__result-meta">
+              <span class="picker__name">{{ item.name }}</span>
+              <span class="picker__meta">
                 <FoodSourceTag
                   :source="item.source"
                   :author="foodAuthor(household.household, players.playerId, item.ownerId)"
                 />
-                {{ t('meal.picker.kcalPer', { kcal: Math.round(item.macrosPer100g.calories()), per: per100Label(item) }) }}
-              </small>
-              <small
+                <span class="picker__kcal">{{ t('meal.picker.kcalPer', { kcal: Math.round(item.macrosPer100g.calories()), per: per100Label(item) }) }}</span>
+              </span>
+              <span
                 v-if="conflictNote(item)"
                 class="picker__conflict"
-              >{{ conflictNote(item) }}</small>
+              >
+                <AppIcon
+                  name="alert"
+                  class="picker__conflict-icon"
+                />{{ conflictNote(item) }}
+              </span>
             </span>
-          </label>
+            <span
+              class="picker__plus"
+              aria-hidden="true"
+            >
+              <AppIcon name="plus" />
+            </span>
+          </button>
+
+          <div
+            v-if="selected && selected.id === item.id"
+            :id="panelId(item.id)"
+            class="picker__portion"
+          >
+            <PortionPicker
+              :food="selected"
+              :recent="recentForSelected"
+              @change="(next) => (portion = next)"
+            />
+
+            <dl
+              v-if="macros"
+              class="picker__macros"
+            >
+              <div>
+                <dt>{{ t('labels.nutrient.calories') }}</dt>
+                <dd>{{ Math.round(macros.calories()) }} kcal</dd>
+              </div>
+              <div>
+                <dt>{{ t('labels.nutrient.protein') }}</dt>
+                <dd>{{ macros.proteinG.toFixed(1) }} g</dd>
+              </div>
+              <div>
+                <dt>{{ t('labels.nutrient.carbs') }}</dt>
+                <dd>{{ macros.carbsG.toFixed(1) }} g</dd>
+              </div>
+              <div>
+                <dt>{{ t('labels.nutrient.fat') }}</dt>
+                <dd>{{ macros.fatG.toFixed(1) }} g</dd>
+              </div>
+            </dl>
+
+            <BaseButton
+              block
+              :disabled="portion === null || (preview && macros === null)"
+              :loading="busy"
+              @click="confirm"
+            >
+              {{ t('meal.picker.add', { food: selected.name }) }}
+            </BaseButton>
+
+            <BaseButton
+              v-if="$slots.after"
+              variant="ghost"
+              size="sm"
+              @click="collapse(item.id)"
+            >
+              {{ t('meal.picker.none') }}
+            </BaseButton>
+          </div>
         </li>
       </ul>
-    </fieldset>
+
+      <BaseButton
+        v-if="remaining > 0"
+        variant="secondary"
+        size="sm"
+        class="picker__more"
+        @click="limit += PAGE"
+      >
+        {{ t('meal.picker.more', { n: Math.min(PAGE, remaining) }) }}
+      </BaseButton>
+    </section>
 
     <!-- Ce qu'un écran propose de plus après une recherche, trouvée ou non :
          la liste de courses y ajoute le terme cherché tel quel, puis vide la
@@ -332,64 +519,18 @@ async function createFood(): Promise<void> {
         :reset="clear"
       />
     </div>
-
-    <div
-      v-if="selected"
-      class="picker__portion"
-    >
-      <PortionPicker
-        :food="selected"
-        :recent="recentForSelected"
-        @change="(next) => (portion = next)"
-      />
-
-      <dl
-        v-if="macros"
-        class="picker__macros"
-      >
-        <div>
-          <dt>{{ t('labels.nutrient.calories') }}</dt>
-          <dd>{{ Math.round(macros.calories()) }} kcal</dd>
-        </div>
-        <div>
-          <dt>{{ t('labels.nutrient.protein') }}</dt>
-          <dd>{{ macros.proteinG.toFixed(1) }} g</dd>
-        </div>
-        <div>
-          <dt>{{ t('labels.nutrient.carbs') }}</dt>
-          <dd>{{ macros.carbsG.toFixed(1) }} g</dd>
-        </div>
-        <div>
-          <dt>{{ t('labels.nutrient.fat') }}</dt>
-          <dd>{{ macros.fatG.toFixed(1) }} g</dd>
-        </div>
-      </dl>
-
-      <BaseButton
-        block
-        :disabled="portion === null || (preview && macros === null)"
-        :loading="busy"
-        @click="confirm"
-      >
-        {{ t('meal.picker.add', { food: selected.name }) }}
-      </BaseButton>
-
-      <BaseButton
-        v-if="$slots.after"
-        class="picker__none"
-        variant="ghost"
-        size="sm"
-        @click="selectedId = null"
-      >
-        {{ t('meal.picker.none') }}
-      </BaseButton>
-    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
+.picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
 .picker__note {
-  margin: 0 0 var(--space-3);
+  margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
@@ -398,7 +539,10 @@ async function createFood(): Promise<void> {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+}
+
+.picker__search-icon {
+  color: var(--color-text-muted);
 }
 
 .picker__excluded {
@@ -406,121 +550,170 @@ async function createFood(): Promise<void> {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2) var(--space-3);
-  margin-top: var(--space-3);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+
+  p {
+    margin: 0;
+  }
 }
 
-.picker__excluded p {
-  margin: 0;
+.picker__found {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
 }
 
-.picker__after {
-  margin-top: var(--space-3);
-}
-
-.picker__none {
-  margin-top: var(--space-2);
-}
-
-.picker__conflict {
-  display: block;
-  color: var(--color-danger);
-  font-weight: 600;
-}
-
-/* L'indisponibilité du réseau s'affiche, elle ne se déguise pas en « aucun
-   résultat ». */
-.picker__offline {
-  margin: 0 0 var(--space-4);
-}
-
-.picker__fieldset {
-  margin: 0;
-  padding: 0;
-  border: none;
-}
-
+/* Les résultats : une carte chacun, le bouton rond « + » à droite. */
 .picker__results {
   display: flex;
   flex-direction: column;
+  align-self: stretch;
   gap: var(--space-2);
-  max-height: 20rem;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
   list-style: none;
 }
 
-.picker__choice {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  min-height: 44px;
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-surface);
+.picker__item {
+  background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+}
+
+/* L'aliment ouvert : bordure Feuille épaisse, et le « + » devenu « × ». */
+.picker__item--open {
+  border: 2px solid var(--color-accent);
+}
+
+.picker__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 4rem;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+
+  &:hover .picker__plus {
+    background: var(--color-accent-strong);
+  }
+
+  &:focus-visible {
+    outline-offset: -3px;
+  }
 }
 
-.picker__choice input {
-  accent-color: var(--color-accent);
-  width: 1.15rem;
-  height: 1.15rem;
-  flex-shrink: 0;
-}
-
-.picker__choice:has(input:checked) {
-  background: var(--color-accent-soft);
-  border-color: var(--color-accent);
+.picker__item--open .picker__toggle {
+  padding: calc(var(--space-3) - 1px) calc(var(--space-3) - 1px) calc(var(--space-3) - 1px)
+    calc(var(--space-4) - 1px);
 }
 
 .picker__result {
   display: flex;
+  flex: 1;
   flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
 }
 
-.picker__result small {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+.picker__name {
+  font-weight: 700;
+  overflow-wrap: break-word;
 }
 
-.picker__result-meta {
+.picker__meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  margin-top: var(--space-1);
+  gap: var(--space-1) var(--space-2);
+}
+
+.picker__kcal {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.picker__conflict {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.picker__conflict-icon {
+  flex-shrink: 0;
+  margin-top: 0.1em;
+}
+
+.picker__plus {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.picker__item--open .picker__plus {
+  transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .picker__plus {
+    transition: none;
+  }
 }
 
 .picker__portion {
-  margin-top: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 calc(var(--space-4) - 1px) calc(var(--space-4) - 1px);
 }
 
 .picker__macros {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
   gap: var(--space-3);
-  margin: var(--space-4) 0;
+  margin: 0;
   padding: var(--space-3);
   background: var(--color-surface);
   border-radius: var(--radius-md);
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  dt {
+    color: var(--color-text-muted);
+    font-size: var(--font-size-xs);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
-.picker__macros div {
-  display: flex;
-  flex-direction: column;
-}
-
-.picker__macros dt {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-}
-
-.picker__macros dd {
-  margin: 0;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
+@media (forced-colors: active) {
+  .picker__plus {
+    border: 2px solid ButtonText;
+  }
 }
 </style>

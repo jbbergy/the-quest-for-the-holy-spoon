@@ -23,6 +23,7 @@ import { t } from '@/i18n'
 import type { RecentPortion } from '@/modules/nutrition_inventory/application'
 import type { FoodItem } from '@/modules/nutrition_inventory/domain/FoodItem'
 import type { Measure } from '@/modules/nutrition_inventory/domain/Measure'
+import AppIcon from '@/ui/AppIcon.vue'
 
 const props = defineProps<{
   food: FoodItem
@@ -86,7 +87,11 @@ function choose(next: Measure): void {
   apply(next, next.countable ? 1 : Math.max(1, Math.round(current / next.grams)))
 }
 
+/** Sous un pas, « − » ne ferait rien : il le dit, sans quitter l'ordre du clavier. */
+const canDecrease = computed(() => amount.value > step.value)
+
 function stepBy(direction: 1 | -1): void {
+  if (direction === -1 && !canDecrease.value) return
   const next = Math.round((amount.value + direction * step.value) / step.value) * step.value
   if (next > 0) amount.value = roundAmount(next)
 }
@@ -143,34 +148,36 @@ watch(
     </div>
 
     <div class="portion__amount">
-      <button
-        type="button"
-        class="portion__step"
-        :disabled="amount <= step"
-        @click="stepBy(-1)"
-      >
-        <span aria-hidden="true">−</span>
-        <span class="sr-only">{{ t('meal.portion.decrease') }}</span>
-      </button>
-      <label class="portion__field">
-        <span class="sr-only">{{ t('meal.portion.quantityIn', { unit: measure.label }) }}</span>
-        <input
-          v-model.number="amount"
-          type="number"
-          inputmode="decimal"
-          :min="measure.countable ? 0.25 : 1"
-          :step="measure.countable ? 0.25 : 1"
+      <div class="portion__stepper">
+        <button
+          type="button"
+          class="portion__step"
+          :aria-disabled="canDecrease ? undefined : 'true'"
+          @click="stepBy(-1)"
         >
-      </label>
+          <AppIcon name="minus" />
+          <span class="sr-only">{{ t('meal.portion.decrease') }}</span>
+        </button>
+        <label class="portion__field">
+          <span class="sr-only">{{ t('meal.portion.quantityIn', { unit: measure.label }) }}</span>
+          <input
+            v-model.number="amount"
+            type="number"
+            inputmode="decimal"
+            :min="measure.countable ? 0.25 : 1"
+            :step="measure.countable ? 0.25 : 1"
+          >
+        </label>
+        <button
+          type="button"
+          class="portion__step"
+          @click="stepBy(1)"
+        >
+          <AppIcon name="plus" />
+          <span class="sr-only">{{ t('meal.portion.increase') }}</span>
+        </button>
+      </div>
       <span class="portion__unit">{{ unitWord }}</span>
-      <button
-        type="button"
-        class="portion__step"
-        @click="stepBy(1)"
-      >
-        <span aria-hidden="true">+</span>
-        <span class="sr-only">{{ t('meal.portion.increase') }}</span>
-      </button>
     </div>
 
     <p
@@ -228,8 +235,7 @@ watch(
   gap: var(--space-2);
   min-height: 44px;
   padding: var(--space-2) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
   font-size: var(--font-size-sm);
   cursor: pointer;
@@ -241,55 +247,86 @@ watch(
     flex-shrink: 0;
   }
 
+  /* La mesure choisie : bordure Feuille épaisse **et** texte en gras. */
   &:has(input:checked) {
+    padding-inline: calc(var(--space-4) - 1px);
     background: var(--color-accent-soft);
-    border-color: var(--color-accent);
-    font-weight: 600;
+    border: 2px solid var(--color-accent);
+    color: var(--color-accent-strong);
+    font-weight: 700;
   }
 }
 
+/* La quantité : le compteur en pilule, puis l'unité — qui passe dessous
+   plutôt que de se tasser lettre par lettre sur un écran étroit. */
 .portion__amount {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-2) var(--space-3);
+}
+
+.portion__stepper {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
 }
 
 .portion__step {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   width: 44px;
   height: 44px;
   flex-shrink: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
   color: var(--color-text);
-  font: inherit;
-  font-size: var(--font-size-lg, 1.25rem);
   cursor: pointer;
 
-  &:disabled {
-    opacity: 0.5;
+  &:hover {
+    background: var(--color-surface);
+  }
+
+  /* Inerte : un trait discontinu, et le curseur le dit. */
+  &[aria-disabled='true'] {
+    border: 1.5px dashed var(--color-border-strong);
+    color: var(--color-text-muted);
     cursor: not-allowed;
   }
 }
 
 .portion__field input {
-  width: 5.5rem;
+  width: 4.5rem;
   min-height: 44px;
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  padding: 0 var(--space-1);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid var(--color-border-strong);
+  border-radius: 0;
   color: var(--color-text);
   font: inherit;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   text-align: center;
+  appearance: textfield;
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    appearance: none;
+    margin: 0;
+  }
 }
 
 .portion__unit {
-  flex: 1;
+  flex: 1 1 5rem;
   min-width: 0;
   overflow-wrap: break-word;
 }

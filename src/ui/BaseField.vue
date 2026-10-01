@@ -27,6 +27,8 @@ const props = withDefaults(
     autocomplete?: string
     placeholder?: string
     suffix?: string
+    /** Touche « Entrée » du clavier virtuel : `search` l'affiche en loupe. */
+    enterkeyhint?: 'search' | 'done' | 'next' | 'send' | 'go'
     /**
      * Saisie à reproduire telle quelle — adresse, mot de passe : ni correcteur
      * orthographique, ni majuscule automatique en début de champ, qui ferait
@@ -93,6 +95,7 @@ const onInput = (event: Event): string | number => {
         :step="step"
         :autocomplete="autocomplete"
         :placeholder="placeholder"
+        :enterkeyhint="enterkeyhint"
         :aria-describedby="describedBy"
         :aria-invalid="error ? 'true' : undefined"
         :spellcheck="verbatim ? false : undefined"

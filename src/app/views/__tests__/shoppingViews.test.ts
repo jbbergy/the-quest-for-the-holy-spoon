@@ -370,7 +370,7 @@ describe('Liste de courses du foyer', () => {
     await flushPromises()
 
     await searchFor(wrapper, 'oeuf')
-    await wrapper.find(`input[name="food"][value="${eggFood.id}"]`).setValue(true)
+    await wrapper.find(`[data-food="${eggFood.id}"]`).trigger('click')
     // La portion proposée d'emblée : un œuf.
     expect(wrapper.find('.portion__unit').text()).toBe('œuf')
     await button(wrapper, 'Ajouter Œuf').trigger('click')
@@ -379,9 +379,9 @@ describe('Liste de courses du foyer', () => {
     // Il rejoint la ligne des repas : 2 œufs + 1.
     expect(rows(wrapper)).toEqual(['Œuf, 3 œufs', 'Riz, 80 g'])
     expect(wrapper.text()).toContain('Œuf ajouté (1 œuf).')
-    expect(wrapper.find('input[name="food"]:checked').exists()).toBe(false)
+    expect(wrapper.find('[data-food][aria-expanded="true"]').exists()).toBe(false)
 
-    await wrapper.find(`input[name="food"][value="${rice.id}"]`).setValue(true)
+    await wrapper.find(`[data-food="${rice.id}"]`).trigger('click')
     await button(wrapper, 'Ajouter Riz').trigger('click')
     await flushPromises()
     expect(rows(wrapper)).toEqual(['Œuf, 3 œufs', 'Riz, 180 g'])
@@ -398,7 +398,7 @@ describe('Liste de courses du foyer', () => {
     expect(offered()).toBe(false)
 
     await searchFor(wrapper, 'riz complet')
-    expect(wrapper.find(`input[name="food"][value="${rice.id}"]`).exists()).toBe(true)
+    expect(wrapper.find(`[data-food="${rice.id}"]`).exists()).toBe(true)
     await button(wrapper, 'Ajouter « riz complet » tel quel').trigger('click')
     await flushPromises()
     expect(rows(wrapper)).toEqual(['riz complet'])
@@ -411,7 +411,7 @@ describe('Liste de courses du foyer', () => {
     await searchFor(wrapper, 'oeuf')
     expect(wrapper.find('.shopping__as-is input').exists()).toBe(true)
 
-    await wrapper.find(`input[name="food"][value="${eggFood.id}"]`).setValue(true)
+    await wrapper.find(`[data-food="${eggFood.id}"]`).trigger('click')
     expect(wrapper.find('.shopping__as-is').exists()).toBe(false)
     expect(wrapper.find('.portion__field input').exists()).toBe(true)
 
@@ -421,7 +421,7 @@ describe('Liste de courses du foyer', () => {
     await flushPromises()
     expect(rows(wrapper)).toEqual(['Œuf, 4 œufs'])
 
-    await wrapper.find(`input[name="food"][value="${eggFood.id}"]`).setValue(true)
+    await wrapper.find(`[data-food="${eggFood.id}"]`).trigger('click')
     await button(wrapper, 'Aucun de ces aliments').trigger('click')
     expect(wrapper.find('.portion__field').exists()).toBe(false)
     expect(wrapper.find('.shopping__as-is input').exists()).toBe(true)
@@ -441,7 +441,7 @@ describe('Liste de courses du foyer', () => {
     expect(wrapper.text()).toContain('lessive ajouté (1 bidon).')
     // Le bouton disparaît avec la recherche : un second appui n'ajoute rien.
     expect((wrapper.find('.picker__search input').element as HTMLInputElement).value).toBe('')
-    expect(wrapper.find('input[name="food"]').exists()).toBe(false)
+    expect(wrapper.find('[data-food]').exists()).toBe(false)
     expect(wrapper.findAll('button').some((candidate) => candidate.text().includes('tel quel'))).toBe(false)
 
     // La quantité est facultative, et repart vide.
@@ -471,7 +471,7 @@ describe('Liste de courses du foyer', () => {
     })
     await searchFor(wrapper, 'riz')
 
-    expect((wrapper.find(`input[name="food"][value="${rice.id}"]`).element as HTMLInputElement).checked).toBe(true)
+    expect(wrapper.find(`[data-food="${rice.id}"]`).attributes('aria-expanded')).toBe('true')
   })
 
   it('refuse un article au nom trop long', async () => {

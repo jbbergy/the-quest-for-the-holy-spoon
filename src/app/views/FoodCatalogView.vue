@@ -27,6 +27,7 @@ import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseField from '@/ui/BaseField.vue'
 import EmptyState from '@/ui/EmptyState.vue'
+import FilterChips from '@/ui/FilterChips.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 import FoodSourceTag from '@/ui/FoodSourceTag.vue'
 
@@ -116,28 +117,12 @@ onMounted(async () => {
         </template>
       </BaseField>
 
-      <fieldset
+      <FilterChips
         v-if="canFilter"
-        class="catalog__filters"
-      >
-        <legend class="sr-only">
-          {{ t('foods.pantry.filterLegend') }}
-        </legend>
-        <label
-          v-for="option in FILTERS"
-          :key="option.value"
-          class="chip"
-        >
-          <input
-            v-model="filter"
-            class="chip__input"
-            type="radio"
-            name="food-filter"
-            :value="option.value"
-          >
-          <span class="chip__label">{{ t(option.label) }}</span>
-        </label>
-      </fieldset>
+        v-model="filter"
+        :legend="t('foods.pantry.filterLegend')"
+        :options="FILTERS.map((option) => ({ value: option.value, label: t(option.label) }))"
+      />
     </form>
 
     <p
@@ -220,54 +205,6 @@ onMounted(async () => {
 
 .catalog__search-icon {
   color: var(--color-text-muted);
-}
-
-.catalog__filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  border: none;
-}
-
-/* Puce de filtre : un vrai bouton radio, masqué, sous une étiquette cliquable.
-   Le clavier et l'annonce (« Les miens, bouton radio, 2 sur 3 ») viennent de
-   l'élément natif. */
-.chip {
-  position: relative;
-  display: inline-flex;
-}
-
-.chip__input {
-  position: absolute;
-  inset: 0;
-  margin: 0;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.chip__label {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-}
-
-.chip__input:checked + .chip__label {
-  background: var(--color-inverse);
-  border-color: var(--color-inverse);
-  color: var(--color-on-inverse);
-  font-weight: 700;
-}
-
-.chip__input:focus-visible + .chip__label {
-  outline: 3px solid var(--color-focus);
-  outline-offset: 2px;
 }
 
 /* Une seule carte, des lignes séparées par un filet. */

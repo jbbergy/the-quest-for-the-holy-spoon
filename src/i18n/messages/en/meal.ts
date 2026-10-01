@@ -90,5 +90,13 @@ export const meal: Messages<typeof fr> = {
     conflict: 'Does not suit: {diets}',
     add: 'Add {food}',
     none: 'None of these foods',
+    found: '{n} food found. | {n} foods found.',
+    more: 'Show {n} more',
+    filterLegend: 'Filter the results',
+    filterAll: 'All',
+    filterCatalogue: 'Public catalogue',
+    filterBrands: 'Brand products',
+    filterCreated: 'Created foods',
+    filterRecipes: 'Recipes',
   },
 }

@@ -363,7 +363,7 @@ describe('MealEditorView — nouveau repas', () => {
     await wrapper.find('input[type="search"], .picker__search input').setValue('poulet')
     await wrapper.find('form.picker__search').trigger('submit')
     await flushPromises()
-    await wrapper.find(`input[name="food"][value="${chicken.id}"]`).setValue(true)
+    await wrapper.find(`[data-food="${chicken.id}"]`).trigger('click')
     const add = wrapper.findAll('button').find((button) => button.text().startsWith('Ajouter Blanc'))
     await add!.trigger('click')
     await flushPromises()
@@ -383,7 +383,7 @@ describe('MealEditorView — nouveau repas', () => {
     await wrapper.find('.picker__search input').setValue('pain')
     await wrapper.find('form.picker__search').trigger('submit')
     await flushPromises()
-    await wrapper.find(`input[name="food"][value="${food.id}"]`).setValue(true)
+    await wrapper.find(`[data-food="${food.id}"]`).trigger('click')
   }
 
   async function addSelected(wrapper: VueWrapper): Promise<void> {
