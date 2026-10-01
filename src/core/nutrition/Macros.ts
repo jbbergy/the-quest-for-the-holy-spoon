@@ -65,7 +65,7 @@ export class Macros {
   /** Mise à l'échelle, par exemple d'une base 100 g vers une portion réelle. */
   scale(factor: number): Result<Macros, InvalidMacrosError> {
     if (!Number.isFinite(factor) || factor < 0) {
-      return err(new InvalidMacrosError(`Facteur d’échelle invalide : ${factor}.`))
+      return err(new InvalidMacrosError(`Facteur d’échelle invalide\u00A0: ${factor}.`))
     }
     return ok(new Macros(this.proteinG * factor, this.carbsG * factor, this.fatG * factor))
   }

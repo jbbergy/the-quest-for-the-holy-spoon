@@ -240,7 +240,7 @@ export class Meal {
       return err(new InvalidMealError('Un repas se prévoit pour un autre membre, pas pour soi.'))
     }
     if (!Number.isFinite(input.scale) || input.scale <= 0) {
-      return err(new InvalidMealError(`Facteur de portion invalide : ${input.scale}.`))
+      return err(new InvalidMealError(`Facteur de portion invalide\u00A0: ${input.scale}.`))
     }
 
     const entries: MealEntry[] = []
@@ -287,7 +287,7 @@ export class Meal {
     const locked = this.editingRefusal()
     if (locked !== null) return err(locked)
     if (!Number.isFinite(scale) || scale <= 0) {
-      return err(new InvalidMealError(`Facteur de portion invalide : ${scale}.`))
+      return err(new InvalidMealError(`Facteur de portion invalide\u00A0: ${scale}.`))
     }
 
     let changed = false

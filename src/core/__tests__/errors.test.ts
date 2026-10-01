@@ -46,7 +46,7 @@ describe('Hiérarchie d’erreurs', () => {
   })
 
   it('compose un message lisible pour NotFoundError', () => {
-    expect(new NotFoundError('Player', 'p-1').message).toBe('Player introuvable : p-1')
+    expect(new NotFoundError('Player', 'p-1').message).toBe('Player introuvable\u00A0: p-1')
   })
 
   it('distingue validation et domaine', () => {

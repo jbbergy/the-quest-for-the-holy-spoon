@@ -278,7 +278,7 @@ async function ensureNameFree(
   if (!existing.ok) return err(unreadable(existing.error))
   if (existing.value.some((other) => other.id !== recipe.id && sameName(other.name, recipe.name))) {
     return err(
-      new ApplicationError('RECIPE_NAME_TAKEN', `Une recette s’appelle déjà « ${recipe.name} ».`),
+      new ApplicationError('RECIPE_NAME_TAKEN', `Une recette s’appelle déjà «\u00A0${recipe.name}\u00A0».`),
     )
   }
   return ok(undefined)

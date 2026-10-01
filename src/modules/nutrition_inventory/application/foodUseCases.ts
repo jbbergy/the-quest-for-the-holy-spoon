@@ -458,7 +458,7 @@ async function saveFood(
   const saved = await foods.save(item)
   if (!saved.ok) {
     return err(
-      new ApplicationError('FOOD_NOT_SAVED', `L’aliment « ${item.name} » n’a pas pu être enregistré.`, {
+      new ApplicationError('FOOD_NOT_SAVED', `L’aliment «\u00A0${item.name}\u00A0» n’a pas pu être enregistré.`, {
         cause: saved.error,
       }),
     )

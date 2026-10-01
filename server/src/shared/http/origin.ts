@@ -21,7 +21,7 @@ export function originGuard(allowedOrigins: readonly string[]) {
 
     const origin = request.headers.origin
     if (origin !== undefined && !allowedOrigins.includes(origin)) {
-      throw new HttpError(403, API_ERROR.forbiddenOrigin, `Origine refusée : ${origin}`)
+      throw new HttpError(403, API_ERROR.forbiddenOrigin, `Origine refusée\u00A0: ${origin}`)
     }
   }
 }

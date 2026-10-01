@@ -35,7 +35,7 @@ export class Email {
       return err(new InvalidEmailError(`Adresse e-mail de plus de ${EMAIL_MAX_LENGTH} caractères.`))
     }
     if (!EMAIL_SHAPE.test(normalized)) {
-      return err(new InvalidEmailError(`Adresse e-mail mal formée : ${normalized}`))
+      return err(new InvalidEmailError(`Adresse e-mail mal formée\u00A0: ${normalized}`))
     }
     return ok(new Email(normalized))
   }

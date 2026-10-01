@@ -150,7 +150,7 @@ export class FoodItem {
 
     const barcode = props.barcode?.trim()
     if (barcode !== undefined && !BARCODE_PATTERN.test(barcode)) {
-      return err(new InvalidFoodItemError(`Code-barres invalide : ${props.barcode}.`))
+      return err(new InvalidFoodItemError(`Code-barres invalide\u00A0: ${props.barcode}.`))
     }
 
     const portions = checkPortions(props)
@@ -307,7 +307,7 @@ function checkPortions(
   const unit = props.unit ?? BaseUnit.GRAM
   const density = unit === BaseUnit.MILLILITRE ? (props.density ?? 1) : 1
   if (!isValidDensity(density)) {
-    return err(new InvalidFoodItemError(`Densité invalide : ${props.density} g/ml.`))
+    return err(new InvalidFoodItemError(`Densité invalide\u00A0: ${props.density} g/ml.`))
   }
   const servings = validateServings(props.servings ?? [])
   if (!servings.ok) return servings

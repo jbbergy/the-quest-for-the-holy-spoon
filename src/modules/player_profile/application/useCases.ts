@@ -41,7 +41,7 @@ export class CreatePlayerProfileUseCase {
       return err(
         new ApplicationError(
           'PROFILE_NOT_SAVED',
-          `Le profil « ${input.name} » n’a pas pu être enregistré.`,
+          `Le profil «\u00A0${input.name}\u00A0» n’a pas pu être enregistré.`,
           { cause: saved.error },
         ),
       )

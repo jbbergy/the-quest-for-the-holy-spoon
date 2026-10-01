@@ -87,11 +87,11 @@ export function createServing(
     )
   }
   if (isBaseUnitLabel(trimmed)) {
-    return err(new InvalidFoodItemError(`« ${trimmed} » est déjà l’unité de la fiche.`))
+    return err(new InvalidFoodItemError(`«\u00A0${trimmed}\u00A0» est déjà l’unité de la fiche.`))
   }
   if (!Number.isFinite(grams) || grams <= 0 || grams > MAX_SERVING_GRAMS) {
     return err(
-      new InvalidFoodItemError(`La portion « ${trimmed} » doit peser entre 0 et ${MAX_SERVING_GRAMS} g.`),
+      new InvalidFoodItemError(`La portion «\u00A0${trimmed}\u00A0» doit peser entre 0 et ${MAX_SERVING_GRAMS} g.`),
     )
   }
   return ok({ label: trimmed, grams, approximate })
@@ -114,7 +114,7 @@ export function validateServings(
     if (!created.ok) return created
     const key = created.value.label.toLocaleLowerCase('fr')
     if (seen.has(key)) {
-      return err(new InvalidFoodItemError(`La portion « ${created.value.label} » est en double.`))
+      return err(new InvalidFoodItemError(`La portion «\u00A0${created.value.label}\u00A0» est en double.`))
     }
     seen.add(key)
     valid.push(created.value)

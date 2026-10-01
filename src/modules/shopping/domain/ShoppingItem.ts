@@ -211,7 +211,7 @@ export class ShoppingItem {
       return err(new InvalidShoppingItemError('Un article sans aliment n’a pas de quantité.'))
     }
     if (!Number.isFinite(grams) || grams <= 0) {
-      return err(new InvalidShoppingItemError(`Quantité invalide : ${grams}.`))
+      return err(new InvalidShoppingItemError(`Quantité invalide\u00A0: ${grams}.`))
     }
     const keepsUnit = this.totalGrams === 0 || sameUnit(this.unit, unit)
     return ok(

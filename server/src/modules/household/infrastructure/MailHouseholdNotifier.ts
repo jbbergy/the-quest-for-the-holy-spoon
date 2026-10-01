@@ -19,18 +19,18 @@ export function invitationMail(to: string, notice: InvitationNotice, link: strin
   })
   return {
     to,
-    subject: `Invitation à rejoindre le foyer « ${notice.householdName} »`,
+    subject: `Invitation à rejoindre le foyer «\u00A0${notice.householdName}\u00A0»`,
     text: [
       'Bonjour,',
       '',
-      `${notice.invitedBy.value} vous invite à rejoindre son foyer « ${notice.householdName} ».`,
+      `${notice.invitedBy.value} vous invite à rejoindre son foyer «\u00A0${notice.householdName}\u00A0».`,
       '',
       'Dans un foyer, chacun voit les repas et les jauges des autres membres, et peut partager ses aliments. Vos mensurations restent privées, et vous pourrez cesser de partager vos journées à tout moment.',
       '',
-      `Pour répondre avant le ${until}, connectez-vous avec cette adresse — ou créez un compte avec elle si vous n’en avez pas :`,
+      `Pour répondre avant le ${until}, connectez-vous avec cette adresse — ou créez un compte avec elle si vous n’en avez pas\u00A0:`,
       link,
       '',
-      'Si vous ne connaissez pas cette personne, ignorez ce message : l’invitation expirera seule.',
+      'Si vous ne connaissez pas cette personne, ignorez ce message\u00A0: l’invitation expirera seule.',
       '',
       SIGNATURE,
     ].join('\n'),

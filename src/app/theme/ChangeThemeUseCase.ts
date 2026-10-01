@@ -50,7 +50,7 @@ export class ChangeThemeUseCase {
       return err(
         new ApplicationError(
           'UNKNOWN_THEME',
-          `Aucun thème ne porte l’identifiant « ${themeId} ».`,
+          `Aucun thème ne porte l’identifiant «\u00A0${themeId}\u00A0».`,
         ),
       )
     }

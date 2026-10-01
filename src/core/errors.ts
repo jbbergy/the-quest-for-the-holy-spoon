@@ -173,7 +173,7 @@ export class WeakPasswordError extends DomainError {
 
 export class NotFoundError extends RepositoryError {
   constructor(entity: string, id: string) {
-    super('NOT_FOUND', `${entity} introuvable : ${id}`)
+    super('NOT_FOUND', `${entity} introuvable\u00A0: ${id}`)
   }
 }
 

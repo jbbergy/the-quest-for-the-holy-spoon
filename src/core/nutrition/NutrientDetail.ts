@@ -76,7 +76,7 @@ export class NutrientDetail {
   /** Mise à l'échelle, par exemple d'une base 100 g vers une portion réelle. */
   scale(factor: number): Result<NutrientDetail, InvalidNutrientsError> {
     if (!Number.isFinite(factor) || factor < 0) {
-      return err(new InvalidNutrientsError(`Facteur d’échelle invalide : ${factor}.`))
+      return err(new InvalidNutrientsError(`Facteur d’échelle invalide\u00A0: ${factor}.`))
     }
     return ok(
       new NutrientDetail(

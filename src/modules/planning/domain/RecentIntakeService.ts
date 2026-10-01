@@ -174,7 +174,7 @@ function validateBase(base: NutrientValues): InvalidNutritionalNeedsError | null
     const value = base[nutrient]
     if (!Number.isFinite(value) || value < 0) {
       return new InvalidNutritionalNeedsError(
-        `Le repère « ${nutrient} » doit être un nombre positif (reçu ${value}).`,
+        `Le repère «\u00A0${nutrient}\u00A0» doit être un nombre positif (reçu ${value}).`,
       )
     }
   }
