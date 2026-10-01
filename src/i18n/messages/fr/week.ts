@@ -38,7 +38,7 @@ export const week = {
   edit: ' — modifier',
   mealOnDay: '{meal} du {day}',
   member: {
-    back: '← Foyer',
+    back: 'Foyer',
     fallbackName: 'Membre du foyer',
     pageTitle: 'Journée {of}',
     today: 'Aujourd’hui',

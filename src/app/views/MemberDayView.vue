@@ -11,6 +11,7 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import DayOverview from '@/app/components/DayOverview.vue'
+import MemberMeals from '@/app/components/MemberMeals.vue'
 import { useContainer } from '@/app/container'
 import type { MemberDay } from '@/app/household/memberDays'
 import { formatDay, mealLabel, mealOrder } from '@/app/mealLabels'
@@ -21,10 +22,8 @@ import { addDays, type DayKey, parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
 import { type ErrorView, toErrorView } from '@/core/errors'
 import { idFrom } from '@/core/identity'
-import { lower, t } from '@/i18n'
-import BaseButton from '@/ui/BaseButton.vue'
-import BaseCard from '@/ui/BaseCard.vue'
-import EmptyState from '@/ui/EmptyState.vue'
+import { lower, t, upperFirst } from '@/i18n'
+import AppIcon from '@/ui/AppIcon.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
 import { nameParams } from './householdFormat'
@@ -77,42 +76,50 @@ const plannedNames = computed(() => planned.value.map((meal) => lower(mealLabel(
 
 const goTo = (next: DayKey) =>
   router.replace({ name: ROUTE.memberDay, params: route.params, query: { jour: next } })
+
+/** Pas au-delà d'aujourd'hui : le bouton le dit, sans quitter l'ordre du clavier. */
+const canGoForward = computed(() => day.value < today.value)
+function forward(): void {
+  if (canGoForward.value) void goTo(addDays(day.value, 1))
+}
 </script>
 
 <template>
   <div class="member">
-    <p class="member__back">
-      <RouterLink :to="{ name: ROUTE.household }">
-        {{ t('week.member.back') }}
-      </RouterLink>
-    </p>
+    <RouterLink
+      class="member__back"
+      :to="{ name: ROUTE.household }"
+    >
+      <AppIcon name="chevron-left" />
+      {{ t('week.member.back') }}
+    </RouterLink>
 
-    <header>
-      <p class="member__eyebrow">
-        {{ day === today ? t('week.member.today') : formatDay(day) }}
-      </p>
-      <h1>{{ name }}</h1>
-    </header>
+    <h1>{{ name }}</h1>
 
     <nav
       class="member__days"
       :aria-label="t('week.member.changeDay')"
     >
-      <BaseButton
-        variant="secondary"
-        size="sm"
+      <button
+        type="button"
+        class="member__arrow"
         @click="goTo(addDays(day, -1))"
       >
-        <span aria-hidden="true">←</span> {{ t('week.member.previousDay') }}
-      </BaseButton>
-      <BaseButton
-        variant="secondary"
-        size="sm"
-        :disabled="day >= today"
-        @click="goTo(addDays(day, 1))"
+        <AppIcon name="chevron-left" />
+        <span class="sr-only">{{ t('week.member.previousDay') }}</span>
+      </button>
+      <p class="member__day">
+        {{ day === today ? t('week.member.today') : upperFirst(formatDay(day)) }}
+      </p>
+      <button
+        type="button"
+        class="member__arrow"
+        :aria-disabled="canGoForward ? undefined : 'true'"
+        @click="forward"
       >
-        {{ t('week.member.nextDay') }} <span aria-hidden="true">→</span>
-      </BaseButton>
+        <AppIcon name="chevron-right" />
+        <span class="sr-only">{{ t('week.member.nextDay') }}</span>
+      </button>
     </nav>
 
     <p
@@ -120,6 +127,10 @@ const goTo = (next: DayKey) =>
       class="member__notice"
       role="status"
     >
+      <AppIcon
+        name="lock"
+        class="member__notice-icon"
+      />
       {{ t('week.member.notShared', { name }) }}
     </p>
     <ErrorNotice
@@ -137,6 +148,7 @@ const goTo = (next: DayKey) =>
     <template v-if="member">
       <DayOverview
         v-if="member.needs"
+        member
         :day="day"
         :needs="member.needs"
         :total-calories="member.journal.totalCalories"
@@ -147,37 +159,24 @@ const goTo = (next: DayKey) =>
         :planned-calories="plannedCalories"
         :planned-meals="plannedNames"
         :consumed-count="member.journal.consumedMeals.length"
-      />
-      <p
-        v-else
-        class="member__text"
       >
-        {{ t('week.member.gaugesNotReady', nameParams(name)) }}
-      </p>
+        <template #after-calories>
+          <MemberMeals
+            :title="t('week.member.mealsTitle', nameParams(name))"
+            :meals="meals"
+          />
+        </template>
+      </DayOverview>
 
-      <BaseCard :title="t('week.member.mealsTitle', nameParams(name))">
-        <EmptyState
-          v-if="meals.length === 0"
-          :title="t('week.member.noMealsTitle')"
-          :description="t('week.member.noMealsDescription')"
+      <template v-else>
+        <p class="member__notice">
+          {{ t('week.member.gaugesNotReady', nameParams(name)) }}
+        </p>
+        <MemberMeals
+          :title="t('week.member.mealsTitle', nameParams(name))"
+          :meals="meals"
         />
-        <ul
-          v-else
-          class="member__meals"
-        >
-          <li
-            v-for="meal in meals"
-            :key="meal.mealId"
-            class="member__meal"
-            :class="{ 'member__meal--planned': meal.consumedAt === null }"
-          >
-            <span class="member__meal-type">{{ mealLabel(meal.type) }}</span>
-            <span class="member__meal-kcal">{{ Math.round(meal.calories) }} kcal</span>
-            <span class="member__meal-foods">{{ meal.entries.map((entry) => entry.foodName).join(', ') }}</span>
-            <span class="member__meal-state">{{ meal.consumedAt === null ? t('week.member.planned') : t('week.member.eaten') }}</span>
-          </li>
-        </ul>
-      </BaseCard>
+      </template>
     </template>
   </div>
 </template>
@@ -186,86 +185,89 @@ const goTo = (next: DayKey) =>
 .member {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
+  gap: var(--space-5);
 
-.member h1 {
-  margin: 0;
+  h1 {
+    margin: 0;
+    overflow-wrap: break-word;
+  }
 }
 
 .member__back {
-  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-1);
+  min-height: 44px;
+  margin: calc(-1 * var(--space-3)) 0 calc(-1 * var(--space-3)) calc(-1 * var(--space-2));
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border-radius: var(--radius-pill);
+  color: var(--color-text);
   font-size: var(--font-size-sm);
+
+  &:hover {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
 }
 
-.member__eyebrow {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
+/* Changer de jour : deux flèches rondes autour du jour affiché. */
 .member__days {
   display: flex;
-  flex-wrap: wrap;
+  max-width: 28rem;
+  align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
 }
 
+.member__day {
+  margin: 0;
+  font-weight: 700;
+  text-align: center;
+}
+
+.member__arrow {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface);
+  }
+
+  /* Aujourd'hui, pas de jour suivant : un trait discontinu, et le curseur. */
+  &[aria-disabled='true'] {
+    border-style: dashed;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
+}
+
 .member__notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
   margin: 0;
   padding: var(--space-3) var(--space-4);
-  background: var(--color-accent-soft);
+  background: var(--color-surface);
   border-radius: var(--radius-md);
+}
+
+.member__notice-icon {
+  flex-shrink: 0;
+  margin-top: 0.15em;
 }
 
 .member__text {
   margin: 0;
   color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.member__meals {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.member__meal {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: var(--space-1) var(--space-3);
-  padding: var(--space-3);
-  background: var(--color-surface);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-}
-
-/* Même repère que l'accueil : un repas prévu a un trait discontinu, et le dit
-   aussi en toutes lettres (critère 1.4.1). */
-.member__meal--planned {
-  background: transparent;
-  border-style: dashed;
-  border-color: var(--color-border);
-}
-
-.member__meal-type {
-  font-weight: 600;
-}
-
-.member__meal-kcal {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-}
-
-.member__meal-foods,
-.member__meal-state {
-  grid-column: 1 / -1;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 </style>

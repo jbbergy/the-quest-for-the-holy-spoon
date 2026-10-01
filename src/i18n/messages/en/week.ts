@@ -40,7 +40,7 @@ export const week: Messages<typeof fr> = {
   edit: ' — edit',
   mealOnDay: '{meal} on {day}',
   member: {
-    back: '← Household',
+    back: 'Household',
     fallbackName: 'Household member',
     pageTitle: '{name}’s day',
     today: 'Today',

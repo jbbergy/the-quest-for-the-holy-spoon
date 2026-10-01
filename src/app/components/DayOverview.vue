@@ -51,6 +51,8 @@ const props = defineProps<{
   plannedMeals?: readonly string[]
   /** Le jour affiché : c'est la dernière barre du graphique de la semaine. */
   day: DayKey
+  /** La journée d'un autre membre : on parle de lui, pas à vous. */
+  member?: boolean
 }>()
 
 const ids = { summary: useId(), limits: useId(), recent: useId() }
@@ -146,8 +148,14 @@ const energy = computed(() => {
     return { label: t('dashboard.overview.reached'), value: null }
   }
   return gap > 0
-    ? { label: t('dashboard.overview.remaining'), value: `${figure(gap, 'kcal')} kcal` }
-    : { label: t('dashboard.overview.over'), value: t('dashboard.overview.overAmount', { kcal: figure(-gap, 'kcal') }) }
+    ? {
+        label: props.member ? t('dashboard.overview.remainingMember') : t('dashboard.overview.remaining'),
+        value: `${figure(gap, 'kcal')} kcal`,
+      }
+    : {
+        label: props.member ? t('dashboard.overview.overMember') : t('dashboard.overview.over'),
+        value: t('dashboard.overview.overAmount', { kcal: figure(-gap, 'kcal') }),
+      }
 })
 
 /** À partir de 80 % d'une limite, on le dit : ensuite il est trop tard. */
@@ -369,7 +377,7 @@ function describeDay(day: DayBalance): string {
           v-if="weekLines === null"
           class="day__hint"
         >
-          {{ t('dashboard.overview.noRecent') }}
+          {{ member ? t('dashboard.overview.noRecentMember') : t('dashboard.overview.noRecent') }}
         </p>
 
         <RecentDaysChart

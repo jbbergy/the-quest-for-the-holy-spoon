@@ -14,8 +14,10 @@ export const dashboard: Messages<typeof fr> = {
   adviceTitle: 'Tip of the day',
   overview: {
     remaining: 'You have left',
+    remainingMember: 'They have left',
     reached: 'Target reached',
     over: 'Above your target',
+    overMember: 'Above their target',
     overAmount: '+{kcal} kcal',
     stillPlanned: 'Still planned: {kcal} kcal ({meals}).',
     onlyEaten: 'Only meals marked as eaten count.',
@@ -28,6 +30,8 @@ export const dashboard: Messages<typeof fr> = {
     averageKcal: 'Average: {kcal} kcal',
     noRecent:
       'No day to compare yet. Tick “Eaten” on your meals: the average will appear here from tomorrow.',
+    noRecentMember:
+      'No day to compare yet. The average will appear the day after their meals have been ticked “Eaten”.',
     averagePerDay:
       'Average per day, over {n} day with meals eaten. | Average per day, over {n} days with meals eaten.',
     nutrientAverages: 'Averages by nutrient',

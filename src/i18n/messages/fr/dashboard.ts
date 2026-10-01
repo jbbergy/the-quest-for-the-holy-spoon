@@ -12,8 +12,10 @@ export const dashboard = {
   adviceTitle: 'Conseil du jour',
   overview: {
     remaining: 'Il vous reste',
+    remainingMember: 'Il lui reste',
     reached: 'Besoin atteint',
     over: 'Au-delà du besoin',
+    overMember: 'Au-delà du besoin',
     overAmount: '+{kcal} kcal',
     stillPlanned: 'Encore prévu : {kcal} kcal ({meals}).',
     onlyEaten: 'Seuls les repas mangés comptent.',
@@ -26,6 +28,8 @@ export const dashboard = {
     averageKcal: 'Moyenne : {kcal} kcal',
     noRecent:
       'Pas encore de jour à comparer. Cochez « Mangé » sur vos repas : la moyenne apparaîtra ici dès demain.',
+    noRecentMember:
+      'Pas encore de jour à comparer. La moyenne apparaîtra au lendemain d’un jour où ses repas ont été cochés «\u00A0Mangé\u00A0».',
     averagePerDay:
       'Moyenne par jour, sur {n} jour avec des repas mangés. | Moyenne par jour, sur {n} jours avec des repas mangés.',
     nutrientAverages: 'Moyennes par nutriment',

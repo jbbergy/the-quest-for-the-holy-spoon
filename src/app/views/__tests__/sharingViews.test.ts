@@ -151,11 +151,14 @@ describe('Journée d’un membre', () => {
     expect(wrapper.find('h1').text()).toBe('Alex')
     expect(wrapper.text()).toContain('Repas d’Alex')
     expect(wrapper.text()).toContain('sur 2500 kcal')
+    // On parle d'Alex, pas à Alex.
+    expect(wrapper.text()).toContain('Il lui reste')
+    expect(wrapper.text()).not.toContain('Il vous reste')
     expect(wrapper.text()).toContain('Riz au poulet')
     expect(wrapper.findAll('.member__meal-state').map((state) => state.text())).toEqual(['Mangé', 'Prévu'])
     // Ni case « Mangé », ni lien d'édition.
     expect(wrapper.find('input').exists()).toBe(false)
-    expect(wrapper.findAll('a').map((link) => link.text())).toEqual(['← Foyer'])
+    expect(wrapper.findAll('a').map((link) => link.text())).toEqual(['Foyer'])
   })
 
   it('remonte d’un jour, sans aller au-delà d’aujourd’hui', async () => {

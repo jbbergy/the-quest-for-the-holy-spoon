@@ -209,7 +209,7 @@ export function createAppRouter(): Router {
         // `?jour=AAAA-MM-JJ` : un jour passé ; aujourd'hui par défaut.
         path: `${HOUSEHOLD_APP_LINK}/membres/:playerId`,
         name: ROUTE.memberDay,
-        meta: { title: 'shell.titles.memberDay' },
+        meta: { title: 'shell.titles.memberDay', wide: true },
         component: () => import('./views/MemberDayView.vue'),
       },
       {
