@@ -28,6 +28,8 @@ import { BaseUnit, MAX_SERVINGS } from '@/modules/nutrition_inventory/domain/Mea
 import { useFoodCatalogStore } from '@/modules/nutrition_inventory/presentation/useFoodCatalogStore'
 import { useFoodSearchStore } from '@/modules/nutrition_inventory/presentation/useFoodSearchStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
+import BackLink from '@/ui/BackLink.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
@@ -217,12 +219,10 @@ const title = computed(() =>
 
 <template>
   <div class="custom">
-    <RouterLink
-      class="custom__back"
+    <BackLink
       :to="back.to"
-    >
-      <span aria-hidden="true">←</span> {{ back.label }}
-    </RouterLink>
+      :label="back.label"
+    />
 
     <h1>{{ title }}</h1>
 
@@ -271,11 +271,11 @@ const title = computed(() =>
           <legend class="sr-only">
             {{ t('foods.custom.unitTitle') }}
           </legend>
-          <div class="custom__choices">
+          <div class="custom__units">
             <label
               v-for="option in UNIT_OPTIONS"
               :key="option.value"
-              class="choice"
+              class="choice choice--card"
             >
               <input
                 v-model="unit"
@@ -392,24 +392,25 @@ const title = computed(() =>
               :min="0"
               :step="1"
             />
-            <BaseButton
-              variant="ghost"
-              size="sm"
+            <button
+              type="button"
+              class="custom__remove"
               @click="removeServing(serving.id)"
             >
-              <span aria-hidden="true">×</span>
+              <AppIcon name="close" />
               <span class="sr-only">{{ t('foods.custom.removeServing', { n: index + 1 }) }}</span>
-            </BaseButton>
+            </button>
           </li>
         </ul>
-        <BaseButton
+        <button
           v-if="servings.length < MAX_SERVINGS"
-          variant="secondary"
-          size="sm"
+          type="button"
+          class="custom__add"
           @click="addServing"
         >
+          <AppIcon name="plus" />
           {{ t('foods.custom.addServing') }}
-        </BaseButton>
+        </button>
       </BaseCard>
 
       <BaseCard
@@ -473,11 +474,7 @@ const title = computed(() =>
 .custom {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-
-.custom__back {
-  align-self: flex-start;
+  gap: var(--space-5);
 }
 
 .custom h1,
@@ -486,18 +483,18 @@ const title = computed(() =>
 }
 
 .custom__intro {
+  margin-top: calc(-1 * var(--space-3));
   color: var(--color-text-muted);
 }
 
 .custom__legend {
   padding: 0;
   margin-bottom: var(--space-2);
-  font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .custom__fieldset + .custom__fieldset {
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
 }
 
 .custom__form {
@@ -521,14 +518,76 @@ const title = computed(() =>
   list-style: none;
 }
 
+/* Une portion : le nom sur toute la largeur, puis la quantité et la croix —
+   sur un écran étroit, trois colonnes écrasaient le nom. */
 .custom__serving {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 8rem) auto;
+  grid-template-areas:
+    'name name'
+    'amount remove';
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: end;
+  gap: var(--space-2) var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+
+  > :nth-child(1) {
+    grid-area: name;
+  }
+
+  > :nth-child(2) {
+    grid-area: amount;
+    max-width: 12rem;
+  }
+
+  > :nth-child(3) {
+    grid-area: remove;
+  }
+}
+
+.custom__remove {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface);
+    color: var(--color-danger);
+  }
+}
+
+/* Ajouter une portion : un emplacement en pointillé, là où elle viendra. */
+.custom__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: var(--space-2);
+  width: 100%;
+  min-height: 3.25rem;
+  border: 2px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
 }
 
 .custom__fieldset {
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: none;
@@ -540,26 +599,37 @@ const title = computed(() =>
   gap: var(--space-2);
 }
 
+.custom__units {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-2);
+}
+
 .choice {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   min-height: 44px;
   padding: var(--space-2) var(--space-4);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
   cursor: pointer;
+}
+
+.choice--card {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
 }
 
 .choice span {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .choice small {
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
+  font-size: var(--font-size-sm);
   font-weight: 400;
 }
 
@@ -568,11 +638,19 @@ const title = computed(() =>
   accent-color: var(--color-accent);
   width: 1.15rem;
   height: 1.15rem;
+  margin: 0;
 }
 
+/* Choisi : bordure Feuille épaisse **et** texte en gras (critère 1.4.1). */
 .choice:has(input:checked) {
+  padding-inline: calc(var(--space-4) - 1px);
   background: var(--color-accent-soft);
-  border-color: var(--color-accent);
-  font-weight: 600;
+  border: 2px solid var(--color-accent);
+  color: var(--color-accent-strong);
+  font-weight: 700;
+}
+
+.choice--card:has(input:checked) {
+  padding-block: calc(var(--space-3) - 1px);
 }
 </style>

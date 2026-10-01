@@ -12,7 +12,7 @@
  * journées.
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import FoodPicker, { type FoodChoice } from '@/app/components/FoodPicker.vue'
 import { useContainer } from '@/app/container'
@@ -34,6 +34,7 @@ import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerS
 import type { ShoppingItemView } from '@/modules/shopping/application'
 import { useShoppingListStore } from '@/modules/shopping/presentation/useShoppingListStore'
 import AppIcon from '@/ui/AppIcon.vue'
+import BackLink from '@/ui/BackLink.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseField from '@/ui/BaseField.vue'
 import EmptyState from '@/ui/EmptyState.vue'
@@ -259,13 +260,10 @@ const summary = computed(() => {
 
 <template>
   <div class="shopping">
-    <RouterLink
-      class="shopping__back"
+    <BackLink
       :to="back.to"
-    >
-      <AppIcon name="chevron-left" />
-      {{ back.label }}
-    </RouterLink>
+      :label="back.label"
+    />
 
     <header>
       <p class="shopping__eyebrow">
@@ -463,24 +461,6 @@ const summary = computed(() => {
 
   h2 {
     margin: 0;
-  }
-}
-
-.shopping__back {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: var(--space-1);
-  min-height: 44px;
-  margin: calc(-1 * var(--space-3)) 0 calc(-1 * var(--space-4)) calc(-1 * var(--space-2));
-  padding: 0 var(--space-3) 0 var(--space-1);
-  border-radius: var(--radius-pill);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-
-  &:hover {
-    background: var(--color-surface);
-    color: var(--color-text);
   }
 }
 

@@ -8,7 +8,7 @@
  * l'écran se consulte en ligne.
  */
 import { computed, ref, shallowRef, watch } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import DayOverview from '@/app/components/DayOverview.vue'
 import MemberMeals from '@/app/components/MemberMeals.vue'
@@ -24,6 +24,7 @@ import { type ErrorView, toErrorView } from '@/core/errors'
 import { idFrom } from '@/core/identity'
 import { lower, t, upperFirst } from '@/i18n'
 import AppIcon from '@/ui/AppIcon.vue'
+import BackLink from '@/ui/BackLink.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
 import { nameParams } from './householdFormat'
@@ -86,13 +87,10 @@ function forward(): void {
 
 <template>
   <div class="member">
-    <RouterLink
-      class="member__back"
+    <BackLink
       :to="{ name: ROUTE.household }"
-    >
-      <AppIcon name="chevron-left" />
-      {{ t('week.member.back') }}
-    </RouterLink>
+      :label="t('week.member.back')"
+    />
 
     <h1>{{ name }}</h1>
 
@@ -190,24 +188,6 @@ function forward(): void {
   h1 {
     margin: 0;
     overflow-wrap: break-word;
-  }
-}
-
-.member__back {
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-start;
-  gap: var(--space-1);
-  min-height: 44px;
-  margin: calc(-1 * var(--space-3)) 0 calc(-1 * var(--space-3)) calc(-1 * var(--space-2));
-  padding: 0 var(--space-3) 0 var(--space-1);
-  border-radius: var(--radius-pill);
-  color: var(--color-text);
-  font-size: var(--font-size-sm);
-
-  &:hover {
-    background: var(--color-surface);
-    color: var(--color-text);
   }
 }
 

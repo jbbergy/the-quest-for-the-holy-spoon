@@ -16,13 +16,14 @@ import { ROUTE } from '@/app/router'
 import { useReturnQuery } from '@/app/useBackLink'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import type { FoodItemId } from '@/core/identity'
-import { t } from '@/i18n'
+import { numberFormat, t } from '@/i18n'
 import { FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { servingMeasure } from '@/modules/nutrition_inventory/domain/Measure'
 import { useFoodCatalogStore } from '@/modules/nutrition_inventory/presentation/useFoodCatalogStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
+import BackLink from '@/ui/BackLink.vue'
 import BaseButton from '@/ui/BaseButton.vue'
-import BaseCard from '@/ui/BaseCard.vue'
 import ConfirmButton from '@/ui/ConfirmButton.vue'
 import EmptyState from '@/ui/EmptyState.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
@@ -65,6 +66,16 @@ async function remove(): Promise<void> {
   }
 }
 
+const kcal = (value: number): string => numberFormat({ maximumFractionDigits: 0 }).format(value)
+const grams = (value: number, digits = 1): string =>
+  numberFormat({ minimumFractionDigits: digits, maximumFractionDigits: digits }).format(value)
+
+const MACROS = [
+  { key: 'proteinG', label: 'protein' },
+  { key: 'carbsG', label: 'carbs' },
+  { key: 'fatG', label: 'fat' },
+] as const
+
 const NUTRIENTS = [
   { key: 'fiberG', label: 'fiber' },
   { key: 'sugarsG', label: 'sugars' },
@@ -75,12 +86,10 @@ const NUTRIENTS = [
 
 <template>
   <div class="food">
-    <RouterLink
-      class="food__back"
+    <BackLink
       :to="{ name: ROUTE.foods }"
-    >
-      <span aria-hidden="true">←</span> {{ t('foods.catalog.title') }}
-    </RouterLink>
+      :label="t('foods.pantry.title')"
+    />
 
     <ErrorNotice :error="catalog.error" />
 
@@ -91,96 +100,126 @@ const NUTRIENTS = [
     />
 
     <template v-else-if="food">
-      <div class="food__title">
+      <header class="food__title">
         <h1>{{ food.name }}</h1>
         <FoodSourceTag
           :source="food.source"
           :author="author"
         />
-      </div>
+      </header>
 
-      <BaseCard
-        :title="t('foods.detail.per', { per: per100 })"
-        :subtitle="`${Math.round(food.macrosPer100g.calories())} kcal`"
+      <!-- Les valeurs : l'énergie en grand, les trois macronutriments, puis le reste. -->
+      <section
+        class="values"
+        aria-labelledby="valeurs"
       >
-        <dl class="food__values">
-          <div>
-            <dt>{{ t('labels.nutrient.protein') }}</dt>
-            <dd>{{ food.macrosPer100g.proteinG.toFixed(1) }} g</dd>
+        <h2
+          id="valeurs"
+          class="eyebrow values__title"
+        >
+          {{ t('foods.detail.per', { per: per100 }) }}
+        </h2>
+        <p class="values__energy">
+          <span class="figure values__kcal">{{ kcal(food.macrosPer100g.calories()) }}</span>
+          <span class="values__unit">kcal</span>
+        </p>
+        <dl class="values__macros">
+          <div
+            v-for="macro in MACROS"
+            :key="macro.key"
+          >
+            <dt>{{ t(`labels.nutrient.${macro.label}`) }}</dt>
+            <dd>{{ grams(food.macrosPer100g[macro.key]) }} g</dd>
           </div>
-          <div>
-            <dt>{{ t('labels.nutrient.carbs') }}</dt>
-            <dd>{{ food.macrosPer100g.carbsG.toFixed(1) }} g</dd>
-          </div>
-          <div>
-            <dt>{{ t('labels.nutrient.fat') }}</dt>
-            <dd>{{ food.macrosPer100g.fatG.toFixed(1) }} g</dd>
-          </div>
+        </dl>
+        <dl class="values__others">
           <div
             v-for="nutrient in NUTRIENTS"
             :key="nutrient.key"
           >
             <dt>{{ t(`labels.nutrient.${nutrient.label}`) }}</dt>
-            <dd>{{ food.detailPer100g[nutrient.key].toFixed(nutrient.key === 'saltG' ? 2 : 1) }} g</dd>
+            <dd>{{ grams(food.detailPer100g[nutrient.key], nutrient.key === 'saltG' ? 2 : 1) }} g</dd>
           </div>
         </dl>
-      </BaseCard>
+      </section>
 
-      <BaseCard
-        :title="t('foods.detail.portionsTitle')"
-        :subtitle="food.unit === 'ml' ? t('foods.detail.liquid') : t('foods.detail.solid')"
+      <section
+        class="group"
+        aria-labelledby="portions"
       >
+        <h2
+          id="portions"
+          class="eyebrow group__title"
+        >
+          {{ t('foods.detail.portionsTitle') }}
+        </h2>
         <ul
           v-if="food.servings.length > 0"
-          class="food__servings"
+          class="rows"
         >
           <li
             v-for="serving in food.servings"
             :key="serving.label"
+            class="row"
           >
-            <span>{{ t('foods.detail.serving', { label: serving.label }) }}</span>
-            <span class="food__muted">{{ formatWeight(serving.grams, servingMeasure(serving), food.baseMeasure) }}</span>
+            <span class="row__label">{{ t('foods.detail.serving', { label: serving.label }) }}</span>
+            <span class="row__value">{{ formatWeight(serving.grams, servingMeasure(serving), food.baseMeasure) }}</span>
           </li>
         </ul>
-        <p
-          v-else
-          class="food__muted"
-        >
-          {{ food.unit === 'ml' ? t('foods.detail.noServingsMl') : t('foods.detail.noServingsG') }}
+        <p class="group__note">
+          <template v-if="food.servings.length === 0">
+            {{ food.unit === 'ml' ? t('foods.detail.noServingsMl') : t('foods.detail.noServingsG') }}
+          </template>
+          <template v-else>
+            {{ food.unit === 'ml' ? t('foods.detail.liquid') : t('foods.detail.solid') }}
+          </template>
         </p>
-      </BaseCard>
+      </section>
 
-      <BaseCard
+      <section
         v-if="food.barcode || food.tags.length > 0"
-        :title="t('foods.detail.otherInfo')"
+        class="group"
+        aria-labelledby="autres-informations"
       >
-        <p
-          v-if="food.barcode"
-          class="food__line"
+        <h2
+          id="autres-informations"
+          class="eyebrow group__title"
         >
-          <RichText path="foods.detail.barcode">
-            <template #code>
-              <span class="food__code">{{ food.barcode }}</span>
-            </template>
-          </RichText>
-        </p>
-        <ul
-          v-if="food.tags.length > 0"
-          class="food__tags"
-        >
-          <li
-            v-for="tag in food.tags"
-            :key="tag"
+          {{ t('foods.detail.otherInfo') }}
+        </h2>
+        <div class="rows">
+          <p
+            v-if="food.barcode"
+            class="row"
           >
-            {{ tagLabel(tag) }}
-          </li>
-        </ul>
-      </BaseCard>
+            <RichText path="foods.detail.barcode">
+              <template #code>
+                <span class="food__code">{{ food.barcode }}</span>
+              </template>
+            </RichText>
+          </p>
+          <ul
+            v-if="food.tags.length > 0"
+            class="row food__tags"
+          >
+            <li
+              v-for="tag in food.tags"
+              :key="tag"
+            >
+              {{ tagLabel(tag) }}
+            </li>
+          </ul>
+        </div>
+      </section>
 
       <p
         v-if="readOnlyReason"
         class="food__note"
       >
+        <AppIcon
+          name="lock"
+          class="food__note-icon"
+        />
         {{ readOnlyReason }}
       </p>
 
@@ -199,11 +238,13 @@ const NUTRIENTS = [
         </BaseButton>
         <ConfirmButton
           v-if="canEdit"
+          class="food__delete"
           :question="t('foods.detail.deleteQuestion', { name: food.name })"
           :confirm-label="t('foods.detail.delete')"
           :loading="catalog.status === 'loading'"
           @confirm="remove"
         >
+          <AppIcon name="trash" />
           {{ t('foods.detail.delete') }}
         </ConfirmButton>
       </div>
@@ -215,21 +256,7 @@ const NUTRIENTS = [
 .food {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-}
-
-.food__back {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 44px;
-  color: var(--color-text-muted);
-  text-decoration: none;
-
-  &:hover {
-    color: var(--color-text);
-  }
+  gap: var(--space-6);
 }
 
 .food__title {
@@ -237,6 +264,7 @@ const NUTRIENTS = [
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-2);
+  margin-top: calc(-1 * var(--space-3));
 
   h1 {
     margin: 0;
@@ -244,52 +272,137 @@ const NUTRIENTS = [
   }
 }
 
-.food__values {
+/* Les valeurs : une carte, l'énergie en chiffre de titre. */
+.values {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--card-padding);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+}
+
+.values__title {
+  margin: 0;
+}
+
+.values__energy {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: calc(-1 * var(--space-2)) 0 0;
+}
+
+.values__kcal {
+  font-size: var(--font-size-2xl);
+  line-height: 1;
+}
+
+.values__unit {
+  color: var(--color-text-muted);
+}
+
+.values__macros {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
   gap: var(--space-3);
   margin: 0;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
 
   div {
     display: flex;
     flex-direction: column;
+    min-width: 0;
   }
 
   dt {
     color: var(--color-text-muted);
-    font-size: var(--font-size-xs);
+    font-size: var(--font-size-sm);
   }
 
   dd {
     margin: 0;
-    font-weight: 600;
+    font-size: var(--font-size-lg);
+    font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
 }
 
-.food__servings {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+.values__others {
   margin: 0;
-  padding: 0;
-  list-style: none;
 
-  li {
+  div {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
-    gap: var(--space-3);
+    gap: 0 var(--space-3);
+    padding: var(--space-2) 0;
+  }
+
+  div + div {
+    border-top: 1px solid var(--color-divider);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
   }
 }
 
-.food__muted {
-  margin: 0;
+/* Un groupe : son intitulé, puis une carte de lignes, comme dans les réglages. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.group__title {
+  margin: 0 0 0 var(--space-1);
+}
+
+.group__note {
+  margin: 0 var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
 }
 
-.food__line {
-  margin: 0 0 var(--space-2);
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+
+  > * + * {
+    border-top: 1px solid var(--color-divider);
+  }
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  min-height: 3.5rem;
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+}
+
+.row__label {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.row__value {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
 }
 
 .food__code {
@@ -298,31 +411,41 @@ const NUTRIENTS = [
 }
 
 .food__tags {
-  display: flex;
-  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: var(--space-2);
-  margin: 0;
-  padding: 0;
   list-style: none;
 
   li {
     padding: var(--space-1) var(--space-3);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-pill);
     font-size: var(--font-size-sm);
   }
 }
 
 .food__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
   margin: 0;
-  color: var(--color-text-muted);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
+}
+
+.food__note-icon {
+  flex-shrink: 0;
+  margin-top: 0.15em;
 }
 
 .food__actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--space-3);
+}
+
+.food__delete {
+  align-self: flex-start;
 }
 </style>
