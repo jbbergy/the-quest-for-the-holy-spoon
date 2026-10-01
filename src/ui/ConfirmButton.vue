@@ -4,7 +4,7 @@
  *
  * Le premier clic ne fait rien d'irréversible : il remplace le bouton par la
  * question et deux réponses. Le focus suit — sur « confirmer » à l'ouverture,
- * de retour sur le bouton à l'annulation — sans quoi un utilisateur au clavier
+ * de retour sur le bouton après la réponse, quelle qu'elle soit — sans quoi un utilisateur au clavier
  * se retrouverait sur un élément disparu, renvoyé en haut de la page.
  */
 import { nextTick, ref } from 'vue'
@@ -45,9 +45,16 @@ async function cancel(): Promise<void> {
   focusFirst('button')
 }
 
-function confirm(): void {
+/**
+ * Le bouton qui avait le focus disparaît : il revient au bouton d'origine,
+ * comme à l'annulation. Si l'action a retiré le composant (une ligne
+ * supprimée), il n'y a plus rien à viser, et c'est au parent de le placer.
+ */
+async function confirm(): Promise<void> {
   asking.value = false
   emit('confirm')
+  await nextTick()
+  focusFirst('button')
 }
 </script>
 

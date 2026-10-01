@@ -5,6 +5,8 @@ export const meal: Messages<typeof fr> = {
   editor: {
     newMeal: 'New meal',
     when: 'When',
+    changeWhen: 'Change',
+    changeWhenSpoken: 'Change the day and meal',
     day: 'Day',
     meal: 'Meal',
     inMeal: 'On the plate',
@@ -66,6 +68,7 @@ export const meal: Messages<typeof fr> = {
   },
   picker: {
     note: 'Type the name of a food, or the {barcode} number. The app searches the {catalogue} and the {brands}.',
+    noteTerm: 'the search',
     barcode: 'barcode',
     catalogue: 'public food catalogue',
     brands: 'brand products',

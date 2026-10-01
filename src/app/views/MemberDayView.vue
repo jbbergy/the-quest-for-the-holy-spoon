@@ -27,7 +27,7 @@ import AppIcon from '@/ui/AppIcon.vue'
 import BackLink from '@/ui/BackLink.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 
-import { nameParams } from './householdFormat'
+import { nameParams } from '@/app/household/householdFormat'
 
 const route = useRoute()
 const router = useRouter()

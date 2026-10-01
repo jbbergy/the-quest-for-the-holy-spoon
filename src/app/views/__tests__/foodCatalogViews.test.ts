@@ -46,7 +46,7 @@ const nutella = food('off:nutella', 'Nutella', FoodSource.OPEN_FOOD_FACTS)
 let foods: InMemoryFoodRepository
 let router: Router
 
-async function mountAt(view: object, path: string): Promise<VueWrapper> {
+async function mountAt(view: object, path: string, attached = false): Promise<VueWrapper> {
   provideContainer(
     createFakeContainer({
       profile: { getCurrent: succeedsWith(playerOf('player-1')) } as never,
@@ -78,7 +78,10 @@ async function mountAt(view: object, path: string): Promise<VueWrapper> {
   await router.push(path)
   await router.isReady()
 
-  const wrapper = mount(view, { global: { plugins: [router] } })
+  const wrapper = mount(view, {
+    global: { plugins: [router] },
+    ...(attached ? { attachTo: document.body } : {}),
+  })
   await flushPromises()
   return wrapper
 }
@@ -243,5 +246,21 @@ describe('CustomFoodView — création', () => {
     expect(route.name).toBe(ROUTE.shoppingList)
     expect(route.query.semaine).toBe('2026-09-28')
     expect(typeof route.query.aliment).toBe('string')
+  })
+
+  it('sans nom, place le focus sur le champ, qui porte son erreur', async () => {
+    // Attachée au document : le focus n'existe que là.
+    const wrapper = await mountAt(CustomFoodView, '/garde-manger/aliments/nouveau', true)
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const name = wrapper.find('input[aria-invalid="true"]')
+    expect(document.activeElement).toBe(name.element)
+    const describedBy = name.attributes('aria-describedby')!.split(' ')
+    expect(describedBy.map((id) => wrapper.find(`#${id}`).text()).join(' ')).toContain(
+      'Écrivez le nom de l’aliment.',
+    )
+    wrapper.unmount()
   })
 })

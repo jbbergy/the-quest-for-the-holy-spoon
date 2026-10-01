@@ -59,7 +59,17 @@ Le projet suit un découpage en **contextes délimités** (DDD), chacun en quatr
 src/modules/<contexte>/{domain,application,infrastructure,presentation}
 ```
 
-Quatre contextes : `account`, `player_profile`, `nutrition_inventory`, `planning`.
+Six contextes :
+
+- `account` — compte, session, confirmation de l'adresse et nouveau mot de passe ;
+- `player_profile` — le profil et ses besoins (calories, nutriments, régime) ;
+- `nutrition_inventory` — aliments, repas et recettes ; ses use cases sont rangés par sujet
+  (`foodUseCases`, `mealUseCases`, `recipeUseCases`, et `journalUseCases` pour les lectures :
+  journée, semaine, historique, export) ;
+- `planning` — calculs purs sur ces lectures : bilan des sept derniers jours, conseil pour
+  compléter la journée. Il ne stocke rien, d'où une couche `infrastructure` vide ;
+- `household` — le foyer, ses membres et ses invitations, en ligne seulement ;
+- `shopping` — la liste de courses, commune au foyer.
 
 Trois règles, et elles sont **vérifiées automatiquement** plutôt que recommandées :
 
@@ -71,6 +81,12 @@ Trois règles, et elles sont **vérifiées automatiquement** plutôt que recomma
 échoue si la frontière est franchie. `src/app/` est la seule couche autorisée à connaître plusieurs
 contextes à la fois ; `src/app/composition.ts` est le seul endroit où une implémentation concrète
 est choisie.
+
+Côté interface : `src/ui/` tient les composants de base (bouton, champ, jauge…), sans rien
+savoir des contextes ; `src/app/components/` les parties d'écran, rangées par écran quand il en a
+plusieurs (`settings/`, `household/`) ; `src/styles/` les jetons, les thèmes et les motifs
+partagés entre écrans (`_list-rows.scss` : les groupes de lignes des réglages, du foyer et de la
+fiche d'un aliment).
 
 La persistance est volontairement **substituable** : les ports (`IPlayerRepository`,
 `IFoodRepository`, …) sont déclarés dans le domaine et ne manipulent que des entités. Remplacer
@@ -179,3 +195,7 @@ description du manifeste PWA.
 Cible WCAG 2.2 niveau AA : contrastes vérifiés sur les trois thèmes, cibles tactiles de 44 px,
 la couleur n'est jamais le seul porteur d'information, et chaque jauge expose un `aria-valuetext`
 en toutes lettres.
+
+Une erreur de champ n'est pas une alerte : elle est liée au champ par `aria-describedby`, et le
+formulaire place le focus sur le premier champ en erreur (`src/app/focusInvalid.ts`). Une seule
+annonce, donc, même quand plusieurs champs sont faux.

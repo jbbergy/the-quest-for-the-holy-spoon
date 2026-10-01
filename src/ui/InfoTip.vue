@@ -174,7 +174,9 @@ onBeforeUnmount(hide)
   line-height: var(--line-height-normal);
   text-align: left;
   text-transform: none;
-  white-space: normal;
+
+  /* Une bulle peut expliquer plusieurs mots, un par ligne. */
+  white-space: pre-line;
 }
 
 .tip__bubble--open {

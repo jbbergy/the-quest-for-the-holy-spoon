@@ -125,7 +125,6 @@ const onInput = (event: Event): string | number => {
       v-if="error"
       :id="errorId"
       class="field__error"
-      role="alert"
     >
       <AppIcon
         name="alert"

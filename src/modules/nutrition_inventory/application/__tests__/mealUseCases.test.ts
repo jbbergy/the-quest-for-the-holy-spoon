@@ -25,7 +25,7 @@ import {
   RescalePlannedMealsUseCase,
   RescheduleMealUseCase,
   SaveMealDraftUseCase,
-} from '@/modules/nutrition_inventory/application/useCases'
+} from '@/modules/nutrition_inventory/application'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { type Meal, MealType } from '@/modules/nutrition_inventory/domain/Meal'
 import {

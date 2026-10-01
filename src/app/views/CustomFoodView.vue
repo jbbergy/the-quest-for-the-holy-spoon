@@ -16,6 +16,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { type RouteLocationRaw, useRoute, useRouter } from 'vue-router'
 
+import { focusFirstInvalid } from '@/app/focusInvalid'
 import { CONTAINS_OPTIONS, SUITS_OPTIONS } from '@/app/foodTags'
 import { ROUTE } from '@/app/router'
 import { useBackLink } from '@/app/useBackLink'
@@ -196,7 +197,7 @@ function input(): CustomFoodInput {
 async function submit(): Promise<void> {
   if (name.value.trim() === '') {
     nameError.value = t('foods.custom.nameRequired')
-    document.querySelector<HTMLElement>('.custom [aria-invalid="true"]')?.focus()
+    await focusFirstInvalid(document.querySelector('.custom'))
     return
   }
   nameError.value = ''

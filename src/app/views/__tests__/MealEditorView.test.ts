@@ -84,6 +84,13 @@ const mealOf = (overrides: Record<string, unknown> = {}) => ({
 let saveDraft: ReturnType<typeof vi.fn>
 let router: Router
 
+/** Déplie le jour et le type d'un nouveau repas, repliés sur une ligne. */
+async function unfoldWhen(wrapper: VueWrapper): Promise<void> {
+  const button = wrapper.findAll('.editor__when button').find((candidate) => candidate.text().includes('Modifier'))!
+  await button.trigger('click')
+  await flushPromises()
+}
+
 async function mountAt(
   path: string,
   meal = mealOf(),
@@ -215,6 +222,27 @@ describe('MealEditorView — repas existant', () => {
     )
   })
 
+  it('au plus petit pas, « − » reste atteignable au clavier mais ne descend plus', async () => {
+    const halfSlice = {
+      entryId: idFrom('entry-1'),
+      foodItemId: bread.id,
+      foodName: 'Pain de mie, courant',
+      grams: 12.5,
+      measure: slice,
+      amount: 0.5,
+      calories: 35,
+      macros: { proteinG: 1, carbsG: 6, fatG: 0.5 },
+    }
+    const wrapper = await mountAt('/semaine/repas/meal-1', mealOf({ entries: [halfSlice] }))
+    const minus = wrapper.findAll('.stepper__button')[0]!
+
+    expect(minus.attributes('aria-disabled')).toBe('true')
+    expect(minus.attributes('disabled')).toBeUndefined()
+
+    await minus.trigger('click')
+    expect((field(wrapper).element as HTMLInputElement).value).toBe('0.5')
+  })
+
   it('permet de retirer une ligne, sous un nom accessible distinct', async () => {
     const wrapper = await mountAt('/semaine/repas/meal-1')
 
@@ -337,7 +365,13 @@ describe('MealEditorView — nouveau repas', () => {
     const wrapper = await mountAt(`/semaine/repas?jour=${tomorrow}&type=DINNER`)
 
     expect(wrapper.find('h1').text()).toBe('Nouveau repas')
+    // Replié sur une ligne : la recherche reste dans le premier écran.
+    expect(wrapper.find('.editor__when-summary').text()).toContain('Dîner du')
+    expect(wrapper.find('input[type="date"]').exists()).toBe(false)
+
+    await unfoldWhen(wrapper)
     expect((wrapper.find('input[type="date"]').element as HTMLInputElement).value).toBe(tomorrow)
+    expect(document.activeElement).toBe(wrapper.find('input[type="date"]').element)
     expect(
       (wrapper.find('input[name="mealType"][value="DINNER"]').element as HTMLInputElement).checked,
     ).toBe(true)
@@ -437,6 +471,7 @@ describe('MealEditorView — nouveau repas', () => {
 
   it('ignore un jour illisible dans l’adresse', async () => {
     const wrapper = await mountAt('/semaine/repas?jour=2026-02-30&type=LUNCH')
+    await unfoldWhen(wrapper)
 
     expect((wrapper.find('input[type="date"]').element as HTMLInputElement).value).toBe(today)
   })

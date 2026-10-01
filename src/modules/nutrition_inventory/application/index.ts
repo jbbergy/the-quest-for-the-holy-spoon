@@ -39,20 +39,23 @@ export {
 } from './recipeUseCases'
 
 export {
-  AddFoodToMealUseCase,
   BrowseCustomFoodsUseCase,
-  ChangeMealEntryQuantityUseCase,
   CreateCustomFoodUseCase,
   DeleteFoodUseCase,
-  DeleteMealUseCase,
-  ExportInventoryUseCase,
   FindFoodUseCase,
-  GetConsumptionHistoryUseCase,
-  GetDailyJournalUseCase,
   GetFoodUseCase,
+  UpdateCustomFoodUseCase,
+  type CustomFoodInput,
+  type FoodSearchOptions,
+  type FoodSearchResults,
+} from './foodUseCases'
+
+export {
+  AddFoodToMealUseCase,
+  ChangeMealEntryQuantityUseCase,
+  DeleteMealUseCase,
   GetMealUseCase,
   GetRecentPortionsUseCase,
-  GetWeekPlanUseCase,
   MarkMealConsumedUseCase,
   PlanMealForMembersUseCase,
   RefreshPlannedMealsUseCase,
@@ -60,21 +63,25 @@ export {
   RescalePlannedMealsUseCase,
   RescheduleMealUseCase,
   SaveMealDraftUseCase,
-  UpdateCustomFoodUseCase,
   type AddFoodInput,
   type MealDraftLine,
-  type SaveMealDraftInput,
-  type CustomFoodInput,
-  type DailyConsumption,
-  type DailyJournal,
-  type FoodSearchOptions,
-  type FoodSearchResults,
-  type InventoryError,
-  type InventoryExport,
   type MealGuest,
   type MealSchedule,
   type PlanForMembersInput,
-  type PlannedDay,
   type RecentPortion,
+  type SaveMealDraftInput,
+} from './mealUseCases'
+
+export {
+  ExportInventoryUseCase,
+  GetConsumptionHistoryUseCase,
+  GetDailyJournalUseCase,
+  GetWeekPlanUseCase,
+  type DailyConsumption,
+  type DailyJournal,
+  type InventoryExport,
+  type PlannedDay,
   type WeekPlan,
-} from './useCases'
+} from './journalUseCases'
+
+export type { InventoryError } from './shared'

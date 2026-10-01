@@ -83,6 +83,14 @@ export default tseslint.config(
        * les composants distinguent volontairement de « valeur vide ».
        */
       'vue/require-default-prop': 'off',
+
+      /**
+       * Un composant employé sans être importé ne fait échouer ni le build ni
+       * `vue-tsc` : Vue le cherche à l'exécution, ne le trouve pas, et rend une
+       * balise vide avec un simple avertissement. Seuls les composants du
+       * routeur, enregistrés globalement, sont connus sans import.
+       */
+      'vue/no-undef-components': ['error', { ignorePatterns: ['RouterLink', 'RouterView'] }],
     },
   },
   {

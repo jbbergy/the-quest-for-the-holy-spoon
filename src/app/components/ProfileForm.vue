@@ -15,8 +15,9 @@
  * Les bornes physiologiques restent celles du domaine : le formulaire vérifie
  * que rien ne manque, le use case que tout est plausible.
  */
-import { computed, nextTick, reactive, ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 
+import { focusFirstInvalid } from '@/app/focusInvalid'
 import { GLOSSARY } from '@/app/glossary'
 import { ACTIVITY_OPTIONS, AVOID_OPTIONS, DIET_OPTIONS, SEX_OPTIONS } from '@/app/profileOptions'
 import { t } from '@/i18n'
@@ -116,8 +117,7 @@ function toggleRestriction(value: DietaryRestriction): void {
 async function submit(): Promise<void> {
   errors.value = validate()
   if (form.biologicalSex === null || form.activityLevel === null || missingCount.value > 0) {
-    await nextTick()
-    root.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+    await focusFirstInvalid(root.value)
     return
   }
   emit('submit', {
@@ -248,7 +248,6 @@ function clear(field: Field): void {
           v-if="errors.biologicalSex"
           id="profile-sex-error"
           class="profile-form__error"
-          role="alert"
         >
           {{ errors.biologicalSex }}
         </p>
@@ -285,7 +284,6 @@ function clear(field: Field): void {
           v-if="errors.activityLevel"
           id="profile-activity-error"
           class="profile-form__error"
-          role="alert"
         >
           {{ errors.activityLevel }}
         </p>

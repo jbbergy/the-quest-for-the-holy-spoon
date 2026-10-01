@@ -117,6 +117,8 @@ describe('Connexion', () => {
     expect(input.attributes('aria-invalid')).toBe('true')
     const describedBy = input.attributes('aria-describedby')!
     expect(wrapper.find(`#${describedBy}`).text()).toContain('Cette adresse e-mail n’est pas correcte')
+    // Le focus y va : c'est lui qui fait lire l'erreur, pas une alerte.
+    expect(document.activeElement).toBe(input.element)
   })
 
   it('offre un mot de passe affichable', async () => {
@@ -160,6 +162,7 @@ describe('Inscription', () => {
       'true',
     )
     expect(wrapper.text()).toContain('Ce mot de passe est trop court')
+    expect(document.activeElement).toBe(wrapper.find('input[autocomplete="new-password"]').element)
   })
 })
 

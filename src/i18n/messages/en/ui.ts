@@ -4,6 +4,7 @@ import type { ui as fr } from '../fr/ui'
 export const ui: Messages<typeof fr> = {
   required: '(required)',
   cancel: 'Cancel',
+  definition: '{term}: {text}',
   infoTip: 'Explanation: {term}',
   source: {
     ciqual: 'Public catalogue',

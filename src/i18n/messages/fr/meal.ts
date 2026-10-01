@@ -3,6 +3,8 @@ export const meal = {
   editor: {
     newMeal: 'Nouveau repas',
     when: 'Quand',
+    changeWhen: 'Modifier',
+    changeWhenSpoken: 'Modifier le jour et le repas',
     day: 'Jour',
     meal: 'Repas',
     inMeal: 'Dans l’assiette',
@@ -64,6 +66,7 @@ export const meal = {
   },
   picker: {
     note: 'Tapez le nom d’un aliment, ou le numéro du {barcode}. L’application cherche dans le {catalogue} et dans les {brands}.',
+    noteTerm: 'la recherche',
     barcode: 'code-barres',
     catalogue: 'catalogue public des aliments',
     brands: 'produits de marque',

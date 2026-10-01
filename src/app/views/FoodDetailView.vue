@@ -144,29 +144,29 @@ const NUTRIENTS = [
       </section>
 
       <section
-        class="group"
+        class="list-group"
         aria-labelledby="portions"
       >
         <h2
           id="portions"
-          class="eyebrow group__title"
+          class="eyebrow list-group__title"
         >
           {{ t('foods.detail.portionsTitle') }}
         </h2>
         <ul
           v-if="food.servings.length > 0"
-          class="rows"
+          class="list-rows"
         >
           <li
             v-for="serving in food.servings"
             :key="serving.label"
-            class="row"
+            class="list-row"
           >
-            <span class="row__label">{{ t('foods.detail.serving', { label: serving.label }) }}</span>
-            <span class="row__value">{{ formatWeight(serving.grams, servingMeasure(serving), food.baseMeasure) }}</span>
+            <span class="list-row__label">{{ t('foods.detail.serving', { label: serving.label }) }}</span>
+            <span class="list-row__value">{{ formatWeight(serving.grams, servingMeasure(serving), food.baseMeasure) }}</span>
           </li>
         </ul>
-        <p class="group__note">
+        <p class="list-group__note">
           <template v-if="food.servings.length === 0">
             {{ food.unit === 'ml' ? t('foods.detail.noServingsMl') : t('foods.detail.noServingsG') }}
           </template>
@@ -178,19 +178,19 @@ const NUTRIENTS = [
 
       <section
         v-if="food.barcode || food.tags.length > 0"
-        class="group"
+        class="list-group"
         aria-labelledby="autres-informations"
       >
         <h2
           id="autres-informations"
-          class="eyebrow group__title"
+          class="eyebrow list-group__title"
         >
           {{ t('foods.detail.otherInfo') }}
         </h2>
-        <div class="rows">
+        <div class="list-rows">
           <p
             v-if="food.barcode"
-            class="row"
+            class="list-row"
           >
             <RichText path="foods.detail.barcode">
               <template #code>
@@ -200,7 +200,7 @@ const NUTRIENTS = [
           </p>
           <ul
             v-if="food.tags.length > 0"
-            class="row food__tags"
+            class="list-row food__tags"
           >
             <li
               v-for="tag in food.tags"
@@ -353,56 +353,10 @@ const NUTRIENTS = [
   }
 }
 
-/* Un groupe : son intitulé, puis une carte de lignes, comme dans les réglages. */
-.group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-
-.group__title {
-  margin: 0 0 0 var(--space-1);
-}
-
-.group__note {
-  margin: 0 var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.rows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-
-  > * + * {
-    border-top: 1px solid var(--color-divider);
-  }
-}
-
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+/* Groupes de lignes (`styles/_list-rows.scss`) : l'intitulé et la valeur aux
+   deux bords. */
+.list-row {
   justify-content: space-between;
-  gap: var(--space-1) var(--space-3);
-  min-height: 3.5rem;
-  margin: 0;
-  padding: var(--space-2) var(--space-4);
-}
-
-.row__label {
-  min-width: 0;
-  overflow-wrap: break-word;
-}
-
-.row__value {
-  color: var(--color-text-muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .food__code {

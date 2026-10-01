@@ -11,7 +11,7 @@ import { Recipe } from '../domain/Recipe'
 import type { IFoodRepository, IMealRepository, IRecipeRepository } from '../domain/repositories'
 
 import { type RecipeSummary, toRecipeSummary } from './readModels'
-import { type InventoryError, loadMeal, saveMeal } from './useCases'
+import { type InventoryError, loadMeal, saveMeal } from './shared'
 
 // --- Recettes ----------------------------------------------------------------
 

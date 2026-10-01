@@ -20,15 +20,16 @@
  * retour (`?retour=`) ramène là d'où l'on vient. La recherche respecte le
  * régime du profil ; ce qu'elle masque est compté, et peut être affiché.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 
 import FoodPicker, { type FoodChoice } from '@/app/components/FoodPicker.vue'
+import MealPlateLines from '@/app/components/MealPlateLines.vue'
 import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
 import RecipesCard from '@/app/components/RecipesCard.vue'
 import { formatDay, MEAL_OPTIONS, mealLabel } from '@/app/mealLabels'
 import { usePageTitle } from '@/app/pageTitle'
-import { formatPortion, measureWord } from '@/app/portionFormat'
+import { formatPortion } from '@/app/portionFormat'
 import { ROUTE } from '@/app/router'
 import { useBackLink } from '@/app/useBackLink'
 import { parseDayKey } from '@/core/day'
@@ -36,8 +37,7 @@ import { useTodayStore } from '@/app/day/useTodayStore'
 import type { FoodItemId, MealId } from '@/core/identity'
 import { numberFormat, t } from '@/i18n'
 import { MealType, type RecipeSummary } from '@/modules/nutrition_inventory/application'
-import { stepOf } from '@/modules/nutrition_inventory/domain/Measure'
-import { type DraftLine, lineCalories } from '@/modules/nutrition_inventory/presentation/mealDraft'
+import type { DraftLine } from '@/modules/nutrition_inventory/presentation/mealDraft'
 import { useMealEditorStore } from '@/modules/nutrition_inventory/presentation/useMealEditorStore'
 import { useRecipeStore } from '@/modules/nutrition_inventory/presentation/useRecipeStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
@@ -46,7 +46,6 @@ import BaseButton from '@/ui/BaseButton.vue'
 import ConfirmButton from '@/ui/ConfirmButton.vue'
 import ConfirmDialog from '@/ui/ConfirmDialog.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
-import FoodSourceTag from '@/ui/FoodSourceTag.vue'
 import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
 
 const route = useRoute()
@@ -82,6 +81,21 @@ const title = computed(() =>
       }),
 )
 usePageTitle(title)
+
+/**
+ * Un nouveau repas arrive avec son jour et son type déjà choisis (depuis la
+ * semaine, ou d'après l'heure) : ils tiennent sur une ligne, et la recherche
+ * d'aliment reste dans le premier écran. « Modifier » déplie les choix.
+ */
+const editingWhen = ref(false)
+const whenFolded = computed(() => isNew.value && !editingWhen.value)
+const dayInput = ref<HTMLInputElement | null>(null)
+
+async function unfoldWhen(): Promise<void> {
+  editingWhen.value = true
+  await nextTick()
+  dayInput.value?.focus()
+}
 
 function isMealType(value: unknown): value is MealType {
   return Object.values(MealType).includes(value as MealType)
@@ -210,40 +224,6 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
   }
 }
 
-/** Quantité d'une ligne dans sa mesure : entière en grammes, au centième en portions. */
-function amountOf(line: DraftLine): number {
-  const amount = line.grams / line.measure.grams
-  return line.measure.countable ? Math.round(amount * 100) / 100 : Math.round(amount)
-}
-
-function unitOf(line: DraftLine): string {
-  return measureWord(line.measure, line.grams / line.measure.grams)
-}
-
-/**
- * Corrige une quantité saisie dans la mesure de la ligne : « 3 » tranches,
- * converties en grammes. Sur `change`, pas à chaque frappe ; une valeur vide
- * ou nulle est ignorée — la personne est en train de retaper son nombre.
- */
-function typeAmount(line: DraftLine, raw: string): void {
-  const value = Number.parseFloat(raw)
-  if (!Number.isFinite(value) || value <= 0) return
-  editor.changeGrams(line.key, value * line.measure.grams)
-}
-
-/** On descend d'un pas tant qu'il reste au moins un pas : jamais à zéro. */
-function canDecrease(line: DraftLine): boolean {
-  const size = stepOf(line.measure)
-  return amountOf(line) - size >= size
-}
-
-/** Un pas de plus ou de moins : la demi-portion, ou 5 g. */
-function step(line: DraftLine, direction: 1 | -1): void {
-  if (direction === -1 && !canDecrease(line)) return
-  const next = amountOf(line) + direction * stepOf(line.measure)
-  editor.changeGrams(line.key, next * line.measure.grams)
-}
-
 function removeLine(line: DraftLine): void {
   editor.removeLine(line.key)
   feedback.value = t('meal.editor.foodRemoved', { food: line.foodName })
@@ -308,9 +288,31 @@ async function remove(): Promise<void> {
         {{ t('meal.editor.when') }}
       </h2>
 
-      <label class="editor__day">
+      <div
+        v-if="whenFolded"
+        class="editor__when-summary"
+      >
+        <p class="editor__when-text">
+          {{ t('week.mealOnDay', { meal: mealLabel(editor.schedule.type), day: formatDay(editor.schedule.plannedFor) }) }}
+        </p>
+        <BaseButton
+          class="editor__when-change"
+          variant="ghost"
+          size="sm"
+          @click="unfoldWhen"
+        >
+          <span aria-hidden="true">{{ t('meal.editor.changeWhen') }}</span>
+          <span class="sr-only">{{ t('meal.editor.changeWhenSpoken') }}</span>
+        </BaseButton>
+      </div>
+
+      <label
+        v-if="!whenFolded"
+        class="editor__day"
+      >
         <span class="editor__day-label">{{ t('meal.editor.day') }}</span>
         <input
+          ref="dayInput"
           type="date"
           :value="editor.schedule.plannedFor"
           :disabled="editor.isLocked"
@@ -318,7 +320,10 @@ async function remove(): Promise<void> {
         >
       </label>
 
-      <fieldset class="editor__types">
+      <fieldset
+        v-if="!whenFolded"
+        class="editor__types"
+      >
         <legend class="sr-only">
           {{ t('meal.editor.meal') }}
         </legend>
@@ -362,79 +367,13 @@ async function remove(): Promise<void> {
         {{ t('meal.editor.emptyPlate') }}
       </p>
 
-      <ul
+      <MealPlateLines
         v-else
-        class="editor__entries"
-      >
-        <li
-          v-for="line in lines"
-          :key="line.key"
-          class="editor__entry"
-        >
-          <div class="editor__entry-head">
-            <span class="editor__entry-name">{{ line.foodName }}</span>
-            <span class="editor__entry-kcal">{{ kcal(lineCalories(line)) }} kcal</span>
-          </div>
-          <FoodSourceTag
-            v-if="line.source"
-            :source="line.source"
-          />
-
-          <div
-            v-if="!editor.isLocked"
-            class="editor__entry-controls"
-          >
-            <div class="stepper">
-              <button
-                type="button"
-                class="stepper__button"
-                :disabled="!canDecrease(line)"
-                @click="step(line, -1)"
-              >
-                <AppIcon name="minus" />
-                <span class="sr-only">{{ t('meal.portion.decrease') }} : {{ line.foodName }}</span>
-              </button>
-              <label class="stepper__field">
-                <span class="sr-only">{{ t('meal.editor.portionOf', { food: line.foodName, unit: line.measure.label }) }}</span>
-                <input
-                  type="number"
-                  inputmode="decimal"
-                  :min="line.measure.countable ? 0.25 : 1"
-                  :step="line.measure.countable ? 0.25 : 1"
-                  :value="amountOf(line)"
-                  @change="typeAmount(line, ($event.target as HTMLInputElement).value)"
-                >
-                <span
-                  class="stepper__unit"
-                  aria-hidden="true"
-                >{{ unitOf(line) }}</span>
-              </label>
-              <button
-                type="button"
-                class="stepper__button"
-                @click="step(line, 1)"
-              >
-                <AppIcon name="plus" />
-                <span class="sr-only">{{ t('meal.portion.increase') }} : {{ line.foodName }}</span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              class="editor__remove"
-              @click="removeLine(line)"
-            >
-              <AppIcon name="close" />
-              <span class="sr-only">{{ t('meal.editor.remove', { food: line.foodName }) }}</span>
-            </button>
-          </div>
-
-          <span
-            v-else
-            class="editor__entry-amount"
-          >{{ formatPortion(line.grams / line.measure.grams, line.measure) }}</span>
-        </li>
-      </ul>
+        :lines="lines"
+        :locked="editor.isLocked"
+        @change-grams="editor.changeGrams"
+        @remove="removeLine"
+      />
 
       <p
         v-if="editor.isLocked"
@@ -657,6 +596,30 @@ async function remove(): Promise<void> {
   color: var(--color-text-muted);
 }
 
+/* Replié : la même carte que le jour, avec le repas écrit en entier. */
+.editor__when-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  min-height: 3.25rem;
+  padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+
+.editor__when-text {
+  margin: 0;
+  font-weight: 700;
+}
+
+/* Passé à la ligne sur un écran étroit, le bouton reste au bord droit. */
+.editor__when-change {
+  margin-left: auto;
+}
+
 .editor__types {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -735,128 +698,6 @@ async function remove(): Promise<void> {
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-}
-
-.editor__entries {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-}
-
-.editor__entry {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
-  padding: var(--space-4);
-
-  & + & {
-    border-top: 1px solid var(--color-divider);
-  }
-}
-
-.editor__entry-head {
-  display: flex;
-  align-self: stretch;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.editor__entry-name {
-  font-weight: 700;
-  overflow-wrap: break-word;
-}
-
-.editor__entry-kcal {
-  flex-shrink: 0;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.editor__entry-amount {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.editor__entry-controls {
-  display: flex;
-  align-self: stretch;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-/* − quantité + : les boutons ronds de 44 px encadrent le champ. */
-.stepper {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-pill);
-  background: var(--color-surface-raised);
-}
-
-.stepper__button {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text);
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: var(--color-surface);
-  }
-
-  &:disabled {
-    color: var(--color-text-muted);
-    cursor: not-allowed;
-  }
-}
-
-.stepper__field {
-  display: inline-flex;
-  align-items: baseline;
-  gap: var(--space-1);
-
-  input {
-    width: 3.5rem;
-    min-height: 44px;
-    border: none;
-    background: transparent;
-    color: var(--color-text);
-    font: inherit;
-    font-weight: 700;
-    text-align: right;
-  }
-}
-
-.stepper__unit {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-}
-
-.editor__remove {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--color-text-muted);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--color-danger-soft);
-    color: var(--color-danger-strong);
-  }
 }
 
 .editor__feedback {

@@ -11,6 +11,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { useAccountFormErrors } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
+import { focusFirstInvalid } from '@/app/focusInvalid'
 import { returnPath, ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
 import { t } from '@/i18n'
@@ -35,7 +36,10 @@ const password = ref('')
 onMounted(() => account.clearError())
 
 async function submit(): Promise<void> {
-  if (!(await account.signIn({ email: email.value, password: password.value }))) return
+  if (!(await account.signIn({ email: email.value, password: password.value }))) {
+    await focusFirstInvalid()
+    return
+  }
 
   await connect()
   if (players.player === null) {

@@ -107,6 +107,7 @@ function currentness(link: Destination): 'page' | 'true' | undefined {
  */
 const BARE_ROUTES: readonly string[] = [
   ROUTE.splash,
+  ROUTE.notFound,
   ROUTE.auth,
   ROUTE.profileSetup,
   ...ACCOUNT_ROUTES,

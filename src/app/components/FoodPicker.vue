@@ -23,7 +23,7 @@ import { dietLabel, dietsOf } from '@/app/profileOptions'
 import { ROUTE } from '@/app/router'
 import { foodAuthor, useHousehold } from '@/app/useHousehold'
 import type { FoodItemId } from '@/core/identity'
-import { lower, t } from '@/i18n'
+import { lower, t, upperFirst } from '@/i18n'
 import {
   DietSuitability,
   type RecentPortion,
@@ -42,7 +42,6 @@ import ErrorNotice from '@/ui/ErrorNotice.vue'
 import FilterChips from '@/ui/FilterChips.vue'
 import FoodSourceTag from '@/ui/FoodSourceTag.vue'
 import InfoTip from '@/ui/InfoTip.vue'
-import RichText from '@/ui/RichText.vue'
 
 export interface FoodChoice {
   readonly food: FoodItem
@@ -90,6 +89,17 @@ const portion = ref<{ readonly grams: number; readonly measure: Measure } | null
 const selectedId = ref<FoodItemId | null>(props.preselect)
 /** Montrer aussi les aliments masqués par le régime : un marqueur peut se tromper. */
 const showExcluded = ref(false)
+
+/** Les trois mots de la phrase d'aide, expliqués dans une seule bulle. */
+const noteHelp = computed(() =>
+  [
+    { term: 'labels.term.barcode', text: GLOSSARY.barcode },
+    { term: 'labels.term.publicCatalogue', text: GLOSSARY.ciqual },
+    { term: 'labels.term.brandProducts', text: GLOSSARY.openFoodFacts },
+  ]
+    .map(({ term, text }) => t('ui.definition', { term: upperFirst(t(term)), text }))
+    .join('\n\n'),
+)
 
 const diets = computed(() => dietsOf(players.needs?.restrictions ?? []))
 
@@ -268,27 +278,13 @@ async function createFood(): Promise<void> {
   <div class="picker">
     <ErrorNotice :error="search.error" />
 
+    <!-- Un seul « ? » pour la phrase : trois, c'était trois arrêts de
+         tabulation avant le champ, et une phrase hachée à l'œil. -->
     <p class="picker__note">
-      <RichText path="meal.picker.note">
-        <template #barcode>
-          {{ t('meal.picker.barcode') }}<InfoTip
-            :term="t('labels.term.barcode')"
-            :text="GLOSSARY.barcode"
-          />
-        </template>
-        <template #catalogue>
-          {{ t('meal.picker.catalogue') }}<InfoTip
-            :term="t('labels.term.publicCatalogue')"
-            :text="GLOSSARY.ciqual"
-          />
-        </template>
-        <template #brands>
-          {{ t('meal.picker.brands') }}<InfoTip
-            :term="t('labels.term.brandProducts')"
-            :text="GLOSSARY.openFoodFacts"
-          />
-        </template>
-      </RichText>
+      {{ t('meal.picker.note', { barcode: t('meal.picker.barcode'), catalogue: t('meal.picker.catalogue'), brands: t('meal.picker.brands') }) }}<InfoTip
+        :term="t('meal.picker.noteTerm')"
+        :text="noteHelp"
+      />
     </p>
 
     <!-- La recherche part à la validation, pas à chaque lettre : elle

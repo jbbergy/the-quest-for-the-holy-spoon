@@ -19,7 +19,7 @@ import BaseButton from '@/ui/BaseButton.vue'
 import ErrorNotice from '@/ui/ErrorNotice.vue'
 import RichText from '@/ui/RichText.vue'
 
-import { formatDay } from './householdFormat'
+import { formatDay } from '@/app/household/householdFormat'
 
 const route = useRoute()
 const router = useRouter()

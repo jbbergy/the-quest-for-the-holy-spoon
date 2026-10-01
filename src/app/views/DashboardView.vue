@@ -54,10 +54,15 @@ onMounted(load)
 const { remoteRevision } = useSyncStatus()
 watch([remoteRevision, () => players.playerId, () => clock.today], load)
 
-/** Le conseil, en phrases courtes, avec des exemples qui respectent le régime. */
+/**
+ * Le conseil, en phrases courtes, avec des exemples qui respectent le régime.
+ *
+ * Rien tant qu'aucun repas n'est mangé : il ne ferait que redire la jauge
+ * (« il vous manque 282 g de glucides ») à une journée qui n'a pas commencé.
+ */
 const advice = computed(() => {
   const suggestion = tracking.suggestion.value
-  if (suggestion === null) return []
+  if (suggestion === null || journal.consumedMeals.length === 0) return []
   return adviceFor(suggestion, players.needs?.restrictions ?? [])
 })
 
@@ -193,7 +198,9 @@ const newMeal = computed(() => ({
             </li>
           </ol>
         </section>
+      </template>
 
+      <template #after-nutrients>
         <aside
           v-if="advice.length > 0"
           class="day-advice advice"

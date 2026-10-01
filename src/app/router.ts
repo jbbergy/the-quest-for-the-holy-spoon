@@ -39,6 +39,7 @@ export const ROUTE = {
   verifyEmail: 'verify-email',
   forgotPassword: 'forgot-password',
   resetPassword: 'reset-password',
+  notFound: 'not-found',
 } as const
 
 /** Écrans de compte : plein écran, accessibles avec ou sans profil. */
@@ -53,6 +54,7 @@ export const ACCOUNT_ROUTES: readonly string[] = [
 /** Routes accessibles sans profil : tout le reste exige l'onboarding. */
 const PUBLIC_ROUTES: readonly string[] = [
   ROUTE.splash,
+  ROUTE.notFound,
   ROUTE.auth,
   ROUTE.profileSetup,
   ...ACCOUNT_ROUTES,
@@ -243,7 +245,13 @@ export function createAppRouter(): Router {
         meta: { title: 'shell.titles.resetPassword' },
         component: () => import('./views/account/ResetPasswordView.vue'),
       },
-      { path: '/:pathMatch(.*)*', redirect: { name: ROUTE.splash } },
+      {
+        // Adresse inconnue : on le dit, plutôt que de renvoyer sans un mot à l'accueil.
+        path: '/:pathMatch(.*)*',
+        name: ROUTE.notFound,
+        meta: { title: 'shell.titles.notFound' },
+        component: () => import('./views/NotFoundView.vue'),
+      },
     ],
   })
 

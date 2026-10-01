@@ -39,6 +39,7 @@ export const shell: Messages<typeof fr> = {
     verifyEmail: 'Confirm my email address',
     forgotPassword: 'Forgot password',
     resetPassword: 'New password',
+    notFound: 'Page not found',
   },
   sync: {
     syncing: 'Sending…',
@@ -65,9 +66,17 @@ export const shell: Messages<typeof fr> = {
       'The search for brand products is not responding. It is often overloaded. The list only shows foods from the public catalogue: some may be missing.',
     offline:
       'You are not connected to the internet. The list only shows foods from the public catalogue. Brand products will come back with the connection.',
+    reconnected:
+      'The connection is back: brand products can be searched again.',
     barcodeHint:
       'Looking for a brand product? Try its barcode number: it goes through another service, which almost always responds.',
     retry: 'Search again',
+  },
+  notFound: {
+    title: 'Page not found',
+    intro:
+      'This address does not lead to any screen of the app. The link may be old, or it was cut off when copied.',
+    home: 'Go to the home screen',
   },
   account: {
     otherOptions: 'Other options',

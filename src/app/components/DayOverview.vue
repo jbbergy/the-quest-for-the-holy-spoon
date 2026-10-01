@@ -3,17 +3,18 @@
  * Apports d'une journée face aux repères, et bilan des sept jours précédents.
  *
  * Dans l'ordre où on les cherche : ce qui reste à manger (l'anneau et un
- * chiffre), les nutriments en barres fines, puis les limites, puis la
- * semaine. Chaque barre a son chiffre écrit à côté ; les barres elles-mêmes
+ * chiffre), les repas du jour, les nutriments en barres fines, puis les
+ * limites, puis la semaine. Les repas passent avant les nutriments : sur un
+ * téléphone, « Ajouter un repas » arrivait sinon un écran et demi plus bas. Chaque barre a son chiffre écrit à côté ; les barres elles-mêmes
  * sont décoratives. Le détail des moyennes par nutriment, et jour par jour,
  * reste à portée dans une section repliée.
  *
  * Sert à son propre accueil comme à la journée d'un membre du foyer. Le
  * composant ne lit aucun store : tout arrive en props, déjà calculé par les
  * use cases — il affiche, il ne compte pas. L'emplacement `after-calories`
- * reçoit ce qui doit suivre les calories : les repas du jour, puis le conseil.
- * Ses éléments se placent sur la grille par leur classe (`day-meals`,
- * `day-advice`) quand la place permet deux colonnes.
+ * reçoit les repas du jour, `after-nutrients` le conseil. Leurs éléments se
+ * placent sur la grille par leur classe (`day-meals`, `day-advice`) quand la
+ * place permet deux colonnes.
  */
 import { computed, useId } from 'vue'
 
@@ -55,7 +56,7 @@ const props = defineProps<{
   member?: boolean
 }>()
 
-const ids = { summary: useId(), limits: useId(), recent: useId() }
+const ids = { summary: useId(), nutrients: useId(), limits: useId(), recent: useId() }
 
 type Reading = 'target' | 'floor' | 'limit'
 
@@ -292,11 +293,21 @@ function describeDay(day: DayBalance): string {
             </p>
           </div>
         </div>
+      </section>
 
-        <ul
-          class="day__macros"
-          :aria-label="t('dashboard.overview.macrosLabel')"
+      <slot name="after-calories" />
+
+      <section
+        class="day__nutrients"
+        :aria-labelledby="ids.nutrients"
+      >
+        <h2
+          :id="ids.nutrients"
+          class="day__nutrients-title"
         >
+          {{ t('dashboard.overview.macrosLabel') }}
+        </h2>
+        <ul class="day__macros">
           <li
             v-for="key in MACROS"
             :key="key"
@@ -317,7 +328,7 @@ function describeDay(day: DayBalance): string {
         </ul>
       </section>
 
-      <slot name="after-calories" />
+      <slot name="after-nutrients" />
 
       <section
         class="day__limits"
@@ -470,8 +481,10 @@ function describeDay(day: DayBalance): string {
   font-size: var(--font-size-sm);
 }
 
-/* Synthèse : l'anneau, ce qui reste, puis les nutriments. */
-.day__summary {
+/* Synthèse : l'anneau et ce qui reste. Les nutriments ont leur propre carte,
+   après les repas. */
+.day__summary,
+.day__nutrients {
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
@@ -524,8 +537,18 @@ function describeDay(day: DayBalance): string {
   white-space: nowrap;
 }
 
-.day__summary {
+.day__summary,
+.day__nutrients {
   container-type: inline-size;
+}
+
+/* Même voix que « Il vous reste » : un intitulé de carte, pas un titre. */
+.day .day__nutrients-title {
+  color: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  letter-spacing: normal;
 }
 
 .day__macros {
@@ -713,14 +736,16 @@ function describeDay(day: DayBalance): string {
   }
 }
 
-/* Grand écran : la synthèse et la semaine à gauche, les repas à droite, puis
-   les limites et le conseil côte à côte. L'ordre de lecture ne change pas. */
+/* Grand écran : la synthèse et les nutriments à gauche, les repas à droite,
+   puis la semaine, les limites et le conseil côte à côte. L'ordre de lecture
+   ne change pas. */
 @container (width >= 56rem) {
   .day {
     display: grid;
     grid-template-columns: 5fr 4fr 3fr;
     grid-template-areas:
       'summary meals meals'
+      'nutrients meals meals'
       'recent limits advice';
     align-items: start;
     gap: var(--space-6);
@@ -728,6 +753,11 @@ function describeDay(day: DayBalance): string {
 
   .day__summary {
     grid-area: summary;
+    padding: var(--space-6);
+  }
+
+  .day__nutrients {
+    grid-area: nutrients;
     padding: var(--space-6);
   }
 

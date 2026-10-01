@@ -7,7 +7,7 @@ import {
   AddFoodToMealUseCase,
   ChangeMealEntryQuantityUseCase,
   MarkMealConsumedUseCase,
-} from '@/modules/nutrition_inventory/application/useCases'
+} from '@/modules/nutrition_inventory/application'
 import {
   AddRecipeToMealUseCase,
   ChangeRecipeLineQuantityUseCase,

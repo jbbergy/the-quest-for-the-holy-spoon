@@ -65,6 +65,22 @@ afterEach(() => {
   document.body.innerHTML = ''
 })
 
+describe('FoodPicker — aide', () => {
+  it('explique les trois mots de la phrase d’aide dans une seule bulle', async () => {
+    const wrapper = await searchWith(true)
+    const tips = wrapper.findAll('.picker__note .tip__button')
+
+    expect(tips).toHaveLength(1)
+    expect(tips[0]!.attributes('aria-label')).toBe('Explication : la recherche')
+
+    await tips[0]!.trigger('click')
+    const bubble = wrapper.get('.picker__note .tip__bubble').text()
+    expect(bubble).toContain('Code-barres : ')
+    expect(bubble).toContain('Catalogue public : ')
+    expect(bubble).toContain('Produits de marque : ')
+  })
+})
+
 describe('FoodPicker — recherche sans résultat', () => {
   it('Open Food Facts a répondu : « aucun aliment trouvé », sans bandeau', async () => {
     const wrapper = await searchWith(true)

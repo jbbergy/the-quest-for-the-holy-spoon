@@ -39,6 +39,7 @@ export const shell = {
     verifyEmail: 'Confirmer mon adresse',
     forgotPassword: 'Mot de passe oublié',
     resetPassword: 'Nouveau mot de passe',
+    notFound: 'Page introuvable',
   },
   sync: {
     syncing: 'Envoi…',
@@ -65,9 +66,17 @@ export const shell = {
       'La recherche des produits de marque ne répond pas. Elle est souvent surchargée. La liste montre seulement les aliments du catalogue public : il peut en manquer.',
     offline:
       'Vous n’êtes pas connecté à Internet. La liste montre seulement les aliments du catalogue public. Les produits de marque reviendront avec la connexion.',
+    reconnected:
+      'La connexion est revenue : les produits de marque peuvent de nouveau être cherchés.',
     barcodeHint:
       'Vous cherchez un produit de marque ? Essayez avec le numéro du code-barres : il passe par un autre service, qui répond presque toujours.',
     retry: 'Chercher de nouveau',
+  },
+  notFound: {
+    title: 'Page introuvable',
+    intro:
+      'Cette adresse ne mène à aucun écran de l’application. Le lien est peut-être ancien, ou il a été coupé en le copiant.',
+    home: 'Aller à l’accueil',
   },
   account: {
     otherOptions: 'Autres options',

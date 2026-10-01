@@ -12,6 +12,7 @@ import { RouterLink } from 'vue-router'
 
 import { newPasswordHint, useAccountFormErrors } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
+import { focusFirstInvalid } from '@/app/focusInvalid'
 import { ROUTE } from '@/app/router'
 import { t } from '@/i18n'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
@@ -36,7 +37,10 @@ const isDev = import.meta.env.DEV
 onMounted(() => account.clearError())
 
 async function submit(): Promise<void> {
-  if (!(await account.signUp({ email: email.value, password: password.value }))) return
+  if (!(await account.signUp({ email: email.value, password: password.value }))) {
+    await focusFirstInvalid()
+    return
+  }
 
   sentTo.value = email.value.trim().toLowerCase()
   password.value = ''

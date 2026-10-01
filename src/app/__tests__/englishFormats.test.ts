@@ -8,7 +8,7 @@ import { MEAL_OPTIONS, formatDay, formatWeek, mealLabel } from '@/app/mealLabels
 import { formatPortion, formatWeight, pluralize } from '@/app/portionFormat'
 import { dietLabel } from '@/app/profileOptions'
 import { formatShoppingQuantity } from '@/app/shopping/shoppingFormat'
-import { formatDay as formatShortDay, nameParams } from '@/app/views/householdFormat'
+import { formatDay as formatShortDay, nameParams } from '@/app/household/householdFormat'
 import { GLOSSARY } from '@/app/glossary'
 import { tagLabel } from '@/app/foodTags'
 import { setCurrentLocale, t } from '@/i18n'

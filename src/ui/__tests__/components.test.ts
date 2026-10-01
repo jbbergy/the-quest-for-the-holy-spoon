@@ -6,6 +6,7 @@ import AppIcon from '@/ui/AppIcon.vue'
 import BaseButton from '@/ui/BaseButton.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import BaseField from '@/ui/BaseField.vue'
+import ConfirmButton from '@/ui/ConfirmButton.vue'
 import InfoTip from '@/ui/InfoTip.vue'
 import MealConsumedToggle from '@/ui/MealConsumedToggle.vue'
 import RingGauge from '@/ui/RingGauge.vue'
@@ -128,11 +129,14 @@ describe('BaseField', () => {
     })
 
     const describedBy = wrapper.find('input').attributes('aria-describedby')
-    const errorId = wrapper.find('[role="alert"]').attributes('id')
+    const errorId = wrapper.find('.field__error').attributes('id')
 
     expect(describedBy).toBeTruthy()
     expect(describedBy?.split(' ')).toContain(errorId)
     expect(wrapper.find('input').attributes('aria-invalid')).toBe('true')
+    // Pas d'alerte par champ : plusieurs à la fois, un lecteur d'écran n'en
+    // lirait qu'une. Le formulaire place le focus sur le premier champ faux.
+    expect(wrapper.find('[role="alert"]').exists()).toBe(false)
   })
 
   it('rattache aussi l’indication d’aide', () => {
@@ -420,6 +424,45 @@ describe('InfoTip', () => {
     document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }))
     await flushPromises()
     expect(wrapper.find('button').attributes('aria-expanded')).toBe('false')
+    wrapper.unmount()
+  })
+})
+
+describe('ConfirmButton', () => {
+  const mountButton = () =>
+    mount(ConfirmButton, {
+      props: { question: 'Supprimer ce repas ?', confirmLabel: 'Supprimer' },
+      slots: { default: 'Supprimer le repas' },
+      attachTo: document.body,
+    })
+
+  it('rend le focus au bouton après la confirmation', async () => {
+    const wrapper = mountButton()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    expect(document.activeElement).toBe(wrapper.get('[data-confirm]').element)
+
+    await wrapper.get('[data-confirm]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('confirm')).toHaveLength(1)
+    expect(document.activeElement).toBe(wrapper.get('button').element)
+    expect(wrapper.get('button').text()).toBe('Supprimer le repas')
+    wrapper.unmount()
+  })
+
+  it('rend le focus au bouton après l’annulation', async () => {
+    const wrapper = mountButton()
+
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+    const cancel = wrapper.findAll('button').find((button) => button.text() === 'Annuler')!
+    await cancel.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.emitted('confirm')).toBeUndefined()
+    expect(document.activeElement).toBe(wrapper.get('button').element)
     wrapper.unmount()
   })
 })

@@ -2,6 +2,7 @@
 export const ui = {
   required: '(obligatoire)',
   cancel: 'Annuler',
+  definition: '{term} : {text}',
   infoTip: 'Explication : {term}',
   source: {
     ciqual: 'Catalogue public',

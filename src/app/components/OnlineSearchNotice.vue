@@ -8,34 +8,57 @@
  * sur deux aux heures chargées. Un nouvel essai quelques secondes plus tard a
  * alors de bonnes chances d'aboutir, et le code-barres, servi par une autre
  * API, reste disponible.
+ *
+ * Si la connexion revient pendant que le bandeau est affiché, il le dit et
+ * propose de relancer : sans cela, il resterait sur « pas connecté » alors
+ * qu'une nouvelle recherche aboutirait.
  */
-import { computed } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 
 import { useContainer } from '@/app/container'
 import { t } from '@/i18n'
 import BaseButton from '@/ui/BaseButton.vue'
 
-defineProps<{ busy: boolean }>()
+const props = defineProps<{ busy: boolean }>()
 const emit = defineEmits<{ retry: [] }>()
 
-// Lu au rendu, c'est-à-dire juste après la recherche qui a échoué : c'est
-// l'état du réseau à ce moment-là qui explique l'échec.
-const online = computed(() => useContainer().network.isOnline())
+const network = useContainer().network
+
+/** L'état du réseau quand la recherche a échoué : c'est lui qui explique l'échec. */
+const failedOffline = ref(!network.isOnline())
+/** L'état du réseau maintenant. */
+const online = ref(network.isOnline())
+
+onBeforeUnmount(network.subscribe((value) => (online.value = value)))
+
+// Une relance vient d'échouer à son tour : sa cause remplace la précédente.
+watch(
+  () => props.busy,
+  (busy, wasBusy) => {
+    if (wasBusy && !busy) failedOffline.value = !network.isOnline()
+  },
+)
 </script>
 
 <template>
   <div class="online-notice">
     <p class="online-notice__text">
       <span aria-hidden="true">⌁</span>
-      <template v-if="online">
-        {{ t('shell.onlineSearch.unavailable') }}
+      <template v-if="!online">
+        {{ t('shell.onlineSearch.offline') }}
+      </template>
+      <template v-else-if="failedOffline">
+        {{ t('shell.onlineSearch.reconnected') }}
       </template>
       <template v-else>
-        {{ t('shell.onlineSearch.offline') }}
+        {{ t('shell.onlineSearch.unavailable') }}
       </template>
     </p>
     <template v-if="online">
-      <p class="online-notice__hint">
+      <p
+        v-if="!failedOffline"
+        class="online-notice__hint"
+      >
         {{ t('shell.onlineSearch.barcodeHint') }}
       </p>
       <BaseButton

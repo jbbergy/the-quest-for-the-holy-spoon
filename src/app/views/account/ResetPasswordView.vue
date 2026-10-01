@@ -11,6 +11,7 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { newPasswordHint, tokenFromHash, useAccountFormErrors } from '@/app/accountForm'
 import AccountLayout from '@/app/components/AccountLayout.vue'
+import { focusFirstInvalid } from '@/app/focusInvalid'
 import { ROUTE } from '@/app/router'
 import { useAccountSync } from '@/app/useAccountSync'
 import { t } from '@/i18n'
@@ -41,7 +42,10 @@ onMounted(async () => {
 
 async function submit(): Promise<void> {
   if (token.value === null) return
-  if (!(await account.resetPassword({ token: token.value, password: password.value }))) return
+  if (!(await account.resetPassword({ token: token.value, password: password.value }))) {
+    await focusFirstInvalid()
+    return
+  }
 
   await connect()
   await router.push({ name: players.player === null ? ROUTE.profileSetup : ROUTE.dashboard })
