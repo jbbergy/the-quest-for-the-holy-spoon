@@ -279,7 +279,7 @@ watch(
       </main>
     </div>
 
-    <ServiceWorkerNotice />
+    <ServiceWorkerNotice class="shell__notice" />
   </div>
 </template>
 
@@ -376,6 +376,12 @@ $wide: 64rem;
   display: none;
 }
 
+/* L'annonce de mise à jour, entre le contenu et la barre d'onglets. */
+.shell__notice {
+  flex-shrink: 0;
+  order: 1;
+}
+
 /* Sous la zone qui défile, dans la colonne : jamais posée par-dessus la page.
    `order` la place en bas sans changer l'ordre de lecture, où elle précède
    le contenu. */
@@ -383,8 +389,12 @@ $wide: 64rem;
   position: relative;
   z-index: 10;
   flex-shrink: 0;
-  order: 1;
-  padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
+  order: 2;
+
+  /* Serrée en hauteur : sur un téléphone étroit, les libellés passent sur
+     deux lignes. En bas, la zone de la barre de gestes d'Android sert déjà
+     de marge : on prend la plus grande des deux, sans les additionner. */
+  padding: var(--space-1) var(--space-2) max(var(--space-1), env(safe-area-inset-bottom, 0px));
   background: var(--color-surface-raised);
   border-top: 1px solid var(--color-border);
 }
@@ -403,9 +413,11 @@ $wide: 64rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
-  min-height: 3.5rem;
-  padding: var(--space-1) 0;
+  gap: 2px;
+
+  /* La cible tactile ne descend pas sous 44 px (critère 2.5.8). */
+  min-height: 44px;
+  padding: 2px 0;
   border-radius: var(--radius-md);
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
@@ -435,7 +447,7 @@ $wide: 64rem;
   align-items: center;
   justify-content: center;
   width: min(3.5rem, 100%);
-  height: 2rem;
+  height: 1.75rem;
   border-radius: var(--radius-pill);
 }
 
@@ -554,6 +566,7 @@ $wide: 64rem;
 
   .shell__icon {
     width: 2rem;
+    height: 2rem;
   }
 
   .shell__badge {

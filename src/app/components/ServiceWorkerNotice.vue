@@ -81,17 +81,31 @@ const mode = computed<'update' | 'offline' | null>(() => {
 
 <style scoped lang="scss">
 .sw-notice {
-  position: fixed;
-  right: 0;
-  /* Au-dessus de la barre de navigation, jamais par-dessus : celle-ci doit
-     rester atteignable pendant que l'annonce est affichée. */
-  bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px) + 4rem);
-  left: 0;
+  /* Téléphone : dans la colonne de l'application, juste au-dessus de la barre
+     d'onglets (la coquille la range là). Elle prend sa place au lieu de se
+     poser par-dessus : la barre reste atteignable, quelle que soit sa
+     hauteur — deux lignes de libellés, la zone de la barre de gestes. */
+  position: relative;
   z-index: 20;
   display: flex;
   justify-content: center;
   padding: 0 var(--space-4);
   pointer-events: none;
+
+  &:has(.sw-notice__panel) {
+    padding-block: var(--space-2);
+  }
+}
+
+/* Grand écran : la navigation est dans la colonne de gauche ; l'annonce flotte
+   en bas de l'écran. */
+@media (min-width: 64rem) {
+  .sw-notice {
+    position: fixed;
+    right: 0;
+    bottom: var(--space-4);
+    left: 0;
+  }
 }
 
 .sw-notice__panel {
