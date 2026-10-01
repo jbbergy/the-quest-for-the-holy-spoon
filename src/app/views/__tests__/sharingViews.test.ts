@@ -93,6 +93,7 @@ async function mountAt(
   router = createRouter({
     history: createMemoryHistory(),
     routes: [
+      { path: '/tableau-de-bord', name: ROUTE.dashboard, component: blank },
       { path: '/foyer', name: ROUTE.household, component: path === '/foyer' ? view : blank },
       { path: '/foyer/membres/:playerId', name: ROUTE.memberDay, component: path.startsWith('/foyer/membres') ? view : blank },
       { path: '/semaine', name: ROUTE.weekPlan, component: path === '/semaine' ? view : blank },
@@ -199,11 +200,14 @@ describe('Foyer — accès aux journées', () => {
   it('ne propose de voir que les journées partagées des autres membres', async () => {
     const wrapper = await mountAt(HouseholdView, '/foyer')
 
-    const links = wrapper.findAll('a').filter((link) => link.text().startsWith('Voir ses journées'))
-    expect(links.map((link) => link.attributes('href'))).toEqual(['/foyer/membres/player-alex'])
-    // Le nom du profil en titre, l'adresse en appoint.
-    expect(wrapper.text()).toContain('Alex')
-    expect(wrapper.text()).toContain('alex@example.fr')
+    const links = wrapper
+      .findAll('.members a')
+      .map((link) => link.attributes('href'))
+      .filter((href) => href?.startsWith('/foyer/membres/'))
+    expect(links).toEqual(['/foyer/membres/player-alex'])
+    // Le nom du profil sur la ligne ; l'adresse là où l'on retire quelqu'un.
+    expect(wrapper.find('.members').text()).toContain('Alex')
+    expect(wrapper.find('.danger').text()).toContain('alex@example.fr')
   })
 })
 

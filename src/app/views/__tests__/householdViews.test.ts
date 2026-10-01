@@ -98,6 +98,7 @@ async function mountAt(
       { path: '/mot-de-passe/oublie', name: ROUTE.forgotPassword, component: blank },
       { path: '/auth', name: ROUTE.auth, component: blank },
       { path: '/foyer', name: ROUTE.household, component: path === '/foyer' ? view : blank },
+      { path: '/foyer/membres/:playerId', name: ROUTE.memberDay, component: blank },
       {
         path: '/foyer/invitations/:invitationId',
         name: ROUTE.invitation,
@@ -157,8 +158,8 @@ describe('Écran Foyer', () => {
       household: { receivedInvitations: succeedsWith([invitation]), create: { execute: create } },
     })
 
-    expect(wrapper.text()).toContain('Chez Sacha')
-    expect(wrapper.text()).toContain('de sacha@example.fr')
+    expect(wrapper.find('h2').text()).toBe('« Chez Sacha »')
+    expect(wrapper.text()).toContain('sacha@example.fr vous invite à le rejoindre.')
 
     await fill(wrapper, 'Nom du foyer', 'Les Martin')
     await wrapper.find('form').trigger('submit')
@@ -166,7 +167,7 @@ describe('Écran Foyer', () => {
 
     expect(create).toHaveBeenCalledWith('Les Martin')
     expect(wrapper.text()).toContain('Le foyer est créé')
-    expect(wrapper.find('h2').text()).toBe('Les Martin')
+    expect(wrapper.text()).toContain('Les Martin · 2 membres')
   })
 
   it('mène à l’écran de réponse d’une invitation', async () => {
@@ -174,7 +175,7 @@ describe('Écran Foyer', () => {
       household: { receivedInvitations: succeedsWith([invitation]) },
     })
 
-    await button(wrapper, 'Répondre').trigger('click')
+    await wrapper.find('a[href="/foyer/invitations/invitation-1"]').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/foyer/invitations/invitation-1')
@@ -184,10 +185,47 @@ describe('Écran Foyer', () => {
     const wrapper = await mountAt(HouseholdView, '/foyer', { household: { get: succeedsWith(owned) } })
 
     expect(wrapper.text()).toContain('Vous êtes responsable de ce foyer.')
-    expect(wrapper.text()).toContain('responsable du foyer, vous')
-    expect(wrapper.text()).toContain('ne montre pas ses journées')
+    const members = wrapper.findAll('.members > li')
+    expect(members[0]!.text()).toContain('Vous')
+    expect(members[0]!.text()).toContain('responsable')
+    expect(members[1]!.text()).toContain('alex@example.fr')
+    expect(members[1]!.text()).toContain('Ne partage pas sa journée')
+    expect(members[1]!.find('a').exists()).toBe(false)
     expect(wrapper.text()).toContain('sacha@example.fr')
     expect(wrapper.text()).toContain('Supprimer le foyer')
+  })
+
+  it('montre ce que chacun a mangé aujourd’hui, s’il partage sa journée', async () => {
+    const shared: Household = {
+      ...owned,
+      members: [owned.members[0]!, { ...owned.members[1]!, name: 'Alex', targetCalories: 1800, sharesDays: true }],
+    }
+    const meals = vi.fn(async () =>
+      ok([
+        { calories: 600, consumedAt: '2026-04-10T12:00:00Z' },
+        { calories: 900, consumedAt: null },
+      ]),
+    )
+    const wrapper = await mountAt(
+      HouseholdView,
+      '/foyer',
+      {
+        household: { get: succeedsWith(shared) },
+        memberDays: { meals },
+        inventory: {
+          journal: succeedsWith({ day: '2026-04-10', meals: [], consumedMeals: [], totalCalories: 1240 }),
+        },
+      },
+    )
+    await flushPromises()
+
+    const [mine, alex] = wrapper.findAll('.members > li')
+    const spoken = (row: typeof mine) => row!.text().replace(/\s/gu, ' ')
+    expect(spoken(mine)).toContain('1 240 kcal mangées sur 2 000')
+    expect(mine!.find('a').attributes('href')).toBe('/tableau-de-bord')
+    // Le repas seulement prévu ne compte pas.
+    expect(spoken(alex)).toContain('600 kcal mangées sur 1 800')
+    expect(alex!.find('a').attributes('href')).toBe('/foyer/membres/player-alex')
   })
 
   it('invite par e-mail et le confirme', async () => {
