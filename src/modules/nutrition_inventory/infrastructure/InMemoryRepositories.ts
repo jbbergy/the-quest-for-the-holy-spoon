@@ -1,13 +1,19 @@
 import { type DayKey, dayKeyOf } from '@/core/day'
 import type { RepositoryError } from '@/core/errors'
-import type { FoodItemId, MealId, PlayerId, RecipeId } from '@/core/identity'
+import type { FavoritePortionId, FoodItemId, MealId, PlayerId, RecipeId } from '@/core/identity'
 import { tokenize } from '@/core/infrastructure/text'
 import { ok, type Result } from '@/core/result'
 
+import type { FavoritePortion } from '../domain/FavoritePortion'
 import type { FoodItem, FoodSource } from '../domain/FoodItem'
 import type { Meal } from '../domain/Meal'
 import type { Recipe } from '../domain/Recipe'
-import type { IFoodRepository, IMealRepository, IRecipeRepository } from '../domain/repositories'
+import type {
+  IFavoritePortionRepository,
+  IFoodRepository,
+  IMealRepository,
+  IRecipeRepository,
+} from '../domain/repositories'
 
 /**
  * Adaptateurs en mémoire.
@@ -154,6 +160,24 @@ export class InMemoryRecipeRepository implements IRecipeRepository {
 
   async delete(id: RecipeId): Promise<Result<void, RepositoryError>> {
     this.recipes.delete(id)
+    return ok(undefined)
+  }
+}
+
+export class InMemoryFavoritePortionRepository implements IFavoritePortionRepository {
+  private readonly portions = new Map<string, FavoritePortion>()
+
+  async findByPlayer(playerId: PlayerId): Promise<Result<FavoritePortion[], RepositoryError>> {
+    return ok([...this.portions.values()].filter((portion) => portion.playerId === playerId))
+  }
+
+  async save(portion: FavoritePortion): Promise<Result<void, RepositoryError>> {
+    this.portions.set(portion.id, portion)
+    return ok(undefined)
+  }
+
+  async delete(id: FavoritePortionId): Promise<Result<void, RepositoryError>> {
+    this.portions.delete(id)
     return ok(undefined)
   }
 }

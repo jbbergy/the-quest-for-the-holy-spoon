@@ -10,8 +10,13 @@
  *
  * Le composant n'émet que des grammes et la mesure choisie : la conversion ne
  * se fait qu'ici, et le domaine continue de ne compter qu'en grammes.
+ *
+ * Les quantités favorites de l'aliment se choisissent d'un geste, au-dessus
+ * du compteur. Quand l'écran le permet (`favoriteable`), un bouton garde la
+ * quantité affichée en favori, ou l'en retire : il émet `toggleFavorite`, et
+ * l'écran l'enregistre et le dit.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
 
 import {
   formatPortion,
@@ -20,18 +25,31 @@ import {
   measureWord,
 } from '@/app/portionFormat'
 import { t } from '@/i18n'
-import type { RecentPortion } from '@/modules/nutrition_inventory/application'
+import {
+  type FavoritePortionSummary,
+  MAX_FAVORITE_PORTIONS_PER_FOOD,
+  type RecentPortion,
+} from '@/modules/nutrition_inventory/application'
 import type { FoodItem } from '@/modules/nutrition_inventory/domain/FoodItem'
 import type { Measure } from '@/modules/nutrition_inventory/domain/Measure'
 import AppIcon from '@/ui/AppIcon.vue'
 
-const props = defineProps<{
-  food: FoodItem
-  recent: RecentPortion | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    food: FoodItem
+    recent: RecentPortion | null
+    /** Quantités favorites de cet aliment, de la plus petite à la plus grande. */
+    favorites?: readonly FavoritePortionSummary[]
+    /** Montrer le bouton qui garde la quantité en favori, ou l'en retire. */
+    favoriteable?: boolean
+  }>(),
+  { favorites: () => [], favoriteable: false },
+)
 
 const emit = defineEmits<{
   change: [portion: { readonly grams: number; readonly measure: Measure } | null]
+  /** `keep` : garder la quantité en favori ; sinon, l'en retirer. */
+  toggleFavorite: [portion: { readonly grams: number; readonly measure: Measure }, keep: boolean]
 }>()
 
 const DEFAULT_GRAMS = 100
@@ -100,6 +118,38 @@ function useRecent(): void {
   if (recentPortion.value !== null) apply(recentPortion.value.measure, recentPortion.value.amount)
 }
 
+/** Les favorites, dans leur mesure si la fiche la connaît encore — comme la dernière portion. */
+const favoriteChoices = computed(() =>
+  props.favorites.map((favorite) => {
+    const favoriteMeasure = props.food.measureNamed(favorite.measure)
+    return {
+      id: favorite.id,
+      measure: favoriteMeasure,
+      amount: roundAmount(favorite.grams / favoriteMeasure.grams),
+    }
+  }),
+)
+
+const isFavorite = computed(() =>
+  props.favorites.some(
+    (favorite) => favorite.measure === measure.value.label && Math.abs(favorite.grams - grams.value) < 0.01,
+  ),
+)
+
+/** Plus de place pour une nouvelle favorite : le bouton le dit au lieu de se taire. */
+const favoritesFull = computed(
+  () => !isFavorite.value && props.favorites.length >= MAX_FAVORITE_PORTIONS_PER_FOOD,
+)
+
+const ids = useId()
+const favoritesLabelId = `${ids}-favorites`
+const favoritesFullId = `${ids}-favorites-full`
+
+function toggleFavorite(): void {
+  if (!valid.value || favoritesFull.value) return
+  emit('toggleFavorite', { grams: grams.value, measure: measure.value }, !isFavorite.value)
+}
+
 watch(() => props.food.id, preset, { immediate: true })
 
 watch(
@@ -124,6 +174,39 @@ watch(
       <span aria-hidden="true">↺</span>
       {{ t('meal.portion.sameAsLast', { portion: formatPortion(recentPortion.amount, recentPortion.measure) }) }}
     </button>
+
+    <div
+      v-if="favoriteChoices.length > 0"
+      class="portion__favorites"
+    >
+      <p
+        :id="favoritesLabelId"
+        class="portion__favorites-label"
+      >
+        {{ t('meal.portion.favorites') }}
+      </p>
+      <ul
+        class="portion__chips"
+        :aria-labelledby="favoritesLabelId"
+      >
+        <li
+          v-for="choice in favoriteChoices"
+          :key="choice.id"
+        >
+          <button
+            type="button"
+            class="portion__chip"
+            @click="apply(choice.measure, choice.amount)"
+          >
+            <AppIcon
+              name="star-filled"
+              :size="1"
+            />
+            {{ formatPortion(choice.amount, choice.measure) }}
+          </button>
+        </li>
+      </ul>
+    </div>
 
     <!-- Des boutons radio natifs, sous la légende « Quantité » du fieldset :
          aucun rôle ARIA à ajouter, le groupe est déjà nommé. -->
@@ -186,6 +269,28 @@ watch(
     >
       {{ t('meal.portion.weight', { weight: formatWeight(grams, measure, base) }) }}
     </p>
+
+    <!-- Le nom dit ce que fait le bouton ; l'étoile pleine, sur une quantité
+         déjà gardée, le redit sans compter sur la couleur. -->
+    <template v-if="favoriteable && valid">
+      <button
+        type="button"
+        class="portion__favorite"
+        :aria-disabled="favoritesFull ? 'true' : undefined"
+        :aria-describedby="favoritesFull ? favoritesFullId : undefined"
+        @click="toggleFavorite"
+      >
+        <AppIcon :name="isFavorite ? 'star-filled' : 'star'" />
+        {{ isFavorite ? t('meal.portion.dropFavorite') : t('meal.portion.keepFavorite') }}
+      </button>
+      <p
+        v-if="favoritesFull"
+        :id="favoritesFullId"
+        class="portion__note"
+      >
+        {{ t('meal.portion.favoritesFull', { n: MAX_FAVORITE_PORTIONS_PER_FOOD }) }}
+      </p>
+    </template>
   </fieldset>
 </template>
 
@@ -331,9 +436,68 @@ watch(
   overflow-wrap: break-word;
 }
 
-.portion__weight {
+.portion__weight,
+.portion__note {
   margin: 0;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
+}
+
+.portion__favorites {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.portion__favorites-label {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* Les favorites passent à la ligne plutôt que de déborder. */
+.portion__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.portion__chip,
+.portion__favorite {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface);
+  }
+}
+
+.portion__chip {
+  font-weight: 700;
+}
+
+.portion__favorite {
+  align-self: flex-start;
+  border-style: dashed;
+
+  /* Inerte : le curseur le dit, et la note juste dessous dit pourquoi. */
+  &[aria-disabled='true'] {
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+  }
 }
 </style>

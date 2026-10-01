@@ -69,8 +69,12 @@ import {
   RemoveRecipeLineUseCase,
   RenameRecipeUseCase,
   SaveMealAsRecipeUseCase,
+  AddFavoritePortionUseCase,
+  ListFavoritePortionsUseCase,
+  RemoveFavoritePortionUseCase,
 } from '@/modules/nutrition_inventory/application'
 import { CiqualSeeder } from '@/modules/nutrition_inventory/infrastructure/CiqualSeeder'
+import { IndexedDbFavoritePortionRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbFavoritePortionRepository'
 import { IndexedDbFoodRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbFoodRepository'
 import { IndexedDbMealRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbMealRepository'
 import { IndexedDbRecipeRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbRecipeRepository'
@@ -176,6 +180,9 @@ export interface AppContainer {
     readonly removeRecipeLine: RemoveRecipeLineUseCase
     readonly deleteRecipe: DeleteRecipeUseCase
     readonly addRecipe: AddRecipeToMealUseCase
+    readonly listFavoritePortions: ListFavoritePortionsUseCase
+    readonly addFavoritePortion: AddFavoritePortionUseCase
+    readonly removeFavoritePortion: RemoveFavoritePortionUseCase
   }
   readonly planning: {
     readonly suggestCompletion: SuggestMealCompletionUseCase
@@ -206,6 +213,7 @@ export function createContainer(
   const foodRepository = new IndexedDbFoodRepository(databases)
   const mealRepository = new IndexedDbMealRepository(databases)
   const recipeRepository = new IndexedDbRecipeRepository(databases)
+  const favoritePortionRepository = new IndexedDbFavoritePortionRepository(databases)
   const shoppingRepository = new IndexedDbShoppingRepository(databases)
 
   const accountGateway = new HttpAccountGateway()
@@ -279,6 +287,9 @@ export function createContainer(
       removeRecipeLine: new RemoveRecipeLineUseCase(recipeRepository),
       deleteRecipe: new DeleteRecipeUseCase(recipeRepository),
       addRecipe: new AddRecipeToMealUseCase(recipeRepository, foodRepository, mealRepository),
+      listFavoritePortions: new ListFavoritePortionsUseCase(favoritePortionRepository),
+      addFavoritePortion: new AddFavoritePortionUseCase(favoritePortionRepository),
+      removeFavoritePortion: new RemoveFavoritePortionUseCase(favoritePortionRepository),
     },
     planning: {
       suggestCompletion: new SuggestMealCompletionUseCase(),

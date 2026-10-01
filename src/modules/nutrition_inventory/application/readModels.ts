@@ -6,10 +6,11 @@
  * les Use Cases.
  */
 import type { DayKey } from '@/core/day'
-import type { FoodItemId, MealEntryId, MealId, PlayerId, RecipeId } from '@/core/identity'
+import type { FavoritePortionId, FoodItemId, MealEntryId, MealId, PlayerId, RecipeId } from '@/core/identity'
 import type { MacrosProps } from '@/core/nutrition/Macros'
 import type { NutrientDetailProps } from '@/core/nutrition/NutrientDetail'
 
+import type { FavoritePortion } from '../domain/FavoritePortion'
 import type { FoodItem, FoodTag } from '../domain/FoodItem'
 import type { Meal, MealType } from '../domain/Meal'
 import { lineAmount, type Recipe } from '../domain/Recipe'
@@ -97,6 +98,24 @@ export interface RecipeLineSummary {
   readonly grams: number
   readonly measure: Measure
   readonly amount: number
+}
+
+/** Une portion favorite, telle que le choix de la quantité la propose. */
+export interface FavoritePortionSummary {
+  readonly id: FavoritePortionId
+  readonly foodItemId: FoodItemId
+  readonly grams: number
+  /** Nom de la mesure de saisie : « g », « tranche ». */
+  readonly measure: string
+}
+
+export function toFavoritePortionSummary(portion: FavoritePortion): FavoritePortionSummary {
+  return {
+    id: portion.id,
+    foodItemId: portion.foodItemId,
+    grams: portion.quantity.grams,
+    measure: portion.measure,
+  }
 }
 
 /** Read model d'une recette, pour la liste de l'éditeur de repas. */

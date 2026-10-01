@@ -145,6 +145,12 @@ export class InvalidRecipeError extends DomainError {
   }
 }
 
+export class InvalidFavoritePortionError extends DomainError {
+  constructor(message: string) {
+    super('INVALID_FAVORITE_PORTION', message)
+  }
+}
+
 export class InvalidPlayerError extends DomainError {
   constructor(message: string) {
     super('INVALID_PLAYER', message)

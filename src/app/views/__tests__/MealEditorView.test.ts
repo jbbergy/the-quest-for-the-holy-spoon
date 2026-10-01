@@ -557,6 +557,74 @@ describe('MealEditorView — nouveau repas', () => {
   })
 })
 
+describe('MealEditorView — quantités favorites', () => {
+  const favorite = (grams: number) => ({ id: idFrom(`favori-${grams}`), foodItemId: bread.id, grams, measure: 'tranche' })
+
+  async function openBread(favorites: ReturnType<typeof favorite>[]) {
+    const addFavorite = vi.fn(async () => ok(favorites[0] ?? null))
+    const removeFavorite = vi.fn(async () => ok(undefined))
+    const wrapper = await mountAt(`/semaine/repas?jour=${today}&type=LUNCH`, mealOf(), new Map(), {
+      listFavoritePortions: succeedsWith(new Map([[bread.id, favorites]])),
+      addFavoritePortion: { execute: addFavorite },
+      removeFavoritePortion: { execute: removeFavorite },
+    })
+    await wrapper.find('.picker__search input').setValue('pain')
+    await wrapper.find('form.picker__search').trigger('submit')
+    await flushPromises()
+    await wrapper.find(`[data-food="${bread.id}"]`).trigger('click')
+    return { wrapper, addFavorite, removeFavorite }
+  }
+
+  const favoriteButton = (wrapper: VueWrapper) => wrapper.find('.portion__favorite')
+
+  it('propose les quantités favorites de l’aliment, sous un nom de groupe', async () => {
+    const { wrapper } = await openBread([favorite(50), favorite(75)])
+
+    const list = wrapper.find('.portion__chips')
+    const label = wrapper.find(`#${list.attributes('aria-labelledby')}`)
+    expect(label.text()).toBe('Vos quantités favorites')
+    expect(wrapper.findAll('.portion__chip').map((chip) => chip.text())).toEqual(['2 tranches', '3 tranches'])
+
+    await wrapper.findAll('.portion__chip')[1]!.trigger('click')
+    expect((wrapper.find('.portion__field input').element as HTMLInputElement).value).toBe('3')
+    expect(favoriteButton(wrapper).text()).toBe('Retirer cette quantité des favoris')
+  })
+
+  it('garde la quantité affichée en favori, et le dit', async () => {
+    const { wrapper, addFavorite } = await openBread([])
+
+    expect(wrapper.find('.portion__chips').exists()).toBe(false)
+    expect(favoriteButton(wrapper).text()).toBe('Garder cette quantité en favori')
+    await favoriteButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(addFavorite).toHaveBeenCalledWith({ playerId, foodItemId: bread.id, grams: 25, measure: 'tranche' })
+    expect(wrapper.find('.editor__feedback').text()).toBe('Quantité favorite ajoutée : 1 tranche.')
+  })
+
+  it('retire une quantité des favoris', async () => {
+    const { wrapper, removeFavorite } = await openBread([favorite(50)])
+
+    await wrapper.find('.portion__chip').trigger('click')
+    await favoriteButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(removeFavorite).toHaveBeenCalledWith({ playerId, foodItemId: bread.id, grams: 50, measure: 'tranche' })
+    expect(wrapper.find('.editor__feedback').text()).toBe('Quantité favorite retirée : 2 tranches.')
+  })
+
+  it('dit pourquoi il n’en garde pas une sixième, sans quitter l’ordre du clavier', async () => {
+    const { wrapper, addFavorite } = await openBread([50, 75, 100, 125, 150].map(favorite))
+
+    const button = favoriteButton(wrapper)
+    expect(button.attributes('aria-disabled')).toBe('true')
+    expect(wrapper.find(`#${button.attributes('aria-describedby')}`).text()).toContain('Vous avez déjà 5 quantités favorites')
+
+    await button.trigger('click')
+    expect(addFavorite).not.toHaveBeenCalled()
+  })
+})
+
 describe('MealEditorView — recettes', () => {
   const pokeBowl = {
     recipeId: idFrom('recipe-1'),

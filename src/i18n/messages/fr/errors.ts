@@ -92,6 +92,12 @@ export const errors = {
     'La recette n’a pas pu être enregistrée. Réessayez.',
   RECIPE_FOODS_MISSING:
     'Les aliments de cette recette ne sont plus dans le catalogue. Le repas reste inchangé.',
+  INVALID_FAVORITE_PORTION:
+    'Cette portion ne peut pas être gardée. Choisissez une quantité plus grande que zéro.',
+  FAVORITE_PORTIONS_FULL:
+    'Cet aliment a déjà 5 portions favorites. Retirez-en une avant d’en ajouter une autre.',
+  FAVORITE_PORTION_NOT_SAVED:
+    'La portion favorite n’a pas pu être enregistrée. Réessayez.',
   SHOPPING_ITEM_NOT_FOUND:
     'Cet article n’est plus dans la liste. Quelqu’un l’a peut-être retiré.',
   UNKNOWN: 'Quelque chose n’a pas marché. Réessayez.',

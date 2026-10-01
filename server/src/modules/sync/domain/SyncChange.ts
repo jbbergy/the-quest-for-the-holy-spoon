@@ -2,7 +2,7 @@ import { DomainError } from '@/core/errors'
 import { idFrom, type PlayerId } from '@/core/identity'
 import { err, ok, type Result } from '@/core/result'
 
-export type SyncEntity = 'player' | 'meal' | 'food' | 'needs' | 'shopping' | 'recipe'
+export type SyncEntity = 'player' | 'meal' | 'food' | 'needs' | 'shopping' | 'recipe' | 'portion'
 
 export interface RecordKey {
   readonly entity: SyncEntity
@@ -77,6 +77,7 @@ export function authorizeChange(
         ? ok({ kind: 'forMember', change, playerId: idFrom<'PlayerId'>(payload.playerId as string) })
         : notOwner()
     case 'recipe':
+    case 'portion':
       return payload.playerId === playerId ? own : notOwner()
     case 'food':
       if (payload.source !== 'USER') {

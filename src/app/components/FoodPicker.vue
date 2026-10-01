@@ -26,6 +26,7 @@ import type { FoodItemId } from '@/core/identity'
 import { lower, t, upperFirst } from '@/i18n'
 import {
   DietSuitability,
+  type FavoritePortionsByFood,
   type RecentPortion,
   type RecipeSummary,
   recipesMatching,
@@ -67,9 +68,21 @@ const props = withDefaults(
     recipes?: readonly RecipeSummary[]
     addRecipe?: (recipe: RecipeSummary) => Promise<void>
     removeRecipe?: (recipe: RecipeSummary) => Promise<void>
+    /** Quantités favorites du joueur, par aliment. */
+    favorites?: FavoritePortionsByFood
+    /**
+     * Garde une quantité en favori (`keep`), ou l'en retire. Absent, le bouton
+     * n'est pas proposé — comme dans la liste de courses.
+     */
+    toggleFavorite?: (
+      food: FoodItem,
+      portion: { readonly grams: number; readonly measure: Measure },
+      keep: boolean,
+    ) => Promise<void>
   }>(),
   {
     recent: () => new Map(),
+    favorites: () => new Map(),
     preview: false,
     busy: false,
     preselect: null,
@@ -174,6 +187,19 @@ const selected = computed(
 const recentForSelected = computed(() =>
   selected.value === null ? null : (props.recent.get(selected.value.id) ?? null),
 )
+
+const favoritesForSelected = computed(() =>
+  selected.value === null ? [] : (props.favorites.get(selected.value.id) ?? []),
+)
+
+const canFavorite = computed(() => props.toggleFavorite !== undefined)
+
+function onToggleFavorite(
+  portion: { readonly grams: number; readonly measure: Measure },
+  keep: boolean,
+): void {
+  if (selected.value !== null) void props.toggleFavorite?.(selected.value, portion, keep)
+}
 
 /** Aperçu des macros pour la portion saisie, calculé par l'entité elle-même. */
 const macros = computed(() => {
@@ -443,7 +469,10 @@ async function createFood(): Promise<void> {
             <PortionPicker
               :food="selected"
               :recent="recentForSelected"
+              :favorites="favoritesForSelected"
+              :favoriteable="canFavorite"
               @change="(next) => (portion = next)"
+              @toggle-favorite="onToggleFavorite"
             />
 
             <dl

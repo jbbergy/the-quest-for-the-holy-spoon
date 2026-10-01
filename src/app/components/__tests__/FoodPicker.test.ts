@@ -119,6 +119,15 @@ describe('FoodPicker — résultats', () => {
     expect(names()).toEqual(['Yaourt de marque'])
   })
 
+  it('ne propose pas de quantité favorite quand l’écran ne les garde pas', async () => {
+    // La liste de courses : ses quantités ne sont pas celles d'une assiette.
+    const wrapper = await searchWith(true, yaourts)
+    await wrapper.get('[data-food="nature"]').trigger('click')
+
+    expect(wrapper.find('.portion__field').exists()).toBe(true)
+    expect(wrapper.find('.portion__favorite').exists()).toBe(false)
+  })
+
   it('n’offre pas de filtre qui ne trierait rien', async () => {
     const wrapper = await searchWith(true, yaourts.slice(0, 2))
     expect(wrapper.find('.chip').exists()).toBe(false)

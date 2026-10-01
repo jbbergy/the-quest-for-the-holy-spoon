@@ -110,6 +110,9 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       removeRecipeLine: stub(ok(null)),
       deleteRecipe: stub(ok(undefined)),
       addRecipe: stub(ok(null)),
+      listFavoritePortions: stub(ok(new Map())),
+      addFavoritePortion: stub(ok(null)),
+      removeFavoritePortion: stub(ok(undefined)),
       ...overrides.inventory,
     },
     planning: {

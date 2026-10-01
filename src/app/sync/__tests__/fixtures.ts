@@ -6,11 +6,13 @@ import { DatabaseProvider, openHolySpoonDatabase } from '@/core/infrastructure/d
 import { idFrom, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { Quantity } from '@/core/nutrition/Quantity'
+import { FavoritePortion } from '@/modules/nutrition_inventory/domain/FavoritePortion'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 import { Meal, MealType } from '@/modules/nutrition_inventory/domain/Meal'
 import { MealEntry } from '@/modules/nutrition_inventory/domain/MealEntry'
 import { GRAM } from '@/modules/nutrition_inventory/domain/Measure'
 import { Recipe } from '@/modules/nutrition_inventory/domain/Recipe'
+import { IndexedDbFavoritePortionRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbFavoritePortionRepository'
 import { IndexedDbFoodRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbFoodRepository'
 import { IndexedDbMealRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbMealRepository'
 import { IndexedDbRecipeRepository } from '@/modules/nutrition_inventory/infrastructure/IndexedDbRecipeRepository'
@@ -44,6 +46,7 @@ export function createDevice() {
     players: new IndexedDbPlayerRepository(databases),
     meals: new IndexedDbMealRepository(databases),
     recipes: new IndexedDbRecipeRepository(databases),
+    portions: new IndexedDbFavoritePortionRepository(databases),
     foods: new IndexedDbFoodRepository(databases),
     shopping: new IndexedDbShoppingRepository(databases),
     replica: new IndexedDbReplica(databases),
@@ -110,5 +113,15 @@ export const recipeOf = (playerId: string, name = 'Poke bowl'): Recipe =>
           measure: GRAM,
         },
       ],
+    }),
+  )
+
+export const portionOf = (playerId: string, grams = 50): FavoritePortion =>
+  unwrap(
+    FavoritePortion.create({
+      playerId: idFrom(playerId),
+      foodItemId: idFrom('ciqual:7200'),
+      grams,
+      measure: 'tranche',
     }),
   )

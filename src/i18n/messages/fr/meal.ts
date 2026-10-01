@@ -56,6 +56,13 @@ export const meal = {
     increase: 'Augmenter la quantité',
     quantityIn: 'Quantité en {unit}',
     weight: 'Soit {weight}',
+    favorites: 'Vos quantités favorites',
+    keepFavorite: 'Garder cette quantité en favori',
+    dropFavorite: 'Retirer cette quantité des favoris',
+    favoritesFull:
+      'Vous avez déjà {n} quantités favorites pour cet aliment. Retirez-en une pour en garder une autre.',
+    favoriteAdded: 'Quantité favorite ajoutée\u00A0: {portion}.',
+    favoriteRemoved: 'Quantité favorite retirée\u00A0: {portion}.',
   },
   recipes: {
     many: 'Vos recettes',

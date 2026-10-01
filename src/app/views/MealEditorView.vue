@@ -43,9 +43,12 @@ import { useBackLink } from '@/app/useBackLink'
 import { parseDayKey } from '@/core/day'
 import { useTodayStore } from '@/app/day/useTodayStore'
 import type { FoodItemId, MealId } from '@/core/identity'
+import type { FoodItem } from '@/modules/nutrition_inventory/domain/FoodItem'
+import type { Measure } from '@/modules/nutrition_inventory/domain/Measure'
 import { numberFormat, t } from '@/i18n'
 import { MealType, type RecipeSummary } from '@/modules/nutrition_inventory/application'
 import type { DraftLine } from '@/modules/nutrition_inventory/presentation/mealDraft'
+import { useFavoritePortionStore } from '@/modules/nutrition_inventory/presentation/useFavoritePortionStore'
 import { useMealEditorStore } from '@/modules/nutrition_inventory/presentation/useMealEditorStore'
 import { useRecipeStore } from '@/modules/nutrition_inventory/presentation/useRecipeStore'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
@@ -61,6 +64,7 @@ const router = useRouter()
 const players = usePlayerStore()
 const editor = useMealEditorStore()
 const recipeStore = useRecipeStore()
+const favoriteStore = useFavoritePortionStore()
 
 const clock = useTodayStore()
 const today = computed(() => clock.today)
@@ -200,6 +204,7 @@ onMounted(async () => {
     await Promise.all([
       editor.loadRecentPortions(players.playerId, editor.schedule.plannedFor),
       recipeStore.load(players.playerId),
+      favoriteStore.load(players.playerId),
     ])
   }
 })
@@ -313,6 +318,21 @@ async function removeRecipe(recipe: RecipeSummary): Promise<void> {
   }
 }
 
+/** Garde la quantité choisie en favori, ou l'en retire, et le dit. */
+async function toggleFavorite(
+  food: FoodItem,
+  portion: { readonly grams: number; readonly measure: Measure },
+  keep: boolean,
+): Promise<void> {
+  const playerId = players.playerId
+  if (playerId === null) return
+  const input = { playerId, foodItemId: food.id, grams: portion.grams, measure: portion.measure.label }
+  const done = keep ? await favoriteStore.add(input) : await favoriteStore.remove(input)
+  if (!done) return
+  const shown = formatPortion(portion.grams / portion.measure.grams, portion.measure)
+  feedback.value = t(keep ? 'meal.portion.favoriteAdded' : 'meal.portion.favoriteRemoved', { portion: shown })
+}
+
 function removeLine(line: DraftLine): void {
   editor.removeLine(line.key)
   feedback.value = t('meal.editor.foodRemoved', { food: line.foodName })
@@ -365,6 +385,7 @@ async function remove(): Promise<void> {
 
     <ErrorNotice :error="editor.error" />
     <ErrorNotice :error="recipeStore.error" />
+    <ErrorNotice :error="favoriteStore.error" />
 
     <section
       class="editor__when"
@@ -503,6 +524,8 @@ async function remove(): Promise<void> {
         :recipes="recipeStore.recipes"
         :add-recipe="addRecipe"
         :remove-recipe="removeRecipe"
+        :favorites="favoriteStore.portions"
+        :toggle-favorite="toggleFavorite"
         preview
       />
     </section>

@@ -14,6 +14,7 @@ export type FoodItemId = Id<'FoodItemId'>
 export type MealId = Id<'MealId'>
 export type MealEntryId = Id<'MealEntryId'>
 export type RecipeId = Id<'RecipeId'>
+export type FavoritePortionId = Id<'FavoritePortionId'>
 export type AccountId = Id<'AccountId'>
 export type HouseholdId = Id<'HouseholdId'>
 export type InvitationId = Id<'InvitationId'>

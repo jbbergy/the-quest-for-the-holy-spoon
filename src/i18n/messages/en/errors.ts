@@ -56,6 +56,10 @@ export const errors: Messages<typeof fr> = {
   RECIPE_NOT_SAVED: 'The recipe could not be saved. Try again.',
   RECIPE_FOODS_MISSING:
     'The foods of this recipe are no longer in the catalogue. The meal is unchanged.',
+  INVALID_FAVORITE_PORTION: 'This portion cannot be kept. Choose a quantity greater than zero.',
+  FAVORITE_PORTIONS_FULL:
+    'This food already has 5 favourite portions. Remove one before adding another.',
+  FAVORITE_PORTION_NOT_SAVED: 'The favourite portion could not be saved. Try again.',
   SHOPPING_ITEM_NOT_FOUND: 'This item is no longer in the list. Someone may have removed it.',
   UNKNOWN: 'Something went wrong. Try again.',
 }

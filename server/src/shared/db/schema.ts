@@ -54,7 +54,7 @@ export type AccountRow = Selectable<AccountsTable>
 export type NewAccountRow = Insertable<AccountsTable>
 
 export interface RecordsTable {
-  entity: 'player' | 'meal' | 'food' | 'needs' | 'shopping' | 'recipe'
+  entity: 'player' | 'meal' | 'food' | 'needs' | 'shopping' | 'recipe' | 'portion'
   id: string
   /** Auteur de l'enregistrement ; pour un enregistrement commun au foyer, celui qui l'a créé. */
   owner_account_id: string

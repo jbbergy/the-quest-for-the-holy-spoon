@@ -58,6 +58,13 @@ export const meal: Messages<typeof fr> = {
     increase: 'Increase the amount',
     quantityIn: 'Amount in {unit}',
     weight: 'That is {weight}',
+    favorites: 'Your favourite quantities',
+    keepFavorite: 'Keep this quantity as a favourite',
+    dropFavorite: 'Remove this quantity from favourites',
+    favoritesFull:
+      'You already have {n} favourite quantities for this food. Remove one to keep another.',
+    favoriteAdded: 'Favourite quantity added: {portion}.',
+    favoriteRemoved: 'Favourite quantity removed: {portion}.',
   },
   recipes: {
     many: 'Your recipes',

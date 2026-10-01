@@ -5,7 +5,7 @@ import { localChanges } from '@/core/infrastructure/changeJournal'
 import { idFrom } from '@/core/identity'
 import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
 
-import { recipeToRecord } from '@/modules/nutrition_inventory/infrastructure/records'
+import { favoritePortionToRecord, recipeToRecord } from '@/modules/nutrition_inventory/infrastructure/records'
 import { OutboxMealOffers } from '@/modules/nutrition_inventory/infrastructure/OutboxMealOffers'
 
 import { playerToRecord } from '@/modules/player_profile/infrastructure/records'
@@ -18,6 +18,7 @@ import {
   type Device,
   mealOf,
   playerOf,
+  portionOf,
   recipeOf,
   unwrap,
 } from './fixtures'
@@ -176,6 +177,8 @@ describe('Premier envoi', () => {
     unwrap(await device.foods.save(customFoodOf('food-1')))
     unwrap(await device.recipes.save(recipeOf('player-1')))
     unwrap(await device.recipes.save(recipeOf('player-2')))
+    unwrap(await device.portions.save(portionOf('player-1')))
+    unwrap(await device.portions.save(portionOf('player-2')))
     unwrap(await device.replica.start(STATE))
 
     unwrap(await device.replica.enqueueAll('player-1'))
@@ -185,6 +188,7 @@ describe('Premier envoi', () => {
       'meal',
       'needs',
       'player',
+      'portion',
       'recipe',
     ])
   })
@@ -585,5 +589,36 @@ describe('Recettes', () => {
 
     expect(unwrap(await device.recipes.findByPlayer(playerOf('player-1').id))).toEqual([])
     expect(unwrap(await device.recipes.findByPlayer(playerOf('player-local').id))).toHaveLength(1)
+  })
+})
+
+describe('Portions favorites', () => {
+  it('reçoit les portions favorites du compte', async () => {
+    unwrap(await device.replica.start(STATE))
+    const remote = portionOf('player-1', 75)
+
+    const changed = unwrap(
+      await device.replica.applyRemote(
+        [{ deleted: false, entity: 'portion', id: remote.id, payload: { ...favoritePortionToRecord(remote) }, revision: 1 }],
+        1,
+      ),
+    )
+
+    expect(changed.has('portion')).toBe(true)
+    expect(unwrap(await device.portions.findByPlayer(remote.playerId))).toEqual([remote])
+    expect(unwrap(await device.replica.pendingCount())).toBe(0)
+  })
+
+  it('efface les portions du compte, pas celles d’un autre profil de l’appareil', async () => {
+    unwrap(await device.players.save(playerOf('player-local')))
+    unwrap(await device.players.save(playerOf('player-1')))
+    unwrap(await device.replica.start(STATE))
+    unwrap(await device.portions.save(portionOf('player-1')))
+    unwrap(await device.portions.save(portionOf('player-local')))
+
+    unwrap(await device.replica.stop({ wipe: true }))
+
+    expect(unwrap(await device.portions.findByPlayer(playerOf('player-1').id))).toEqual([])
+    expect(unwrap(await device.portions.findByPlayer(playerOf('player-local').id))).toHaveLength(1)
   })
 })

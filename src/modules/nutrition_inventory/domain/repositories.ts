@@ -1,8 +1,9 @@
 import type { DayKey } from '@/core/day'
 import type { RepositoryError } from '@/core/errors'
-import type { FoodItemId, MealId, PlayerId, RecipeId } from '@/core/identity'
+import type { FavoritePortionId, FoodItemId, MealId, PlayerId, RecipeId } from '@/core/identity'
 import type { Result } from '@/core/result'
 
+import type { FavoritePortion } from './FavoritePortion'
 import type { FoodItem, FoodSource } from './FoodItem'
 import type { Meal } from './Meal'
 import type { Recipe } from './Recipe'
@@ -67,6 +68,14 @@ export interface IRecipeRepository {
   save(recipe: Recipe): Promise<Result<void, RepositoryError>>
   /** Supprimer une recette absente n'est pas une erreur. */
   delete(id: RecipeId): Promise<Result<void, RepositoryError>>
+}
+
+export interface IFavoritePortionRepository {
+  /** Les portions favorites d'un joueur, tous aliments confondus. */
+  findByPlayer(playerId: PlayerId): Promise<Result<FavoritePortion[], RepositoryError>>
+  save(portion: FavoritePortion): Promise<Result<void, RepositoryError>>
+  /** Supprimer une portion absente n'est pas une erreur. */
+  delete(id: FavoritePortionId): Promise<Result<void, RepositoryError>>
 }
 
 /**

@@ -27,6 +27,7 @@ const STORE_OF: Readonly<Record<SyncEntity, string>> = {
   food: STORE.foods,
   shopping: STORE.shopping,
   recipe: STORE.recipes,
+  portion: STORE.favoritePortions,
 }
 
 const DATA_STORES = [
@@ -35,6 +36,7 @@ const DATA_STORES = [
   STORE.foods,
   STORE.shopping,
   STORE.recipes,
+  STORE.favoritePortions,
 ] as const
 
 interface StoredRecord {
@@ -104,6 +106,12 @@ export class IndexedDbReplica implements ILocalReplica {
         IDBKeyRange.only(playerId),
       )
       for (const recipe of recipes) upsert('recipe', recipe.id)
+
+      const portions = await getAllFromIndex<StoredRecord>(
+        tx.objectStore(STORE.favoritePortions).index(INDEX.favoritePortionsByPlayer),
+        IDBKeyRange.only(playerId),
+      )
+      for (const portion of portions) upsert('portion', portion.id)
 
       // Seuls les aliments dont ce profil est l'auteur : ceux des autres
       // membres du foyer, reçus par synchronisation, sont déjà sur le serveur.
@@ -299,6 +307,12 @@ export class IndexedDbReplica implements ILocalReplica {
           recipes.index(INDEX.recipesByPlayer).getAllKeys(IDBKeyRange.only(state.playerId)),
         )
         for (const key of recipeKeys) recipes.delete(key)
+
+        const portions = tx.objectStore(STORE.favoritePortions)
+        const portionKeys = await requestToPromise(
+          portions.index(INDEX.favoritePortionsByPlayer).getAllKeys(IDBKeyRange.only(state.playerId)),
+        )
+        for (const key of portionKeys) portions.delete(key)
 
         // Le profil courant devient un autre profil resté sur l'appareil, s'il
         // en existe un ; sinon l'application revient à l'accueil.

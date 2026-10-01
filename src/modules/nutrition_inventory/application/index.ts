@@ -8,12 +8,15 @@
  */
 export { MealType, portionScale } from '../domain/Meal'
 export { Diet, DietSuitability } from '../domain/DietSuitability'
+export { MAX_FAVORITE_PORTIONS_PER_FOOD } from '../domain/FavoritePortion'
 
 export {
+  toFavoritePortionSummary,
   toFoodExport,
   toMealExport,
   toMealSummary,
   toRecipeSummary,
+  type FavoritePortionSummary,
   type FoodExport,
   type MealEntryExport,
   type MealEntrySummary,
@@ -24,6 +27,14 @@ export {
 } from './readModels'
 
 export { recipesMatching } from './recipeSearch'
+
+export {
+  AddFavoritePortionUseCase,
+  ListFavoritePortionsUseCase,
+  RemoveFavoritePortionUseCase,
+  type FavoritePortionInput,
+  type FavoritePortionsByFood,
+} from './favoritePortionUseCases'
 
 export {
   AddRecipeToMealUseCase,

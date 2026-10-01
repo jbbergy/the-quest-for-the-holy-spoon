@@ -5,6 +5,7 @@ import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail, type NutrientDetailProps } from '@/core/nutrition/NutrientDetail'
 import { Quantity } from '@/core/nutrition/Quantity'
 
+import { FavoritePortion } from '../domain/FavoritePortion'
 import { FoodItem, type FoodSource, type FoodTag } from '../domain/FoodItem'
 import { Meal, type MealType } from '../domain/Meal'
 import { Recipe } from '../domain/Recipe'
@@ -305,5 +306,34 @@ export function recordToRecipe(record: RecipeRecord): Recipe {
       quantity: Quantity.reconstitute(line.grams),
       measure: measureOf(line.measure),
     })),
+  })
+}
+
+export interface FavoritePortionRecord {
+  readonly id: string
+  readonly playerId: string
+  readonly foodItemId: string
+  readonly grams: number
+  /** Nom de la mesure de saisie : « g », « tranche ». */
+  readonly measure: string
+}
+
+export function favoritePortionToRecord(portion: FavoritePortion): FavoritePortionRecord {
+  return {
+    id: portion.id,
+    playerId: portion.playerId,
+    foodItemId: portion.foodItemId,
+    grams: portion.quantity.grams,
+    measure: portion.measure,
+  }
+}
+
+export function recordToFavoritePortion(record: FavoritePortionRecord): FavoritePortion {
+  return FavoritePortion.reconstitute({
+    id: idFrom(record.id),
+    playerId: idFrom(record.playerId),
+    foodItemId: idFrom(record.foodItemId),
+    quantity: Quantity.reconstitute(record.grams),
+    measure: record.measure,
   })
 }

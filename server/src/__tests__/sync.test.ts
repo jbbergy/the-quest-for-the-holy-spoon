@@ -142,6 +142,25 @@ describe('Propriété des enregistrements', () => {
     expect((await pull(alex)).changes).toEqual([])
   })
 
+  it('synchronise les portions favorites d’un profil, et seulement pour lui', async () => {
+    const portion = (playerId: string) => ({
+      op: 'upsert',
+      entity: 'portion',
+      id: 'portion-1',
+      payload: { id: 'portion-1', playerId, foodItemId: 'ciqual:7200', grams: 50, measure: 'tranche' },
+    })
+
+    const foreign = await alex.request('POST', '/sync/push', { changes: [portion('player-camille')] })
+    const own = await camille.request('POST', '/sync/push', { changes: [portion('player-camille')] })
+
+    expect(foreign.json().rejected).toEqual([{ entity: 'portion', id: 'portion-1', code: 'NOT_OWNER' }])
+    expect(own.json()).toEqual({ rejected: [] })
+    expect((await pull(camille)).changes).toContainEqual(
+      expect.objectContaining({ entity: 'portion', id: 'portion-1', deleted: false }),
+    )
+    expect((await pull(alex)).changes).toEqual([])
+  })
+
   it('refuse d’écraser ou de supprimer l’enregistrement d’un autre compte', async () => {
     const overwrite = await alex.request('POST', '/sync/push', {
       changes: [meal('meal-camille', 'player-alex')],
