@@ -11,7 +11,7 @@ import { mealToRecord } from './records'
 
 export class NotSyncedError extends RepositoryError {
   constructor() {
-    super('NOT_SYNCED', 'Aucun compte connecté : le repas ne peut pas être envoyé.')
+    super('NOT_SYNCED', 'Aucun compte connecté\u00A0: le repas ne peut pas être envoyé.')
   }
 }
 

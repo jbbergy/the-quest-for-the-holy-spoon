@@ -17,7 +17,7 @@ export interface Rejection extends RecordKey {
 
 export class NoProfileLinkedError extends ApplicationError {
   constructor() {
-    super('NO_PROFILE_LINKED', 'Aucun profil rattaché à ce compte : rien à synchroniser.')
+    super('NO_PROFILE_LINKED', 'Aucun profil rattaché à ce compte\u00A0: rien à synchroniser.')
   }
 }
 

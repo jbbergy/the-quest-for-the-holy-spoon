@@ -81,7 +81,7 @@ export class ChangeThemeUseCase {
 
     const fallback = findTheme(DEFAULT_THEME_ID) ?? AVAILABLE_THEMES[0]
     if (fallback === undefined) {
-      throw new Error('Aucun thème enregistré : styles/themes/ est vide ou invalide.')
+      throw new Error('Aucun thème enregistré\u00A0: styles/themes/ est vide ou invalide.')
     }
     return fallback
   }

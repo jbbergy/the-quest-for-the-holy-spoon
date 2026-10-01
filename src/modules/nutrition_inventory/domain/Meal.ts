@@ -425,7 +425,7 @@ export class Meal {
   private editingRefusal(): InvalidMealError | null {
     return this.isConsumed
       ? new InvalidMealError(
-          'Un repas déjà pris ne peut plus être modifié. Décochez « pris » pour le corriger.',
+          'Un repas déjà pris ne peut plus être modifié. Décochez «\u00A0pris\u00A0» pour le corriger.',
         )
       : null
   }

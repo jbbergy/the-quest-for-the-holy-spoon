@@ -52,7 +52,7 @@ export class MemberNotFoundError extends DomainError {
 
 export class OwnerCannotLeaveError extends DomainError {
   constructor() {
-    super('OWNER_CANNOT_LEAVE', 'Le propriétaire ne quitte pas son foyer : il le dissout.')
+    super('OWNER_CANNOT_LEAVE', 'Le propriétaire ne quitte pas son foyer\u00A0: il le dissout.')
   }
 }
 

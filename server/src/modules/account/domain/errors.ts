@@ -8,6 +8,6 @@ export class PlayerAlreadyLinkedError extends DomainError {
 
 export class AccountAlreadyVerifiedError extends DomainError {
   constructor() {
-    super('ACCOUNT_ALREADY_VERIFIED', 'Adresse déjà confirmée : son mot de passe ne se remplace plus par une inscription.')
+    super('ACCOUNT_ALREADY_VERIFIED', 'Adresse déjà confirmée\u00A0: son mot de passe ne se remplace plus par une inscription.')
   }
 }

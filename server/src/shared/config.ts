@@ -61,7 +61,7 @@ function smtpFromEnv(env: NodeJS.ProcessEnv): SmtpSettings | undefined {
   const { SMTP_HOST: host, SMTP_USER: user, SMTP_PASSWORD: password, MAIL_FROM: from } = env
   if (host === undefined) return undefined
   if (user === undefined || password === undefined || from === undefined) {
-    throw new Error('SMTP_HOST est défini : SMTP_USER, SMTP_PASSWORD et MAIL_FROM sont aussi obligatoires.')
+    throw new Error('SMTP_HOST est défini\u00A0: SMTP_USER, SMTP_PASSWORD et MAIL_FROM sont aussi obligatoires.')
   }
   return { host, port: Number(env.SMTP_PORT ?? 587), user, password, from }
 }

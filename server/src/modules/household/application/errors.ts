@@ -12,7 +12,7 @@ export class NoHouseholdError extends ApplicationError {
 
 export class HouseholdConflictError extends ApplicationError {
   constructor() {
-    super('HOUSEHOLD_CONFLICT', 'Le foyer a changé pendant la demande : rien n’a été enregistré.')
+    super('HOUSEHOLD_CONFLICT', 'Le foyer a changé pendant la demande\u00A0: rien n’a été enregistré.')
   }
 }
 

@@ -88,7 +88,7 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
 
   async findByBarcode(barcode: string): Promise<Result<FoodItem | null, ProviderError>> {
     if (!this.network.isOnline()) {
-      return err(new RemoteUnavailableError('Recherche en ligne indisponible : hors connexion.'))
+      return err(new RemoteUnavailableError('Recherche en ligne indisponible\u00A0: hors connexion.'))
     }
 
     const url = `${this.baseUrl}/api/v2/product/${encodeURIComponent(barcode)}.json?fields=${REQUESTED_FIELDS}`
@@ -125,7 +125,7 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
     limit: number,
   ): Promise<Result<readonly FoodItem[], ProviderError>> {
     if (!this.network.isOnline()) {
-      return err(new RemoteUnavailableError('Recherche en ligne indisponible : hors connexion.'))
+      return err(new RemoteUnavailableError('Recherche en ligne indisponible\u00A0: hors connexion.'))
     }
 
     const trimmed = query.trim()
@@ -194,7 +194,7 @@ export class OpenFoodFactsProvider implements IRemoteFoodCatalog {
   private async searchWithinBudget(url: string): Promise<Result<unknown, ProviderError>> {
     if (!this.hasSearchBudget()) {
       return err(
-        new RemoteUnavailableError('Recherche Open Food Facts suspendue : trop de requêtes en une minute.'),
+        new RemoteUnavailableError('Recherche Open Food Facts suspendue\u00A0: trop de requêtes en une minute.'),
       )
     }
     this.searchesSent.push(this.now())
