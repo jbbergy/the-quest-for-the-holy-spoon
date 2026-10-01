@@ -77,6 +77,7 @@ export {
   type AddFoodInput,
   type MealDraftLine,
   type MealGuest,
+  type MealReplacement,
   type MealSchedule,
   type PlanForMembersInput,
   type RecentPortion,

@@ -68,6 +68,8 @@ const props = withDefaults(
     recipes?: readonly RecipeSummary[]
     addRecipe?: (recipe: RecipeSummary) => Promise<void>
     removeRecipe?: (recipe: RecipeSummary) => Promise<void>
+    /** Nom du bouton qui valide le choix ; « Ajouter {food} » par défaut. */
+    confirmLabel?: (foodName: string) => string
     /** Quantités favorites du joueur, par aliment. */
     favorites?: FavoritePortionsByFood
     /**
@@ -503,7 +505,7 @@ async function createFood(): Promise<void> {
               :loading="busy"
               @click="confirm"
             >
-              {{ t('meal.picker.add', { food: selected.name }) }}
+              {{ confirmLabel ? confirmLabel(selected.name) : t('meal.picker.add', { food: selected.name }) }}
             </BaseButton>
 
             <BaseButton

@@ -288,11 +288,24 @@ export class SaveMealDraftUseCase {
   }
 }
 
+/** Pour un membre, un aliment du repas remplacé par un autre. */
+export interface MealReplacement {
+  /** La ligne du repas qu'on remplace. */
+  readonly entryId: MealEntryId
+  readonly foodItemId: FoodItemId
+  /** Quantité choisie pour ce membre : elle n'est pas ajustée à ses besoins. */
+  readonly grams: number
+  /** Nom de la mesure de saisie, comme pour `AddFoodInput`. */
+  readonly measure?: string
+}
+
 /** Membre du foyer pour qui l'on prévoit aussi un repas. */
 export interface MealGuest {
   readonly playerId: PlayerId
   /** Besoin calorique habituel du membre, s'il l'a publié. */
   readonly targetCalories: number | null
+  /** Aliments changés pour lui seul : des merguez végétales au lieu des merguez. */
+  readonly replacements?: readonly MealReplacement[]
 }
 
 export interface PlanForMembersInput {
@@ -311,13 +324,15 @@ export interface PlanForMembersInput {
  * Chaque membre reçoit sa propre copie, non prise, aux portions ajustées au
  * rapport de ses besoins à ceux de l'auteur. La copie ne reste pas sur
  * l'appareil : elle part au serveur, qui la range dans la semaine du membre.
- * Tout ou rien côté domaine — une copie impossible (repas vide) n'en envoie
- * aucune —, puis une copie par membre à l'envoi.
+ * Tout ou rien côté domaine — une copie impossible (repas vide, aliment de
+ * remplacement introuvable) n'en envoie aucune —, puis une copie par membre à
+ * l'envoi.
  */
 export class PlanMealForMembersUseCase {
   constructor(
     private readonly meals: IMealRepository,
     private readonly offers: IMealOffers,
+    private readonly foods: IFoodRepository,
   ) {}
 
   async execute(input: PlanForMembersInput): Promise<Result<readonly Meal[], InventoryError>> {
@@ -327,11 +342,14 @@ export class PlanMealForMembersUseCase {
     const at = input.at ?? new Date()
     const copies: Meal[] = []
     for (const guest of input.guests) {
+      const replacements = await this.replacementsFor(guest)
+      if (!replacements.ok) return replacements
       const copy = meal.value.planFor({
         playerId: guest.playerId,
         plannedBy: input.plannedBy,
         scale: portionScale(input.ownCalories, guest.targetCalories),
         at,
+        replacements: replacements.value,
       })
       if (!copy.ok) return copy
       copies.push(copy.value)
@@ -348,6 +366,44 @@ export class PlanMealForMembersUseCase {
       }
     }
     return ok(copies)
+  }
+
+  /** Les lignes de remplacement d'un membre, chacune tirée de la fiche du jour. */
+  private async replacementsFor(
+    guest: MealGuest,
+  ): Promise<Result<ReadonlyMap<MealEntryId, MealEntry>, InventoryError>> {
+    const lines = new Map<MealEntryId, MealEntry>()
+    for (const replacement of guest.replacements ?? []) {
+      const quantity = Quantity.create(replacement.grams)
+      if (!quantity.ok) return quantity
+
+      const food = await this.foods.findById(replacement.foodItemId)
+      if (!food.ok) {
+        return err(
+          new ApplicationError('CATALOG_UNREADABLE', 'Le catalogue local est illisible.', {
+            cause: food.error,
+          }),
+        )
+      }
+      if (food.value === null) {
+        return err(
+          new ApplicationError(
+            'FOOD_NOT_FOUND',
+            `Aucun aliment ne correspond à l’identifiant ${replacement.foodItemId}.`,
+          ),
+        )
+      }
+
+      const entry = MealEntry.fromFoodItem(
+        food.value,
+        quantity.value,
+        undefined,
+        food.value.measureNamed(replacement.measure),
+      )
+      if (!entry.ok) return entry
+      lines.set(replacement.entryId, entry.value)
+    }
+    return ok(lines)
   }
 }
 

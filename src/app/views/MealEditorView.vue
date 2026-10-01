@@ -554,7 +554,10 @@ async function remove(): Promise<void> {
           :busy="editor.status === 'loading' || recipeStore.status === 'loading'"
           :save="saveRecipe"
         />
-        <PlanForMembersCard :meal-id="meal.mealId" />
+        <PlanForMembersCard
+          :meal-id="meal.mealId"
+          :entries="meal.entries"
+        />
       </template>
       <p
         v-else
@@ -668,7 +671,9 @@ async function remove(): Promise<void> {
   }
 }
 
+/* `min-width: 0` : sans lui, un mot long élargirait le titre au-delà de l'écran. */
 .editor__title {
+  min-width: 0;
   margin: 0;
   overflow-wrap: break-word;
 }

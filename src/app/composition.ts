@@ -269,7 +269,7 @@ export function createContainer(
       reschedule: new RescheduleMealUseCase(mealRepository),
       saveDraft: new SaveMealDraftUseCase(foodRepository, mealRepository),
       markConsumed: new MarkMealConsumedUseCase(mealRepository),
-      planForMembers: new PlanMealForMembersUseCase(mealRepository, new OutboxMealOffers(databases)),
+      planForMembers: new PlanMealForMembersUseCase(mealRepository, new OutboxMealOffers(databases), foodRepository),
       deleteMeal: new DeleteMealUseCase(mealRepository),
       getMeal: new GetMealUseCase(mealRepository),
       recentPortions: new GetRecentPortionsUseCase(mealRepository),

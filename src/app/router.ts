@@ -21,6 +21,7 @@ export const ROUTE = {
   dashboard: 'dashboard',
   weekPlan: 'week-plan',
   mealEditor: 'meal-editor',
+  mealReplace: 'meal-replace',
   shoppingList: 'shopping-list',
   foods: 'foods',
   foodDetail: 'food-detail',
@@ -111,6 +112,14 @@ export function createAppRouter(): Router {
         name: ROUTE.mealEditor,
         meta: { title: 'shell.titles.meal' },
         component: () => import('./views/MealEditorView.vue'),
+      },
+      {
+        // Un aliment du repas remplacé pour un membre du foyer, avant
+        // « Prévoir aussi pour… ». `?ligne=` : la ligne choisie.
+        path: '/semaine/repas/:mealId/remplacer/:playerId',
+        name: ROUTE.mealReplace,
+        meta: { title: 'shell.titles.mealReplace' },
+        component: () => import('./views/MealReplaceView.vue'),
       },
       {
         // `?semaine=` : un jour de la semaine voulue (son lundi, en pratique).

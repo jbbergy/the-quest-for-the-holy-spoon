@@ -66,5 +66,18 @@ export const week: Messages<typeof fr> = {
     planned: 'The meal is planned for {names}. Portions are adjusted to each person’s target.',
     plannedUnknown:
       'The meal is planned for {names}. We do not yet know the target of {unknown}: their portions are the same as yours.',
+    replaceShort: 'Replace a food',
+    replaceFor: ' for {name}',
+    changesFor: 'Changes for {name}',
+    replacedBy: '{food} instead of {replaced} ({portion})',
+    cancel: 'Cancel',
+    cancelSpoken: 'Cancel replacing {replaced} for {name}',
+    replaceTitle: 'Replace a food for {name}',
+    replaceWhich: 'Which food should change?',
+    replaceBy: 'What should replace {food}?',
+    replaceHint:
+      'Choose the food and its quantity for {name}. This quantity is not adjusted to their target.',
+    replaceChoose: 'Choose {food}',
+    memberGone: 'This person is no longer part of the household.',
   },
 }

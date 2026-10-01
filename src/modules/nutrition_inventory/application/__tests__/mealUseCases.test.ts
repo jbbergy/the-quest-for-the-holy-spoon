@@ -1164,6 +1164,8 @@ describe('CreateCustomFoodUseCase — auteur', () => {
 describe('PlanMealForMembersUseCase', () => {
   const alex: PlayerId = idFrom('player-alex')
   const sacha: PlayerId = idFrom('player-sacha')
+  const planner = (offers: ConstructorParameters<typeof PlanMealForMembersUseCase>[1]) =>
+    new PlanMealForMembersUseCase(meals, offers, foods)
 
   async function lunch(): Promise<Meal> {
     return unwrap(
@@ -1181,7 +1183,7 @@ describe('PlanMealForMembersUseCase', () => {
     const meal = await lunch()
 
     const copies = unwrap(
-      await new PlanMealForMembersUseCase(meals, { offer }).execute({
+      await planner({ offer }).execute({
         mealId: meal.id,
         plannedBy: playerId,
         ownCalories: 2000,
@@ -1203,7 +1205,7 @@ describe('PlanMealForMembersUseCase', () => {
   it('ne garde aucune copie sur l’appareil', async () => {
     const meal = await lunch()
 
-    await new PlanMealForMembersUseCase(meals, { offer: async () => ok(undefined) }).execute({
+    await planner({ offer: async () => ok(undefined) }).execute({
       mealId: meal.id,
       plannedBy: playerId,
       ownCalories: 2000,
@@ -1217,7 +1219,7 @@ describe('PlanMealForMembersUseCase', () => {
     const offer = vi.fn(async () => ok(undefined))
     const meal = await lunch()
 
-    const result = await new PlanMealForMembersUseCase(meals, { offer }).execute({
+    const result = await planner({ offer }).execute({
       mealId: meal.id,
       plannedBy: playerId,
       ownCalories: 2000,
@@ -1230,7 +1232,7 @@ describe('PlanMealForMembersUseCase', () => {
 
   it('dit pourquoi l’envoi a échoué', async () => {
     const meal = await lunch()
-    const result = await new PlanMealForMembersUseCase(meals, {
+    const result = await planner({
       offer: async () => err(new RepositoryError('NOT_SYNCED', 'pas de compte')),
     }).execute({
       mealId: meal.id,
@@ -1242,8 +1244,59 @@ describe('PlanMealForMembersUseCase', () => {
     expect(isErr(result) && result.error.code).toBe('NOT_SYNCED')
   })
 
+  it('remplace un aliment pour un seul membre, à la quantité choisie pour lui', async () => {
+    await foods.save(bread)
+    const meal = await lunch()
+    const entryId = meal.entries[0]!.id
+
+    const copies = unwrap(
+      await planner({ offer: async () => ok(undefined) }).execute({
+        mealId: meal.id,
+        plannedBy: playerId,
+        ownCalories: 2000,
+        guests: [
+          { playerId: alex, targetCalories: 2500 },
+          {
+            playerId: sacha,
+            targetCalories: 2500,
+            replacements: [{ entryId, foodItemId: bread.id, grams: 50, measure: 'tranche' }],
+          },
+        ],
+      }),
+    )
+
+    const [forAlex, forSacha] = copies
+    expect(forAlex!.entries.map((entry) => [entry.foodItemId, entry.quantity.grams])).toEqual([[rice.id, 250]])
+    expect(forSacha!.entries.map((entry) => [entry.foodItemId, entry.quantity.grams, entry.measure.label])).toEqual([
+      [bread.id, 50, 'tranche'],
+    ])
+    expect(forSacha!.entries[0]!.id).not.toBe(entryId)
+  })
+
+  it('n’envoie rien si l’aliment de remplacement est introuvable', async () => {
+    const offer = vi.fn(async () => ok(undefined))
+    const meal = await lunch()
+
+    const result = await planner({ offer }).execute({
+      mealId: meal.id,
+      plannedBy: playerId,
+      ownCalories: 2000,
+      guests: [
+        { playerId: alex, targetCalories: 2000 },
+        {
+          playerId: sacha,
+          targetCalories: 2000,
+          replacements: [{ entryId: meal.entries[0]!.id, foodItemId: idFrom('inconnu'), grams: 50 }],
+        },
+      ],
+    })
+
+    expect(isErr(result) && result.error.code).toBe('FOOD_NOT_FOUND')
+    expect(offer).not.toHaveBeenCalled()
+  })
+
   it('refuse un repas introuvable', async () => {
-    const result = await new PlanMealForMembersUseCase(meals, { offer: async () => ok(undefined) }).execute({
+    const result = await planner({ offer: async () => ok(undefined) }).execute({
       mealId: idFrom('inconnu'),
       plannedBy: playerId,
       ownCalories: null,

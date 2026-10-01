@@ -1,6 +1,6 @@
 import { type DayKey, dayKeyOf } from '@/core/day'
 import { DomainError, InvalidMealError } from '@/core/errors'
-import { type FoodItemId, type MealId, newId, type PlayerId } from '@/core/identity'
+import { type FoodItemId, type MealEntryId, type MealId, newId, type PlayerId } from '@/core/identity'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
 import { Quantity } from '@/core/nutrition/Quantity'
@@ -226,12 +226,18 @@ export class Meal {
    * La copie est un **nouveau** repas, non pris, qui appartient au membre et
    * porte la signature de son auteur : c'est au membre de l'ajuster et de le
    * cocher. Le repas d'origine n'est pas touché.
+   *
+   * `replacements` : pour ce membre, une ligne remplacée par une autre — le
+   * couscous de tout le foyer, avec des merguez végétales pour la personne
+   * végétarienne. La ligne de remplacement est reprise telle quelle : sa
+   * quantité a été choisie pour ce membre, elle n'est pas ajustée.
    */
   planFor(input: {
     readonly playerId: PlayerId
     readonly plannedBy: PlayerId
     readonly scale: number
     readonly at: Date
+    readonly replacements?: ReadonlyMap<MealEntryId, MealEntry>
   }): Result<Meal, DomainError> {
     if (this.isEmpty) {
       return err(new InvalidMealError('Un repas vide ne se prévoit pas pour quelqu’un d’autre.'))
@@ -242,9 +248,20 @@ export class Meal {
     if (!Number.isFinite(input.scale) || input.scale <= 0) {
       return err(new InvalidMealError(`Facteur de portion invalide\u00A0: ${input.scale}.`))
     }
+    const replacements = input.replacements ?? new Map<MealEntryId, MealEntry>()
+    for (const entryId of replacements.keys()) {
+      if (!this.entries.some((entry) => entry.id === entryId)) {
+        return err(new InvalidMealError(`Aucune ligne ${entryId} à remplacer dans ce repas.`))
+      }
+    }
 
     const entries: MealEntry[] = []
     for (const entry of this.entries) {
+      const replacement = replacements.get(entry.id)
+      if (replacement !== undefined) {
+        entries.push(replacement)
+        continue
+      }
       const amount = scaleAmount(entry.amount, input.scale, entry.measure)
       const quantity = Quantity.create(amount * entry.measure.grams)
       if (!quantity.ok) return quantity

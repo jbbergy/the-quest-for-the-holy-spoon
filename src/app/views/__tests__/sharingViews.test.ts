@@ -12,18 +12,23 @@ import {
   succeedsWith,
 } from '@/app/__tests__/fakeContainer'
 import PlanForMembersCard from '@/app/components/PlanForMembersCard.vue'
+import { usePlanForMembersStore } from '@/app/plan/usePlanForMembersStore'
 import { provideContainer, resetContainer } from '@/app/container'
 import { ROUTE } from '@/app/router'
 import { householdKey } from '@/app/useHousehold'
 import HouseholdView from '@/app/views/HouseholdView.vue'
+import MealReplaceView from '@/app/views/MealReplaceView.vue'
 import MemberDayView from '@/app/views/MemberDayView.vue'
 import WeekPlanView from '@/app/views/WeekPlanView.vue'
 import { addDays, dayKeyOf, startOfWeek } from '@/core/day'
 import { idFrom } from '@/core/identity'
+import { Macros } from '@/core/nutrition/Macros'
 import { ok } from '@/core/result'
 import { useAccountStore } from '@/modules/account/presentation/useAccountStore'
 import type { HouseholdView as Household } from '@/modules/household/application'
 import { MealType } from '@/modules/nutrition_inventory/application'
+import { FoodItem, FoodSource } from '@/modules/nutrition_inventory/domain/FoodItem'
+import { GRAM } from '@/modules/nutrition_inventory/domain/Measure'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
 import FoodSourceTag from '@/ui/FoodSourceTag.vue'
 
@@ -98,6 +103,7 @@ async function mountAt(
       { path: '/foyer/membres/:playerId', name: ROUTE.memberDay, component: path.startsWith('/foyer/membres') ? view : blank },
       { path: '/semaine', name: ROUTE.weekPlan, component: path === '/semaine' ? view : blank },
       { path: '/semaine/repas/:mealId?', name: ROUTE.mealEditor, component: blank },
+      { path: '/semaine/repas/:mealId/remplacer/:playerId', name: ROUTE.mealReplace, component: blank },
       { path: '/reglages', name: ROUTE.settings, component: blank },
       { path: '/connexion', name: ROUTE.signIn, component: blank },
       { path: '/inscription', name: ROUTE.signUp, component: blank },
@@ -215,7 +221,7 @@ describe('Foyer — accès aux journées', () => {
 })
 
 describe('Prévoir aussi pour…', () => {
-  const mealId = { mealId: idFrom('meal-1') }
+  const mealId = { mealId: idFrom('meal-1'), entries: [] }
 
   it('propose les autres membres qui ont un profil', async () => {
     const wrapper = await mountAt(PlanForMembersCard, '/semaine', {}, mealId)
@@ -244,8 +250,8 @@ describe('Prévoir aussi pour…', () => {
       plannedBy: me,
       ownCalories: usePlayerStore().needs?.targetCalories,
       guests: [
-        { playerId: alex, name: 'Alex', targetCalories: 2500 },
-        { playerId: 'player-sacha', name: 'sacha@example.fr', targetCalories: null },
+        { playerId: alex, name: 'Alex', targetCalories: 2500, replacements: [] },
+        { playerId: 'player-sacha', name: 'sacha@example.fr', targetCalories: null, replacements: [] },
       ],
     })
     expect(wrapper.text()).toContain('Le repas est prévu pour Alex et sacha@example.fr.')
@@ -261,6 +267,126 @@ describe('Prévoir aussi pour…', () => {
       mealId,
     )
     expect(wrapper.text()).toBe('')
+  })
+})
+
+describe('Remplacer un aliment pour un membre', () => {
+  const merguez = { entryId: idFrom<'MealEntryId'>('ligne-merguez'), foodItemId: idFrom<'FoodItemId'>('ciqual:merguez'), foodName: 'Merguez', grams: 150, measure: GRAM, amount: 150, calories: 450, macros: { proteinG: 20, carbsG: 0, fatG: 40 } }
+  const semoule = { ...merguez, entryId: idFrom<'MealEntryId'>('ligne-semoule'), foodItemId: idFrom<'FoodItemId'>('ciqual:semoule'), foodName: 'Semoule' }
+  const couscous = { ...summary(false), mealId: idFrom<'MealId'>('meal-1'), playerId: me, entries: [merguez, semoule] }
+  const veggie = FoodItem.reconstitute({
+    id: idFrom('user:merguez-veggie'),
+    name: 'Merguez végétales',
+    macrosPer100g: Macros.reconstitute({ proteinG: 18, carbsG: 6, fatG: 12 }),
+    source: FoodSource.USER,
+    servings: [{ label: 'merguez', grams: 50, approximate: false }],
+  })
+  const pieces = { label: 'merguez', grams: 50, countable: true, approximate: false }
+  const forAlex = { entryId: merguez.entryId, replacedName: 'Merguez', foodItemId: veggie.id, foodName: 'Merguez végétales', grams: 100, measure: pieces }
+
+  it('mène au choix d’un remplacement pour un membre coché, et revient à l’éditeur', async () => {
+    const wrapper = await mountAt(PlanForMembersCard, '/semaine/repas/meal-1', {}, { mealId: couscous.mealId, entries: couscous.entries })
+
+    expect(wrapper.find('.plan__replace').exists()).toBe(false)
+    await wrapper.find('input[value="player-alex"]').setValue(true)
+
+    const link = wrapper.get('.plan__replace')
+    expect(link.text()).toBe('Remplacer un aliment pour Alex')
+    expect(link.get('.sr-only').text()).toBe('pour Alex')
+    expect(link.attributes('href')).toBe('/semaine/repas/meal-1/remplacer/player-alex?retour=/semaine/repas/meal-1')
+  })
+
+  it('montre le remplacement choisi, l’envoie avec le repas, et permet de l’annuler', async () => {
+    const execute = vi.fn(async () => ok([]))
+    usePlanForMembersStore().forMeal(couscous.mealId)
+    usePlanForMembersStore().replace(alex, forAlex)
+    const wrapper = await mountAt(
+      PlanForMembersCard,
+      '/semaine/repas/meal-1',
+      { inventory: { planForMembers: { execute } } },
+      { mealId: couscous.mealId, entries: couscous.entries },
+    )
+
+    expect((wrapper.get('input[value="player-alex"]').element as HTMLInputElement).checked).toBe(true)
+    const list = wrapper.get('.plan__replacements')
+    expect(list.attributes('aria-label')).toBe('Changements pour Alex')
+    expect(list.text()).toContain('Merguez végétales au lieu de Merguez (2 merguez)')
+    expect(list.get('button').text()).toContain('Annuler le remplacement de Merguez pour Alex')
+
+    await wrapper.findAll('button').find((button) => button.text().startsWith('Prévoir'))!.trigger('click')
+    await flushPromises()
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        guests: [
+          expect.objectContaining({
+            playerId: alex,
+            replacements: [{ entryId: merguez.entryId, foodItemId: veggie.id, grams: 100, measure: 'merguez' }],
+          }),
+        ],
+      }),
+    )
+    // Envoyé : le brouillon repart de zéro.
+    expect(wrapper.find('.plan__replacements').exists()).toBe(false)
+  })
+
+  it('annule un remplacement avant l’envoi', async () => {
+    usePlanForMembersStore().forMeal(couscous.mealId)
+    usePlanForMembersStore().replace(alex, forAlex)
+    const wrapper = await mountAt(PlanForMembersCard, '/semaine/repas/meal-1', {}, { mealId: couscous.mealId, entries: couscous.entries })
+
+    await wrapper.get('.plan__replacements button').trigger('click')
+
+    expect(wrapper.find('.plan__replacements').exists()).toBe(false)
+  })
+
+  it('choisit l’aliment à changer, puis son remplaçant et sa quantité', async () => {
+    const wrapper = await mountAt(
+      MealReplaceView,
+      '/semaine/repas/meal-1/remplacer/player-alex?retour=/semaine/repas/meal-1',
+      {
+        inventory: {
+          getMeal: succeedsWith(couscous),
+          find: succeedsWith({ kind: 'by_name', items: [veggie], excluded: [], onlineSearched: true }),
+        },
+      },
+    )
+
+    expect(wrapper.get('h1').text()).toBe('Remplacer un aliment pour Alex')
+    expect(document.title).toBe('Remplacer un aliment pour Alex · Holy Spoon')
+    expect(wrapper.get('legend').text()).toBe('Quel aliment changer\u202F?')
+    expect(wrapper.findAll('.replace__line-name').map((line) => line.text())).toEqual(['Merguez', 'Semoule'])
+    expect(wrapper.find('#par-quoi').exists()).toBe(false)
+
+    await wrapper.get('input[value="ligne-merguez"]').trigger('change')
+    await flushPromises()
+    expect(router.currentRoute.value.query.ligne).toBe('ligne-merguez')
+    expect(wrapper.get('#par-quoi').text()).toBe('Par quoi remplacer Merguez\u202F?')
+    expect(wrapper.text()).toContain('Cette quantité n’est pas ajustée à son besoin.')
+
+    await wrapper.get('.picker__search input').setValue('merguez')
+    await wrapper.get('form.picker__search').trigger('submit')
+    await flushPromises()
+    await wrapper.get(`[data-food="${veggie.id}"]`).trigger('click')
+    await wrapper.findAll('.portion__step')[1]!.trigger('click')
+    const choose = wrapper.findAll('button').find((button) => button.text() === 'Choisir Merguez végétales')!
+    await choose.trigger('click')
+    await flushPromises()
+
+    expect(usePlanForMembersStore().replacementsOf(alex)).toEqual([
+      { ...forAlex, grams: 75, measure: pieces },
+    ])
+    expect(router.currentRoute.value.fullPath).toBe('/semaine/repas/meal-1')
+  })
+
+  it('dit quand la personne ne fait plus partie du foyer', async () => {
+    const wrapper = await mountAt(
+      MealReplaceView,
+      '/semaine/repas/meal-1/remplacer/player-parti',
+      { inventory: { getMeal: succeedsWith(couscous) } },
+    )
+
+    expect(wrapper.text()).toContain('Cette personne ne fait plus partie du foyer.')
+    expect(wrapper.find('fieldset').exists()).toBe(false)
   })
 })
 

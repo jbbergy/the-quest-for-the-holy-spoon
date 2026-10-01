@@ -70,6 +70,7 @@ export const ICONS = {
   star: { elements: [path(STAR)], strokeWidth: 1.8 },
   /** L'étoile pleine : une quantité déjà gardée en favori. La forme seule le dit, pas la couleur. */
   'star-filled': { elements: [{ tag: 'path', attrs: { d: STAR, fill: 'currentColor' } }], strokeWidth: 1.8 },
+  swap: { elements: [path('M4.5 8h14l-3.5-3.5'), path('M19.5 16h-14l3.5 3.5')], strokeWidth: 1.8 },
   copy: {
     elements: [rect(8.5, 8.5, 12, 12, 2), path('M15.5 5.5v-1a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4.5V14A1.5 1.5 0 0 0 5 15.5h1')],
     strokeWidth: 1.8,

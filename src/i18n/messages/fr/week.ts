@@ -64,5 +64,18 @@ export const week = {
     planned: 'Le repas est prévu pour {names}. Les portions sont adaptées au besoin de chacun.',
     plannedUnknown:
       'Le repas est prévu pour {names}. Nous ne connaissons pas encore le besoin de {unknown}\u00A0: ses portions sont les mêmes que les vôtres.',
+    replaceShort: 'Remplacer un aliment',
+    replaceFor: ' pour {name}',
+    changesFor: 'Changements pour {name}',
+    replacedBy: '{food} au lieu de {replaced} ({portion})',
+    cancel: 'Annuler',
+    cancelSpoken: 'Annuler le remplacement de {replaced} pour {name}',
+    replaceTitle: 'Remplacer un aliment pour {name}',
+    replaceWhich: 'Quel aliment changer\u202F?',
+    replaceBy: 'Par quoi remplacer {food}\u202F?',
+    replaceHint:
+      'Choisissez l’aliment et sa quantité pour {name}. Cette quantité n’est pas ajustée à son besoin.',
+    replaceChoose: 'Choisir {food}',
+    memberGone: 'Cette personne ne fait plus partie du foyer.',
   },
 } as const

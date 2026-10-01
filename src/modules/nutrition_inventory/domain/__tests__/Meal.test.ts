@@ -571,6 +571,36 @@ describe('repas prévu pour un autre membre', () => {
     expect(isOk(copy) && copy.value.entries[0]?.measure.label).toBe('œuf')
   })
 
+  it('remplace une ligne pour ce membre, sans ajuster sa quantité', () => {
+    const original = mealOf([entryOf(chicken, 150), entryOf(rice, 200)])
+    const replacement = entryOf(rice, 90)
+
+    const copy = original.planFor({
+      playerId: alex,
+      plannedBy: playerId,
+      scale: 1.2,
+      at,
+      replacements: new Map([[original.entries[0]!.id, replacement]]),
+    })
+
+    expect(isOk(copy) && copy.value.entries.map((entry) => [entry.foodName, entry.quantity.grams])).toEqual([
+      ['Riz cuit', 90],
+      ['Riz cuit', 240],
+    ])
+  })
+
+  it('refuse de remplacer une ligne qui n’est pas dans le repas', () => {
+    const copy = mealOf([entryOf(chicken, 150)]).planFor({
+      playerId: alex,
+      plannedBy: playerId,
+      scale: 1,
+      at,
+      replacements: new Map([[entryOf(rice, 90).id, entryOf(rice, 90)]]),
+    })
+
+    expect(isErr(copy)).toBe(true)
+  })
+
   it('ne réduit jamais une portion à rien', () => {
     const tiny = mealOf([entryOf(rice, 4)]).planFor({ playerId: alex, plannedBy: playerId, scale: 0.5, at })
     expect(isOk(tiny) && tiny.value.entries[0]?.quantity.grams).toBe(5)

@@ -21,6 +21,7 @@ export const shell = {
     home: 'Aujourd’hui',
     week: 'Semaine',
     meal: 'Repas',
+    mealReplace: 'Remplacer un aliment',
     shoppingList: 'Liste de courses',
     foods: 'Mes aliments',
     createFood: 'Créer un aliment',

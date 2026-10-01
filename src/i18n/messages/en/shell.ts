@@ -21,6 +21,7 @@ export const shell: Messages<typeof fr> = {
     home: 'Today',
     week: 'Week',
     meal: 'Meal',
+    mealReplace: 'Replace a food',
     shoppingList: 'Shopping list',
     foods: 'My foods',
     createFood: 'Create a food',
