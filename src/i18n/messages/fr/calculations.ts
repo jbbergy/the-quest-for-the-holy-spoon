@@ -8,6 +8,13 @@ export const calculations = {
     'Cette page explique d’où viennent les chiffres de l’application. D’abord ceux des aliments. Ensuite ceux de votre journée. Les nombres en gras sont les vôtres.',
   caveat:
     'Ces repères aident à manger équilibré. Ils ne remplacent pas l’avis d’un médecin ou d’un diététicien.',
+  yours: {
+    title: 'Vos repères',
+    need: 'Votre besoin par jour',
+    rest: 'Au repos',
+    activity: 'Avec votre activité',
+    kcal: '{kcal} kcal',
+  },
   foods: {
     title: '1. Ce que contient un aliment',
     subtitle: 'Les chiffres viennent de bases de données publiques.',

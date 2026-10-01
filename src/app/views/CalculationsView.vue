@@ -22,6 +22,8 @@ import { ACTIVITY_MULTIPLIER } from '@/modules/player_profile/domain/ActivityLev
 import { BALANCED_MACRO_SPLIT, SATURATED_FAT_ENERGY_SHARE } from '@/modules/player_profile/domain/BalancedDiet'
 import { BiologicalSex } from '@/modules/player_profile/domain/BodyMeasurements'
 import { usePlayerStore } from '@/modules/player_profile/presentation/usePlayerStore'
+import AppIcon from '@/ui/AppIcon.vue'
+import BackLink from '@/ui/BackLink.vue'
 import BaseCard from '@/ui/BaseCard.vue'
 import RichText from '@/ui/RichText.vue'
 
@@ -71,15 +73,47 @@ const split = {
 
 <template>
   <div class="calculations">
-    <RouterLink
-      class="calculations__back"
+    <BackLink
       :to="{ name: ROUTE.settings }"
-    >
-      <span aria-hidden="true">←</span> {{ t('shell.nav.settings') }}
-    </RouterLink>
+      :label="t('shell.nav.settings')"
+    />
 
-    <h1>{{ t('calculations.title') }}</h1>
-    <p>{{ t('calculations.intro') }}</p>
+    <header class="calculations__header">
+      <h1>{{ t('calculations.title') }}</h1>
+      <p class="calculations__intro">
+        {{ t('calculations.intro') }}
+      </p>
+    </header>
+
+    <!-- Le résultat d'abord : ce que la page va expliquer. -->
+    <section
+      v-if="body"
+      class="yours"
+      aria-labelledby="vos-reperes"
+    >
+      <h2
+        id="vos-reperes"
+        class="yours__title"
+      >
+        {{ t('calculations.yours.title') }}
+      </h2>
+      <dl class="yours__figures">
+        <div class="yours__main">
+          <dt>{{ t('calculations.yours.need') }}</dt>
+          <dd class="figure">
+            {{ t('calculations.yours.kcal', { kcal: body.need }) }}
+          </dd>
+        </div>
+        <div>
+          <dt>{{ t('calculations.yours.rest') }}</dt>
+          <dd>{{ t('calculations.yours.kcal', { kcal: body.rest }) }}</dd>
+        </div>
+        <div>
+          <dt>{{ t('calculations.yours.activity') }}</dt>
+          <dd>× {{ body.multiplier }}</dd>
+        </div>
+      </dl>
+    </section>
 
     <BaseCard
       :title="t('calculations.foods.title')"
@@ -97,7 +131,10 @@ const split = {
       :title="t('calculations.eaten.title')"
       :subtitle="t('calculations.eaten.subtitle')"
     >
-      <ol class="calculations__steps">
+      <ol
+        class="calculations__steps"
+        role="list"
+      >
         <li><RichText path="calculations.eaten.portions" /></li>
         <li><RichText path="calculations.eaten.crossProduct" /></li>
         <li>
@@ -141,7 +178,10 @@ const split = {
       :title="t('calculations.need.title')"
       :subtitle="t('calculations.need.subtitle')"
     >
-      <ol class="calculations__steps">
+      <ol
+        class="calculations__steps"
+        role="list"
+      >
         <li>
           <RichText
             path="calculations.need.resting"
@@ -268,7 +308,10 @@ const split = {
       :title="t('calculations.average.title')"
       :subtitle="t('calculations.average.subtitle')"
     >
-      <ol class="calculations__steps">
+      <ol
+        class="calculations__steps"
+        role="list"
+      >
         <li>
           <RichText
             path="calculations.average.days"
@@ -282,6 +325,10 @@ const split = {
     </BaseCard>
 
     <p class="calculations__caveat">
+      <AppIcon
+        name="leaf"
+        class="calculations__caveat-icon"
+      />
       {{ t('calculations.caveat') }}
     </p>
   </div>
@@ -291,7 +338,7 @@ const split = {
 .calculations {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-5);
 }
 
 .calculations h1,
@@ -299,22 +346,75 @@ const split = {
   margin: 0;
 }
 
-.calculations__back {
-  align-self: flex-start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  min-height: 44px;
-  color: var(--color-text-muted);
-  text-decoration: none;
+.calculations__header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
 
-  &:hover {
-    color: var(--color-text);
+  h1 {
+    overflow-wrap: break-word;
   }
 }
 
-.calculations__list,
-.calculations__steps {
+.calculations__intro {
+  color: var(--color-text-muted);
+}
+
+/* Vos repères : l'encart foncé, le besoin en chiffre de titre. */
+.yours {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--card-padding);
+  background: var(--color-inverse);
+  border-radius: var(--radius-xl);
+  color: var(--color-on-inverse);
+}
+
+.yours .yours__title {
+  margin: 0;
+  color: var(--color-on-inverse-muted);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.yours__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  dt {
+    color: var(--color-on-inverse-muted);
+    font-size: var(--font-size-sm);
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.yours__main {
+  flex-basis: 100%;
+
+  dd {
+    font-size: var(--font-size-2xl);
+    font-weight: 400;
+    line-height: 1.1;
+  }
+}
+
+.calculations__list {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -322,34 +422,80 @@ const split = {
   padding-left: var(--space-5);
 }
 
+/* Les étapes : un numéro dans une pastille, puis le texte. `role="list"`
+   garde la liste annoncée comme telle, même sans puces. */
+.calculations__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+
+  > li {
+    position: relative;
+    min-height: 2rem;
+    padding-left: calc(2rem + var(--space-3));
+    counter-increment: step;
+
+    &::before {
+      content: counter(step);
+      position: absolute;
+      top: -0.1em;
+      left: 0;
+      display: grid;
+      place-items: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 50%;
+      background: var(--color-accent-soft);
+      color: var(--color-accent-strong);
+      font-weight: 700;
+    }
+  }
+}
+
+/* Votre propre calcul, sous la règle : un encart Feuille pâle. */
 .calculations__mine {
   display: block;
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
   padding: var(--space-2) var(--space-3);
   background: var(--color-accent-soft);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  color: var(--color-accent-strong);
+  font-variant-numeric: tabular-nums;
   overflow-wrap: break-word;
 }
 
+/* L'exemple : l'encart safran pâle des conseils. */
 .calculations .calculations__example {
-  margin-bottom: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-saffron-soft);
+  border-radius: var(--radius-md);
+  color: var(--color-on-saffron-soft);
+  overflow-wrap: break-word;
 }
 
+/* Les répartitions : des lignes séparées par un filet. */
 .calculations__table {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
   margin: var(--space-3) 0;
 
   div {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+    padding: var(--space-3) 0;
+  }
+
+  div + div {
+    border-top: 1px solid var(--color-divider);
   }
 
   dt {
-    font-weight: 600;
+    font-weight: 700;
   }
 
   dd {
@@ -359,6 +505,14 @@ const split = {
 }
 
 .calculations__caveat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
   color: var(--color-text-muted);
+}
+
+.calculations__caveat-icon {
+  flex-shrink: 0;
+  margin-top: 0.15em;
 }
 </style>

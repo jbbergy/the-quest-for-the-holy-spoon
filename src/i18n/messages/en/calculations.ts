@@ -7,6 +7,13 @@ export const calculations: Messages<typeof fr> = {
     'This page explains where the app’s figures come from. First those of the foods. Then those of your day. The bold numbers are yours.',
   caveat:
     'These figures help you eat a balanced diet. They do not replace the advice of a doctor or a dietitian.',
+  yours: {
+    title: 'Your targets',
+    need: 'Your daily need',
+    rest: 'At rest',
+    activity: 'With your activity',
+    kcal: '{kcal} kcal',
+  },
   foods: {
     title: '1. What a food contains',
     subtitle: 'The figures come from public databases.',
