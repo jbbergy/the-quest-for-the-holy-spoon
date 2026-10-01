@@ -360,6 +360,86 @@ describe('MealEditorView — repas pris', () => {
   })
 })
 
+describe('MealEditorView — dupliquer', () => {
+  const yesterday = addDays(today, -1)
+  const duplicateButton = (wrapper: VueWrapper) =>
+    wrapper.findAll('button').find((button) => button.text() === 'Dupliquer ce repas')!
+
+  it('copie un repas mangé hier dans un brouillon d’aujourd’hui, sans rien écrire', async () => {
+    const wrapper = await mountAt(
+      '/semaine/repas/meal-1?retour=/semaine',
+      mealOf({ plannedFor: yesterday, consumedAt: `${yesterday}T12:45:00.000Z` }),
+    )
+
+    await duplicateButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.query).toEqual({ copie: 'meal-1', retour: '/semaine' })
+    expect(wrapper.find('h1').text()).toBe('Nouveau repas')
+    const day = wrapper.find('input[type="date"]')
+    expect((day.element as HTMLInputElement).value).toBe(today)
+    expect((day.element as HTMLInputElement).disabled).toBe(false)
+    expect(document.activeElement).toBe(day.element)
+    expect(
+      (wrapper.find('input[name="mealType"][value="LUNCH"]').element as HTMLInputElement).checked,
+    ).toBe(true)
+    expect(wrapper.find('.editor__feedback').text()).toContain('Repas copié : Déjeuner du')
+    expect(wrapper.find('.editor__total-kcal').text()).toBe('170')
+    expect(saveDraft).not.toHaveBeenCalled()
+
+    await save(wrapper)
+    expect(saveDraft).toHaveBeenCalledWith({
+      playerId,
+      schedule: { plannedFor: today, type: MealType.LUNCH },
+      lines: [{ foodItemId: chicken.id, grams: 100, measure: 'g' }],
+    })
+    expect(router.currentRoute.value.fullPath).toBe('/semaine')
+  })
+
+  it('propose le lendemain pour la copie d’un repas du jour', async () => {
+    const wrapper = await mountAt(`/semaine/repas?copie=meal-1`)
+
+    expect((wrapper.find('input[type="date"]').element as HTMLInputElement).value).toBe(tomorrow)
+  })
+
+  it('garde le jour et le type choisis quand on recharge la copie', async () => {
+    const later = addDays(today, 4)
+    const wrapper = await mountAt(`/semaine/repas?copie=meal-1&jour=${later}&type=DINNER`)
+
+    expect((wrapper.find('input[type="date"]').element as HTMLInputElement).value).toBe(later)
+    expect(
+      (wrapper.find('input[name="mealType"][value="DINNER"]').element as HTMLInputElement).checked,
+    ).toBe(true)
+  })
+
+  it('nomme les aliments qui n’existent plus', async () => {
+    const meal = mealOf()
+    const ghost = { ...meal.entries[0]!, entryId: idFrom('entry-2'), foodItemId: idFrom('off:000'), foodName: 'Biscuit disparu' }
+    const wrapper = await mountAt('/semaine/repas?copie=meal-1', mealOf({ entries: [...meal.entries, ghost] }))
+
+    expect(wrapper.find('.editor__feedback').text()).toContain('ils manquent : Biscuit disparu.')
+    expect(wrapper.findAll('.editor__entry-name').map((name) => name.text())).toEqual(['Blanc de poulet'])
+  })
+
+  it('demande avant de revenir au repas copié', async () => {
+    const wrapper = await mountAt('/semaine/repas/meal-1')
+    await duplicateButton(wrapper).trigger('click')
+    await flushPromises()
+
+    const back = router.push('/semaine/repas/meal-1')
+    await flushPromises()
+    expect(document.querySelector('dialog')?.open).toBe(true)
+    ;[...document.querySelectorAll<HTMLButtonElement>('dialog button')]
+      .find((button) => button.textContent?.trim() === 'Quitter sans enregistrer')!
+      .click()
+    await back
+    await flushPromises()
+
+    expect(wrapper.find('h1').text()).toBe('Déjeuner')
+    expect(wrapper.findAll('button').some((button) => button.text() === 'Dupliquer ce repas')).toBe(true)
+  })
+})
+
 describe('MealEditorView — nouveau repas', () => {
   it('reprend le jour et le type demandés, sans rien écrire', async () => {
     const wrapper = await mountAt(`/semaine/repas?jour=${tomorrow}&type=DINNER`)

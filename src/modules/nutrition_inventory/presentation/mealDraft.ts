@@ -1,3 +1,4 @@
+import { addDays, type DayKey } from '@/core/day'
 import { Macros, type MacrosProps } from '@/core/nutrition/Macros'
 import type { FoodItemId, MealEntryId } from '@/core/identity'
 
@@ -62,6 +63,15 @@ export function draftFromMeal(meal: MealSummary): MealDraft {
 
 export function emptyDraft(schedule: MealSchedule): MealDraft {
   return { schedule: { ...schedule }, lines: [] }
+}
+
+/**
+ * Jour proposé pour la copie d'un repas : aujourd'hui pour un repas passé —
+ * « le même qu'hier » —, sinon le lendemain du repas copié. Le même jour
+ * donnerait deux fois le même repas, ce qu'on ne cherche presque jamais.
+ */
+export function copyDay(original: DayKey, today: DayKey): DayKey {
+  return original < today ? today : addDays(original, 1)
 }
 
 /** Une ligne pour un aliment choisi dans la recherche ou une recette. */

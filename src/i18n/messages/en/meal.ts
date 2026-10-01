@@ -35,6 +35,8 @@ export const meal: Messages<typeof fr> = {
     addFood: 'Add a food',
     done: 'Done',
     deleteMeal: 'Delete this meal',
+    duplicate: 'Duplicate this meal',
+    copied: 'Meal copied: {meal}. Choose the day, then save.',
     deleteQuestion: 'Delete this meal? It will disappear from the week.',
     foodAdded: '{food} added ({portion}).',
     recipeAdded: '{recipe} added ({n} food). | {recipe} added ({n} foods).',

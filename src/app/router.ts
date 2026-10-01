@@ -289,9 +289,11 @@ export function createAppRouter(): Router {
     return true
   })
 
-  // Titre par défaut de chaque écran ; un écran peut le préciser ensuite.
-  router.afterEach((to) => {
-    setPageTitle(() => routeTitle(to.meta))
+  // Titre par défaut de chaque écran ; un écran peut le préciser ensuite. Sur
+  // le même écran — un repas et sa copie, le jour d'un brouillon dans
+  // l'adresse —, le titre que l'écran a précisé reste le sien.
+  router.afterEach((to, from) => {
+    if (to.name !== from.name) setPageTitle(() => routeTitle(to.meta))
   })
 
   return router

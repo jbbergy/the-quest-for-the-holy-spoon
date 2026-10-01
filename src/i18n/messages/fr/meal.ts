@@ -33,6 +33,8 @@ export const meal = {
     addFood: 'Ajouter un aliment',
     done: 'Terminé',
     deleteMeal: 'Supprimer ce repas',
+    duplicate: 'Dupliquer ce repas',
+    copied: 'Repas copié\u00A0: {meal}. Choisissez le jour, puis enregistrez.',
     deleteQuestion: 'Supprimer ce repas\u202F? Il disparaîtra de la semaine.',
     foodAdded: '{food} ajouté ({portion}).',
     recipeAdded: '{recipe} ajoutée ({n} aliment). | {recipe} ajoutée ({n} aliments).',

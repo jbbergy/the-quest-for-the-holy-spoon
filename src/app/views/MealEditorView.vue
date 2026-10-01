@@ -9,8 +9,10 @@
  * enregistrer ? » — dans l'application comme en fermant l'onglet. Seul le
  * détour pour créer un aliment manquant garde le brouillon sans rien demander.
  *
- * « Mangé » et la suppression agissent sur le repas enregistré : ils attendent
- * donc qu'il n'y ait plus rien à enregistrer.
+ * « Mangé », la duplication et la suppression agissent sur le repas
+ * enregistré : ils attendent donc qu'il n'y ait plus rien à enregistrer.
+ * « Dupliquer ce repas » ouvre un nouveau brouillon (`?copie=`) avec les mêmes
+ * aliments et les mêmes portions, à placer un autre jour.
  *
  * Un repas mangé est verrouillé par le domaine. L'écran le montre tel quel, avec
  * le bouton « Mangé » pour le déverrouiller, plutôt que de laisser buter sur un
@@ -20,8 +22,14 @@
  * retour (`?retour=`) ramène là d'où l'on vient. La recherche respecte le
  * régime du profil ; ce qu'elle masque est compté, et peut être affiché.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import {
+  onBeforeRouteLeave,
+  onBeforeRouteUpdate,
+  type RouteLocationNormalized,
+  useRoute,
+  useRouter,
+} from 'vue-router'
 
 import FoodPicker, { type FoodChoice } from '@/app/components/FoodPicker.vue'
 import MealPlateLines from '@/app/components/MealPlateLines.vue'
@@ -120,12 +128,23 @@ function warnBeforeUnload(event: BeforeUnloadEvent): void {
   event.returnValue = ''
 }
 
-onMounted(async () => {
-  window.addEventListener('beforeunload', warnBeforeUnload)
+/** Le repas à copier (`?copie=`), pour un nouveau repas qui part d'un autre. */
+const copiedId = computed(() =>
+  typeof route.query.copie === 'string' && route.query.copie !== '' ? (route.query.copie as MealId) : null,
+)
+
+/** Après « Dupliquer ce repas », le focus va au jour : c'est le premier choix à faire. */
+let focusDayAfterCopy = false
+
+/** Ouvre le repas de l'adresse : enregistré, copié d'un autre, ou nouveau. */
+async function load(): Promise<void> {
   feedback.value = ''
+  editingWhen.value = false
   const id = route.params.mealId
   if (typeof id === 'string' && id !== '') {
     await editor.open(id as MealId)
+  } else if (copiedId.value !== null) {
+    await startCopy(copiedId.value)
   } else {
     const day = typeof route.query.jour === 'string' ? parseDayKey(route.query.jour) : null
     const type = route.query.type
@@ -134,6 +153,44 @@ onMounted(async () => {
       type: isMealType(type) ? type : mealTypeAt(new Date()),
     })
   }
+}
+
+/**
+ * Une copie s'ouvre jour et repas dépliés : elle vient d'un autre jour, et
+ * c'est d'abord le jour qu'on veut choisir.
+ */
+async function startCopy(sourceId: MealId): Promise<void> {
+  const focusDay = focusDayAfterCopy
+  focusDayAfterCopy = false
+  const copied = await editor.startCopy(sourceId, today.value)
+  if (copied === null) return
+
+  // Rechargée après un changement de jour ou de type, l'adresse les garde.
+  const day = typeof route.query.jour === 'string' ? parseDayKey(route.query.jour) : null
+  const type = route.query.type
+  editor.reschedule({
+    plannedFor: day ?? editor.schedule.plannedFor,
+    type: isMealType(type) ? type : editor.schedule.type,
+  })
+
+  editingWhen.value = true
+  const intro = t('meal.editor.copied', {
+    meal: t('week.mealOnDay', { meal: mealLabel(copied.source.type), day: formatDay(copied.source.plannedFor) }),
+  })
+  feedback.value =
+    copied.missing.length === 0
+      ? intro
+      : t('meal.editor.recipeMissing', { added: intro, list: copied.missing.join(', ') })
+
+  if (focusDay) {
+    await nextTick()
+    dayInput.value?.focus()
+  }
+}
+
+onMounted(async () => {
+  window.addEventListener('beforeunload', warnBeforeUnload)
+  await load()
 
   // Retour de la recherche ou de la création d'un aliment : il est présélectionné.
   const requested = route.query.aliment
@@ -149,30 +206,62 @@ onMounted(async () => {
 
 onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))
 
+/** Abandonner des changements : on demande d'abord. */
+async function confirmLeave(): Promise<boolean> {
+  if (!editor.isDirty || saving.value) return true
+  const leave = (await leaveDialog.value?.ask()) ?? true
+  if (leave) editor.discard()
+  return leave
+}
+
 /**
  * Partir avec des changements non enregistrés : on demande d'abord. Le détour
  * par la création d'un aliment garde le brouillon, et n'a rien à demander.
  */
 onBeforeRouteLeave(async (to) => {
-  if (!editor.isDirty || saving.value) return true
-  if (to.name === ROUTE.customFood) {
+  if (to.name === ROUTE.customFood && editor.isDirty && !saving.value) {
     editor.keepForDetour()
     return true
   }
-  const leave = (await leaveDialog.value?.ask()) ?? true
-  if (leave) editor.discard()
-  return leave
+  return confirmLeave()
 })
 
 /**
+ * D'un repas à sa copie, ou retour en arrière : l'écran reste le même, seul
+ * le repas change. Le jour et le type d'un brouillon (`?jour=`, `?type=`), eux,
+ * ne changent pas de repas.
+ */
+const shownMeal = (location: RouteLocationNormalized): string =>
+  `${String(location.params.mealId ?? '')}|${String(location.query.copie ?? '')}`
+
+onBeforeRouteUpdate((to, from) => (shownMeal(to) === shownMeal(from) ? true : confirmLeave()))
+
+watch(() => shownMeal(route), load)
+
+/**
  * Garde l'adresse d'un brouillon en phase avec ses choix : sans cela, un détour
- * par la création d'un aliment ramènerait au jour et au type d'origine.
+ * par la création d'un aliment ramènerait au jour et au type d'origine. Le
+ * retour et la copie restent ; l'aliment présélectionné, lui, a servi.
  */
 async function syncDraftQuery(): Promise<void> {
   if (!isNew.value) return
+  const kept = { ...route.query }
+  delete kept.aliment
   await router.replace({
     name: ROUTE.mealEditor,
-    query: { jour: editor.schedule.plannedFor, type: editor.schedule.type },
+    query: { ...kept, jour: editor.schedule.plannedFor, type: editor.schedule.type },
+  })
+}
+
+/** Un nouveau repas avec les mêmes aliments, à placer un autre jour. */
+async function duplicate(): Promise<void> {
+  const id = editor.mealId
+  if (id === null) return
+  focusDayAfterCopy = true
+  const retour = route.query.retour
+  await router.push({
+    name: ROUTE.mealEditor,
+    query: { copie: id, ...(typeof retour === 'string' ? { retour } : {}) },
   })
 }
 
@@ -431,6 +520,13 @@ async function remove(): Promise<void> {
       </h2>
 
       <template v-if="!editor.isDirty">
+        <BaseButton
+          variant="secondary"
+          @click="duplicate"
+        >
+          <AppIcon name="copy" />
+          {{ t('meal.editor.duplicate') }}
+        </BaseButton>
         <RecipesCard
           :busy="editor.status === 'loading' || recipeStore.status === 'loading'"
           :save="saveRecipe"

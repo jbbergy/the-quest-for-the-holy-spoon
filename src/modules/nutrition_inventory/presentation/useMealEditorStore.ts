@@ -11,7 +11,9 @@ import type { FoodItem } from '../domain/FoodItem'
 import type { Measure } from '../domain/Measure'
 
 import {
+  copyDay,
   draftFromMeal,
+  type DraftLine,
   draftTotals,
   emptyDraft,
   isDirty,
@@ -24,6 +26,14 @@ import {
   withSchedule,
 } from './mealDraft'
 import type { StoreStatus } from './useJournalStore'
+
+/** Un aliment et sa portion, repris d'une recette ou d'un autre repas. */
+interface CopiedLine {
+  readonly foodItemId: FoodItemId
+  readonly foodName: string
+  readonly grams: number
+  readonly measure: Measure
+}
 
 /**
  * Adaptateur d'état du repas en cours de composition.
@@ -125,27 +135,66 @@ export const useMealEditorStore = defineStore('mealEditor', () => {
   }
 
   /**
-   * Ajoute les ingrédients d'une recette au brouillon. Les fiches sont relues
-   * pour calculer les calories ; celles qui ont disparu du catalogue sont
-   * nommées plutôt que perdues en silence.
+   * Des lignes de brouillon pour des aliments déjà choisis ailleurs — une
+   * recette, un autre repas. Les fiches sont relues pour calculer les
+   * calories ; celles qui ont disparu du catalogue sont nommées plutôt que
+   * perdues en silence.
    */
+  async function linesFrom(
+    sources: readonly CopiedLine[],
+  ): Promise<{ readonly lines: readonly DraftLine[]; readonly missing: readonly string[] }> {
+    const lines: DraftLine[] = []
+    const missing: string[] = []
+    for (const source of sources) {
+      const food = await useContainer().inventory.getFood.execute(source.foodItemId)
+      if (!food.ok || food.value === null) missing.push(source.foodName)
+      else lines.push(lineFor(food.value, source.grams, source.measure))
+    }
+    return { lines, missing }
+  }
+
+  /** Ajoute les ingrédients d'une recette au brouillon. */
   async function addRecipe(
     recipe: RecipeSummary,
   ): Promise<{ readonly added: number; readonly missing: readonly string[] }> {
-    const missing: string[] = []
-    let added = 0
-    let next = draft.value
-    for (const line of recipe.lines) {
-      const food = await useContainer().inventory.getFood.execute(line.foodItemId)
-      if (!food.ok || food.value === null) {
-        missing.push(line.foodName)
-        continue
-      }
-      next = withLine(next, lineFor(food.value, line.grams, line.measure))
-      added += 1
+    const { lines, missing } = await linesFrom(recipe.lines)
+    draft.value = lines.reduce(withLine, draft.value)
+    return { added: lines.length, missing }
+  }
+
+  /**
+   * Commence un nouveau repas avec les aliments d'un repas enregistré : « le
+   * même que mardi ». Rien n'est écrit : c'est un brouillon comme un autre,
+   * qu'on peut encore changer de jour, compléter ou abandonner. Les portions
+   * sont celles du repas copié, même s'il a été mangé.
+   *
+   * Renvoie `null` au retour d'un détour — le brouillon repris l'emporte sur
+   * une nouvelle copie — ou si le repas copié est illisible (`error` le dit).
+   */
+  async function startCopy(
+    sourceId: MealId,
+    today: DayKey,
+  ): Promise<{ readonly source: MealSummary; readonly missing: readonly string[] } | null> {
+    if (resumeKept(null) && meal.value === null) {
+      ready()
+      return null
     }
-    draft.value = next
-    return { added, missing }
+    status.value = 'loading'
+    const found = await useContainer().inventory.getMeal.execute(sourceId)
+    if (!found.ok) {
+      fail(found.error)
+      return null
+    }
+
+    const source = found.value
+    const { lines, missing } = await linesFrom(source.entries)
+    meal.value = null
+    draft.value = {
+      schedule: { type: source.type, plannedFor: copyDay(source.plannedFor, today) },
+      lines,
+    }
+    ready()
+    return { source, missing }
   }
 
   function changeGrams(key: string, grams: number): void {
@@ -219,6 +268,7 @@ export const useMealEditorStore = defineStore('mealEditor', () => {
     recentPortions,
     loadRecentPortions,
     startNew,
+    startCopy,
     open,
     addFood,
     addRecipe,

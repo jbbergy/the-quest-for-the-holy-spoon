@@ -65,6 +65,10 @@ export const ICONS = {
     strokeWidth: 1.8,
   },
   trash: { elements: [path('M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13')], strokeWidth: 1.8 },
+  copy: {
+    elements: [rect(8.5, 8.5, 12, 12, 2), path('M15.5 5.5v-1a1.5 1.5 0 0 0-1.5-1.5H5A1.5 1.5 0 0 0 3.5 4.5V14A1.5 1.5 0 0 0 5 15.5h1')],
+    strokeWidth: 1.8,
+  },
   /**
    * La marque : une cuillère penchée, en silhouette pleine. Au trait, le
    * cuilleron et le manche ressemblaient à une loupe — celle de la recherche.
