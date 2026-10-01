@@ -78,7 +78,8 @@ export const household: Messages<typeof fr> = {
   dissolved: 'The household is deleted.',
   revoked: 'The invitation is cancelled.',
   invitation: {
-    back: '← Household',
+    back: 'Back to the household',
+    intro: 'Before you say yes, here is what will be shared.',
     join: 'Join “{name}”?',
     from: '**{name}** invites you. The invitation is valid until {date}.',
     seenTitle: 'What the other members will see',
@@ -87,6 +88,7 @@ export const household: Messages<typeof fr> = {
     seen3: 'The foods you create. They will be able to add them to their meals.',
     seen4: 'Your daily target. Without it, your gauges would mean nothing.',
     seen5: 'Your email address, in the list of members.',
+    seen6: 'The household shopping list. Everyone can add items and tick them off.',
     seenNote:
       'A member can also plan a meal for you. That meal will appear in your week. Only you can tick “Eaten”.',
     privateTitle: 'What stays private',

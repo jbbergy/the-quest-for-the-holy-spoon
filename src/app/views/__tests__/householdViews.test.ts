@@ -158,7 +158,7 @@ describe('Écran Foyer', () => {
       household: { receivedInvitations: succeedsWith([invitation]), create: { execute: create } },
     })
 
-    expect(wrapper.find('h2').text()).toBe('« Chez Sacha »')
+    expect(wrapper.find('h2').text()).toBe('«\u00A0Chez Sacha\u00A0»')
     expect(wrapper.text()).toContain('sacha@example.fr vous invite à le rejoindre.')
 
     await fill(wrapper, 'Nom du foyer', 'Les Martin')
@@ -309,11 +309,13 @@ describe('Écran d’invitation', () => {
       household: { receivedInvitations: succeedsWith([invitation]) },
     })
 
-    expect(wrapper.find('h1').text()).toBe('Rejoindre « Chez Sacha » ?')
+    expect(wrapper.find('h1').text()).toBe('Rejoindre «\u00A0Chez Sacha\u00A0»\u00A0?')
     expect(wrapper.text()).toContain('Ce que les autres membres verront')
     expect(wrapper.text()).toContain('Vos repas, prévus et mangés.')
     expect(wrapper.text()).toContain('Ce qui reste privé')
     expect(wrapper.text()).toContain('Votre taille, votre poids et votre âge')
+    expect(wrapper.text()).toContain('La liste de courses du foyer.')
+    expect(wrapper.find('a[href="/foyer"]').text()).toBe('Retour au foyer')
   })
 
   it('accepter mène au foyer rejoint', async () => {

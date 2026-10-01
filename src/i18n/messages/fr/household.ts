@@ -57,7 +57,7 @@ export const household = {
   leaveConfirm: 'Quitter',
   leave: 'Quitter le foyer',
   receivedEyebrow: 'Invitation reçue',
-  receivedName: '« {household} »',
+  receivedName: '«\u00A0{household}\u00A0»',
   receivedFrom: '{name} vous invite à le rejoindre.',
   receivedValid: 'Valable jusqu’au {date}',
   see: 'Voir l’invitation',
@@ -76,8 +76,9 @@ export const household = {
   dissolved: 'Le foyer est supprimé.',
   revoked: 'L’invitation est annulée.',
   invitation: {
-    back: '← Foyer',
-    join: 'Rejoindre « {name} » ?',
+    back: 'Retour au foyer',
+    intro: 'Avant de dire oui, voici ce qui sera partagé.',
+    join: 'Rejoindre «\u00A0{name}\u00A0»\u00A0?',
     from: '**{name}** vous invite. L’invitation est valable jusqu’au {date}.',
     seenTitle: 'Ce que les autres membres verront',
     seen1: 'Vos repas, prévus et mangés.',
@@ -85,8 +86,9 @@ export const household = {
     seen3: 'Les aliments que vous créez. Ils pourront les ajouter à leurs repas.',
     seen4: 'Votre besoin par jour. Sans lui, vos jauges ne voudraient rien dire.',
     seen5: 'Votre adresse e-mail, dans la liste des membres.',
+    seen6: 'La liste de courses du foyer. Chacun peut y ajouter des articles et les cocher.',
     seenNote:
-      'Un membre pourra aussi prévoir un repas pour vous. Ce repas apparaîtra dans votre semaine. Vous seul pourrez cocher « Mangé ».',
+      'Un membre pourra aussi prévoir un repas pour vous. Ce repas apparaîtra dans votre semaine. Vous seul pourrez cocher «\u00A0Mangé\u00A0».',
     privateTitle: 'Ce qui reste privé',
     private1: 'Votre taille, votre poids et votre âge. Personne d’autre ne les voit.',
     privateNote:
