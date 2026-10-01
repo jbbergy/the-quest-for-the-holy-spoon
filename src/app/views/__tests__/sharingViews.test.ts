@@ -284,11 +284,12 @@ describe('Remplacer un aliment pour un membre', () => {
   const pieces = { label: 'merguez', grams: 50, countable: true, approximate: false }
   const forAlex = { entryId: merguez.entryId, replacedName: 'Merguez', foodItemId: veggie.id, foodName: 'Merguez végétales', grams: 100, measure: pieces }
 
-  it('mène au choix d’un remplacement pour un membre coché, et revient à l’éditeur', async () => {
+  it('propose de remplacer un aliment sous chaque membre, coché ou non', async () => {
     const wrapper = await mountAt(PlanForMembersCard, '/semaine/repas/meal-1', {}, { mealId: couscous.mealId, entries: couscous.entries })
 
-    expect(wrapper.find('.plan__replace').exists()).toBe(false)
-    await wrapper.find('input[value="player-alex"]').setValue(true)
+    expect(wrapper.text()).toContain('Vous pouvez aussi changer un aliment pour une personne.')
+    expect(wrapper.findAll('.plan__replace')).toHaveLength(2)
+    expect((wrapper.get('input[value="player-alex"]').element as HTMLInputElement).checked).toBe(false)
 
     const link = wrapper.get('.plan__replace')
     expect(link.text()).toBe('Remplacer un aliment pour Alex')
@@ -327,6 +328,28 @@ describe('Remplacer un aliment pour un membre', () => {
     )
     // Envoyé : le brouillon repart de zéro.
     expect(wrapper.find('.plan__replacements').exists()).toBe(false)
+  })
+
+  it('n’affiche ni n’envoie les remplacements d’un membre décoché', async () => {
+    const execute = vi.fn(async () => ok([]))
+    usePlanForMembersStore().forMeal(couscous.mealId)
+    usePlanForMembersStore().replace(alex, forAlex)
+    const wrapper = await mountAt(
+      PlanForMembersCard,
+      '/semaine/repas/meal-1',
+      { inventory: { planForMembers: { execute } } },
+      { mealId: couscous.mealId, entries: couscous.entries },
+    )
+
+    await wrapper.get('input[value="player-alex"]').setValue(false)
+    expect(wrapper.find('.plan__replacements').exists()).toBe(false)
+    await wrapper.get('input[value="player-sacha"]').setValue(true)
+    await wrapper.findAll('button').find((button) => button.text().startsWith('Prévoir'))!.trigger('click')
+    await flushPromises()
+
+    expect(execute).toHaveBeenCalledWith(
+      expect.objectContaining({ guests: [expect.objectContaining({ playerId: 'player-sacha', replacements: [] })] }),
+    )
   })
 
   it('annule un remplacement avant l’envoi', async () => {

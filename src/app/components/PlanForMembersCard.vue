@@ -7,10 +7,11 @@
  * contextes se croisent ici — le repas, le foyer, les besoins —, d'où la place
  * de ce composant dans `src/app/`.
  *
- * Pour un membre coché, « Remplacer un aliment » ouvre un écran à part, avec
- * la recherche d'aliments : le couscous de tout le foyer, avec des merguez
- * végétales pour la personne végétarienne. Les choix attendent l'envoi dans
- * `usePlanForMembersStore`, qui survit à ce détour.
+ * Sous chaque membre, coché ou non, « Remplacer un aliment » ouvre un écran à
+ * part, avec la recherche d'aliments : le couscous de tout le foyer, avec des merguez
+ * végétales pour la personne végétarienne. Choisir un remplacement coche le
+ * membre. Les choix attendent l'envoi dans `usePlanForMembersStore`, qui
+ * survit à ce détour.
  */
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -144,13 +145,13 @@ async function plan(): Promise<void> {
           <span>{{ guest.name }}</span>
         </label>
 
-        <!-- Sous la case, ce qui change pour ce membre seul. -->
-        <div
-          v-if="chosen.includes(guest.playerId)"
-          class="plan__changes"
-        >
+        <!-- Sous la case, ce qui change pour ce membre seul. Le lien est là
+             même case décochée : sinon, rien ne dit qu'on peut changer un
+             aliment pour quelqu'un. Les remplacements, eux, ne partent
+             qu'avec un membre coché : décoché, ils ne s'affichent pas. -->
+        <div class="plan__changes">
           <ul
-            v-if="replacementsOf(guest.playerId).length > 0"
+            v-if="chosen.includes(guest.playerId) && replacementsOf(guest.playerId).length > 0"
             class="plan__replacements"
             :aria-label="t('week.plan.changesFor', { name: guest.name })"
           >

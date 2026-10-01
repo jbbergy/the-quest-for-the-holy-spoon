@@ -60,7 +60,7 @@ export const week: Messages<typeof fr> = {
   plan: {
     title: 'Also plan for…',
     subtitle:
-      'Each person gets this meal in their week. Portions are adjusted to their target. They can change them.',
+      'Each person gets this meal in their week. Portions are adjusted to their target. They can change them. You can also change a food for one person.',
     legend: 'Household members',
     submit: 'Plan for this person | Plan for these people',
     planned: 'The meal is planned for {names}. Portions are adjusted to each person’s target.',

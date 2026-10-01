@@ -58,7 +58,7 @@ export const week = {
   plan: {
     title: 'Prévoir aussi pour…',
     subtitle:
-      'Chaque personne reçoit ce repas dans sa semaine. Les portions sont adaptées à son besoin. Elle pourra les changer.',
+      'Chaque personne reçoit ce repas dans sa semaine. Les portions sont adaptées à son besoin. Elle pourra les changer. Vous pouvez aussi changer un aliment pour une personne.',
     legend: 'Membres du foyer',
     submit: 'Prévoir pour cette personne | Prévoir pour ces personnes',
     planned: 'Le repas est prévu pour {names}. Les portions sont adaptées au besoin de chacun.',
