@@ -187,11 +187,7 @@ onMounted(async () => {
 
 .path__actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: var(--space-2);
-
-  > * {
-    flex: 1 1 9rem;
-  }
 }
 </style>
