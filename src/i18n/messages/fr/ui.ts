@@ -2,8 +2,8 @@
 export const ui = {
   required: '(obligatoire)',
   cancel: 'Annuler',
-  definition: '{term} : {text}',
-  infoTip: 'Explication : {term}',
+  definition: '{term}\u00A0: {text}',
+  infoTip: 'Explication\u00A0: {term}',
   source: {
     ciqual: 'Catalogue public',
     openFoodFacts: 'Produit de marque',
@@ -30,8 +30,8 @@ export const ui = {
     limitOf: 'limite {bound}',
     atLeast: 'au moins {bound}',
     outOf: 'sur {bound}',
-    average: 'Moyenne : {value} {unit}',
-    averageSpoken: 'Moyenne des 7 derniers jours : {value} {unit}',
-    spoken: '{label} : {value} {unit}, {reference}. {status}.',
+    average: 'Moyenne\u00A0: {value} {unit}',
+    averageSpoken: 'Moyenne des 7 derniers jours\u00A0: {value} {unit}',
+    spoken: '{label}\u00A0: {value} {unit}, {reference}. {status}.',
   },
 } as const

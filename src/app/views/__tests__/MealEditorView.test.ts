@@ -356,7 +356,7 @@ describe('MealEditorView — repas pris', () => {
 
     // Masquer les commandes sans expliquer laisserait croire à un bug.
     expect(wrapper.text()).toContain('100 g')
-    expect(wrapper.text()).toContain('Pour le changer, décochez d’abord « Mangé »')
+    expect(wrapper.text()).toContain('Pour le changer, décochez d’abord «\u00A0Mangé\u00A0»')
   })
 })
 
@@ -571,7 +571,7 @@ describe('MealEditorView — recettes', () => {
     await flushPromises()
 
     expect(saveAsRecipe).toHaveBeenCalledWith(idFrom('meal-1'), 'Poke bowl')
-    expect(wrapper.find('.editor__feedback').text()).toBe('Recette « Poke bowl » enregistrée.')
+    expect(wrapper.find('.editor__feedback').text()).toBe('Recette «\u00A0Poke bowl\u00A0» enregistrée.')
     expect((input.element as HTMLInputElement).value).toBe('')
   })
 
@@ -602,7 +602,7 @@ describe('MealEditorView — recettes', () => {
     await flushPromises()
 
     expect(deleteRecipe).toHaveBeenCalledWith(idFrom('recipe-1'))
-    expect(wrapper.find('.editor__feedback').text()).toBe('Recette « Poke bowl » supprimée.')
+    expect(wrapper.find('.editor__feedback').text()).toBe('Recette «\u00A0Poke bowl\u00A0» supprimée.')
   })
 
   it('ne cherche ni n’ajoute rien dans un repas mangé, mais permet de le garder', async () => {

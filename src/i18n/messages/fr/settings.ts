@@ -15,7 +15,7 @@ export const settings = {
     edit: 'Modifier mon profil',
     editShort: 'Modifier',
     editSpoken: ' mon profil',
-    needLine: 'Besoin : {kcal} kcal par jour',
+    needLine: 'Besoin\u00A0: {kcal} kcal par jour',
   },
   display: {
     title: 'Affichage',
@@ -29,7 +29,7 @@ export const settings = {
     note: 'Votre besoin, c’est l’énergie au repos, plus celle de vos activités. C’est une estimation{tip}.',
   },
   calculations: {
-    title: 'Comment sont calculés mes repères ?',
+    title: 'Comment sont calculés mes repères\u202F?',
     subtitle: 'D’où viennent les chiffres des aliments et de votre journée.',
     open: 'Comprendre les calculs',
   },
@@ -40,14 +40,14 @@ export const settings = {
     midnight: 'Minuit',
     noon: 'Midi',
     hour: '{hour} h',
-    hint: 'Avant cette heure, l’accueil montre encore la veille. Vous dormez la nuit ? Choisissez minuit. Vous travaillez la nuit ? Choisissez une heure plus tard.',
+    hint: 'Avant cette heure, l’accueil montre encore la veille. Vous dormez la nuit\u202F? Choisissez minuit. Vous travaillez la nuit\u202F? Choisissez une heure plus tard.',
   },
   language: {
     title: 'Langue',
     subtitle: 'Le changement se voit tout de suite. Il vaut pour cet appareil seulement.',
     legend: 'Langue de l’application',
     auto: 'Automatique',
-    autoHint: 'Suit la langue de l’appareil : {language}.',
+    autoHint: 'Suit la langue de l’appareil\u00A0: {language}.',
     fr: 'Français',
     en: 'English',
   },
@@ -64,8 +64,8 @@ export const settings = {
     signedInAs: 'Vous êtes connecté avec {email}.',
     noAccount: 'Sans compte, vos données restent sur cet appareil.',
     unsent:
-      '{n} changement n’a pas encore été envoyé : le serveur ne répond pas. | {n} changements n’ont pas encore été envoyés : le serveur ne répond pas.',
-    unsentSome: 'Des changements n’ont pas encore été envoyés : le serveur ne répond pas.',
+      '{n} changement n’a pas encore été envoyé\u00A0: le serveur ne répond pas. | {n} changements n’ont pas encore été envoyés\u00A0: le serveur ne répond pas.',
+    unsentSome: 'Des changements n’ont pas encore été envoyés\u00A0: le serveur ne répond pas.',
     loseThem: 'Si vous vous déconnectez maintenant, vous les perdrez.',
     signOutAnyway: 'Me déconnecter quand même',
     stay: 'Rester connecté',
@@ -75,7 +75,7 @@ export const settings = {
     signedOut: 'Vous êtes déconnecté. Les données du compte sont retirées de cet appareil.',
     deleteSummary: 'Supprimer mon compte',
     deleteNote:
-      'Votre compte sera supprimé pour toujours. Les données de cet appareil restent : vous pourrez continuer sans compte.',
+      'Votre compte sera supprimé pour toujours. Les données de cet appareil restent\u00A0: vous pourrez continuer sans compte.',
     deletePassword: 'Votre mot de passe, pour confirmer',
     deleteButton: 'Supprimer mon compte pour toujours',
     deleted: 'Votre compte est supprimé. Vos données restent sur cet appareil.',
@@ -89,7 +89,7 @@ export const settings = {
   },
   household: {
     title: 'Foyer',
-    subtitle: 'Vous faites partie du foyer « {name} ».',
+    subtitle: 'Vous faites partie du foyer «\u00A0{name}\u00A0».',
     share: 'Montrer mes journées au foyer',
     shareHint:
       'Les autres membres voient vos repas et vos jauges. Ils ne voient jamais votre taille, votre poids ni votre âge.',
@@ -105,6 +105,6 @@ export const settings = {
     subtitleLocal: 'Votre profil et vos repas sont sur cet appareil.',
     note: 'Vous pouvez télécharger un fichier avec votre profil, tous vos repas et les aliments que vous avez créés.',
     download: 'Exporter mes données',
-    saved: 'Fichier enregistré : {file}.',
+    saved: 'Fichier enregistré\u00A0: {file}.',
   },
 } as const

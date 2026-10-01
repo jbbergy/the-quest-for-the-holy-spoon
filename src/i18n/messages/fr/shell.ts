@@ -63,13 +63,13 @@ export const shell = {
   },
   onlineSearch: {
     unavailable:
-      'La recherche des produits de marque ne répond pas. Elle est souvent surchargée. La liste montre seulement les aliments du catalogue public : il peut en manquer.',
+      'La recherche des produits de marque ne répond pas. Elle est souvent surchargée. La liste montre seulement les aliments du catalogue public\u00A0: il peut en manquer.',
     offline:
       'Vous n’êtes pas connecté à Internet. La liste montre seulement les aliments du catalogue public. Les produits de marque reviendront avec la connexion.',
     reconnected:
-      'La connexion est revenue : les produits de marque peuvent de nouveau être cherchés.',
+      'La connexion est revenue\u00A0: les produits de marque peuvent de nouveau être cherchés.',
     barcodeHint:
-      'Vous cherchez un produit de marque ? Essayez avec le numéro du code-barres : il passe par un autre service, qui répond presque toujours.',
+      'Vous cherchez un produit de marque\u202F? Essayez avec le numéro du code-barres\u00A0: il passe par un autre service, qui répond presque toujours.',
     retry: 'Chercher de nouveau',
   },
   notFound: {

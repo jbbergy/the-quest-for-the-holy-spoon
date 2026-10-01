@@ -50,7 +50,7 @@ export const labels = {
     },
     vegan: {
       label: 'Végan',
-      hint: 'Aucun produit animal : ni viande, ni poisson, ni lait, ni œufs',
+      hint: 'Aucun produit animal\u00A0: ni viande, ni poisson, ni lait, ni œufs',
     },
     glutenFree: { label: 'Sans gluten', hint: 'Ni blé, ni orge, ni seigle' },
     lactoseFree: { label: 'Sans lactose', hint: 'Pas de lait ni de produits laitiers' },

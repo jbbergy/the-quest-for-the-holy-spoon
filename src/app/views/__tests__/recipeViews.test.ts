@@ -112,7 +112,7 @@ describe('RecipeListView', () => {
 
     const names = wrapper.findAll('.recipes__name').map((n) => n.text())
     expect(names).toEqual(['Poke bowl', 'Toast'])
-    expect(wrapper.text()).toContain('2 aliments : Pain de mie (2 tranches), Beurre (10 g)')
+    expect(wrapper.text()).toContain('2 aliments\u00A0: Pain de mie (2 tranches), Beurre (10 g)')
   })
 
   it('mène à la fiche de la recette', async () => {

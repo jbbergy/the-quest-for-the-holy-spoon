@@ -63,6 +63,6 @@ export const week = {
     submit: 'Prévoir pour cette personne | Prévoir pour ces personnes',
     planned: 'Le repas est prévu pour {names}. Les portions sont adaptées au besoin de chacun.',
     plannedUnknown:
-      'Le repas est prévu pour {names}. Nous ne connaissons pas encore le besoin de {unknown} : ses portions sont les mêmes que les vôtres.',
+      'Le repas est prévu pour {names}. Nous ne connaissons pas encore le besoin de {unknown}\u00A0: ses portions sont les mêmes que les vôtres.',
   },
 } as const

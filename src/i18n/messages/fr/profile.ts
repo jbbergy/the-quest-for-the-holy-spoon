@@ -20,7 +20,7 @@ export const profile = {
       'Les portions de {n} repas prévu ont été ajustées. Les repas déjà mangés ne changent pas. | Les portions de {n} repas prévus ont été ajustées. Les repas déjà mangés ne changent pas.',
   },
   form: {
-    summary: 'Il manque {n} information : | Il manque {n} informations :',
+    summary: 'Il manque {n} information\u00A0: | Il manque {n} informations\u00A0:',
     you: 'Vous',
     name: 'Prénom ou surnom',
     nameHint: 'Il s’affiche sur l’accueil, et dans le foyer si vous en avez un.',
@@ -43,10 +43,10 @@ export const profile = {
       'L’application reconnaît les aliments à leur nom. Elle ne vérifie pas les certifications halal ou casher. Lisez toujours l’étiquette.',
     missing: {
       name: 'Écrivez un prénom ou un surnom.',
-      heightCm: 'Écrivez votre taille, en centimètres. Par exemple : 170.',
-      weightKg: 'Écrivez votre poids, en kilos. Par exemple : 65.',
+      heightCm: 'Écrivez votre taille, en centimètres. Par exemple\u00A0: 170.',
+      weightKg: 'Écrivez votre poids, en kilos. Par exemple\u00A0: 65.',
       ageYears: 'Écrivez votre âge, en années.',
-      biologicalSex: 'Choisissez « Femme » ou « Homme ».',
+      biologicalSex: 'Choisissez «\u00A0Femme\u00A0» ou «\u00A0Homme\u00A0».',
       activityLevel: 'Choisissez votre activité.',
     },
   },

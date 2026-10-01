@@ -3,7 +3,7 @@
  * Les nombres viennent du code : la page ne peut pas se désaccorder du calcul.
  */
 export const calculations = {
-  title: 'Comment sont calculés mes repères ?',
+  title: 'Comment sont calculés mes repères\u202F?',
   intro:
     'Cette page explique d’où viennent les chiffres de l’application. D’abord ceux des aliments. Ensuite ceux de votre journée. Les nombres en gras sont les vôtres.',
   caveat:
@@ -27,17 +27,17 @@ export const calculations = {
     title: '2. Ce que vous mangez',
     subtitle: 'Le calcul se fait pour la portion que vous avez choisie.',
     portions:
-      '**Les portions.** Si vous choisissez « 1 tranche », l’application la convertit en grammes. Un signe « ≈ » veut dire que le poids de la tranche est une moyenne.',
+      '**Les portions.** Si vous choisissez «\u00A01 tranche\u00A0», l’application la convertit en grammes. Un signe «\u00A0≈\u00A0» veut dire que le poids de la tranche est une moyenne.',
     crossProduct:
       '**Le produit en croix.** Chaque chiffre de l’aliment est multiplié par la portion, puis divisé par 100.',
     calories:
-      '**Les calories.** Elles sont calculées avec les protéines, les glucides et les lipides : {protein} kcal par gramme de protéines, {carbs} kcal par gramme de glucides, {fat} kcal par gramme de lipides.',
+      '**Les calories.** Elles sont calculées avec les protéines, les glucides et les lipides\u00A0: {protein} kcal par gramme de protéines, {carbs} kcal par gramme de glucides, {fat} kcal par gramme de lipides.',
     example:
-      '**Exemple.** Pour 100 g, un aliment contient {proteinG} g de protéines, {carbsG} g de glucides et {fatG} g de lipides. Cela fait {proteinG} × {protein} + {carbsG} × {carbs} + {fatG} × {fat} = **{per100} kcal** pour 100 g. Pour {grams} g, on multiplie par {factor} : **{total} kcal**.',
+      '**Exemple.** Pour 100 g, un aliment contient {proteinG} g de protéines, {carbsG} g de glucides et {fatG} g de lipides. Cela fait {proteinG} × {protein} + {carbsG} × {carbs} + {fatG} × {fat} = **{per100} kcal** pour 100 g. Pour {grams} g, on multiplie par {factor}\u00A0: **{total} kcal**.',
     others:
-      'Les fibres, les sucres, les graisses saturées et le sel se calculent de la même façon. Ils ne s’ajoutent pas aux calories : ils sont déjà dedans, sauf le sel, qui n’en donne aucune.',
+      'Les fibres, les sucres, les graisses saturées et le sel se calculent de la même façon. Ils ne s’ajoutent pas aux calories\u00A0: ils sont déjà dedans, sauf le sel, qui n’en donne aucune.',
     missing:
-      'Quand une base ne donne pas une valeur, l’application compte 0. Pour le sel, Open Food Facts donne parfois le sodium : l’application le multiplie par 2,5.',
+      'Quand une base ne donne pas une valeur, l’application compte 0. Pour le sel, Open Food Facts donne parfois le sodium\u00A0: l’application le multiplie par 2,5.',
     onlyEaten:
       'Seuls les repas **cochés comme mangés** comptent dans vos jauges. Un repas prévu ne compte pas encore.',
     frozen:
@@ -47,14 +47,14 @@ export const calculations = {
     title: '3. Votre besoin en calories',
     subtitle: 'C’est l’énergie que votre corps dépense en une journée.',
     resting:
-      '**Au repos.** L’application utilise la formule de Mifflin-St Jeor : 10 × poids + 6,25 × taille − 5 × âge, puis {sexTerm} pour {sexLabel}.',
+      '**Au repos.** L’application utilise la formule de Mifflin-St Jeor\u00A0: 10 × poids + 6,25 × taille − 5 × âge, puis {sexTerm} pour {sexLabel}.',
     restingMine: '10 × {weight} + 6,25 × {height} − 5 × {age} {sexTerm} = **{rest} kcal**',
     sexMale: 'un homme',
     sexFemale: 'une femme',
     withActivity:
-      '**Avec votre activité.** On multiplie par un coefficient : 1,2 si l’on bouge très peu, jusqu’à 1,9 pour un métier physique. Le vôtre : « {activity} ».',
+      '**Avec votre activité.** On multiplie par un coefficient\u00A0: 1,2 si l’on bouge très peu, jusqu’à 1,9 pour un métier physique. Le vôtre\u00A0: «\u00A0{activity}\u00A0».',
     withActivityMine: '{rest} × {multiplier} = **{need} kcal par jour**',
-    note: 'Ce nombre est votre besoin. L’application ne vous demande ni de maigrir, ni de grossir : elle vise l’équilibre. C’est une estimation, pas une mesure exacte.',
+    note: 'Ce nombre est votre besoin. L’application ne vous demande ni de maigrir, ni de grossir\u00A0: elle vise l’équilibre. C’est une estimation, pas une mesure exacte.',
   },
   macros: {
     title: '4. Vos protéines, glucides et lipides',
@@ -66,20 +66,20 @@ export const calculations = {
   limits: {
     title: '5. Fibres, sucres, graisses saturées et sel',
     subtitle: 'Ici, il y a un minimum ou une limite.',
-    fiber: 'Un **minimum** : au moins 30 g par jour.',
-    sugars: 'Une **limite** : pas plus de 100 g par jour.',
+    fiber: 'Un **minimum**\u00A0: au moins 30 g par jour.',
+    sugars: 'Une **limite**\u00A0: pas plus de 100 g par jour.',
     saturatedFat:
-      'Une **limite** : {share} de {need} kcal ÷ {kcalPerGram} = **{grams} g**. C’est la seule qui change d’une personne à l’autre.',
-    salt: 'Une **limite** : moins de 5 g par jour.',
+      'Une **limite**\u00A0: {share} de {need} kcal ÷ {kcalPerGram} = **{grams} g**. C’est la seule qui change d’une personne à l’autre.',
+    salt: 'Une **limite**\u00A0: moins de 5 g par jour.',
     sugarsNote:
-      'Pour les sucres, l’application compte aussi ceux du lait et des fruits. La limite est donc un peu sévère : c’est voulu.',
+      'Pour les sucres, l’application compte aussi ceux du lait et des fruits. La limite est donc un peu sévère\u00A0: c’est voulu.',
   },
   average: {
     title: '6. La moyenne des 7 derniers jours',
     subtitle: 'Votre corps ne compte pas jour par jour.',
     days: 'L’application prend les {n} jours **avant aujourd’hui**.',
     ignored:
-      'Un jour où vous n’avez marqué **aucun repas mangé** est ignoré. Ce n’est pas un jeûne : c’est un jour non renseigné.',
+      'Un jour où vous n’avez marqué **aucun repas mangé** est ignoré. Ce n’est pas un jeûne\u00A0: c’est un jour non renseigné.',
     compare:
       'Pour chaque autre jour, elle compare ce que vous avez mangé au besoin que vous aviez ce jour-là. Puis elle fait la moyenne.',
     note: 'Cette moyenne **ne change pas** votre objectif du lendemain. Manger plus un jour n’oblige pas à manger moins le suivant.',

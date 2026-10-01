@@ -5,8 +5,8 @@ export const account = {
     password: 'Mot de passe',
     newPassword: 'Nouveau mot de passe',
     passwordHint:
-      'Au moins {min} caractères. Le plus simple : une petite phrase de quelques mots.',
-    emailInvalid: 'Cette adresse e-mail n’est pas correcte. Par exemple : camille{\'@\'}exemple.fr',
+      'Au moins {min} caractères. Le plus simple\u00A0: une petite phrase de quelques mots.',
+    emailInvalid: 'Cette adresse e-mail n’est pas correcte. Par exemple\u00A0: camille{\'@\'}exemple.fr',
     passwordTooShort: 'Ce mot de passe est trop court. Il faut au moins {min} caractères.',
     continueWithout: 'Continuer sans compte',
     backToSignIn: 'Retour à la connexion',
@@ -14,7 +14,7 @@ export const account = {
   signIn: {
     title: 'Se connecter',
     submit: 'Se connecter',
-    forgot: 'Mot de passe oublié ?',
+    forgot: 'Mot de passe oublié\u202F?',
     create: 'Créer un compte',
   },
   signUp: {
@@ -24,8 +24,8 @@ export const account = {
     submit: 'Créer mon compte',
     sentTitle: 'Regardez vos e-mails',
     sent: 'Nous venons d’envoyer un lien à {email}. Ouvrez-le pour confirmer votre adresse. Il marche pendant 24 heures. Regardez aussi dans les courriers indésirables.',
-    existing: 'Cette adresse a déjà un compte ? Vous recevrez alors un e-mail pour vous connecter.',
-    devNote: 'En développement, aucun e-mail ne part : le lien s’affiche dans le terminal du serveur.',
+    existing: 'Cette adresse a déjà un compte\u202F? Vous recevrez alors un e-mail pour vous connecter.',
+    devNote: 'En développement, aucun e-mail ne part\u00A0: le lien s’affiche dans le terminal du serveur.',
     changeAddress: 'Changer d’adresse',
     haveAccount: 'J’ai déjà un compte',
   },
@@ -39,7 +39,7 @@ export const account = {
   reset: {
     title: 'Nouveau mot de passe',
     incomplete:
-      'Ce lien ne marche pas : il est incomplet. Ouvrez-le directement depuis l’e-mail, ou demandez un nouveau lien.',
+      'Ce lien ne marche pas\u00A0: il est incomplet. Ouvrez-le directement depuis l’e-mail, ou demandez un nouveau lien.',
     submit: 'Enregistrer et me connecter',
     askNewLink: 'Demander un nouveau lien',
   },
@@ -47,12 +47,12 @@ export const account = {
     title: 'Confirmation de l’adresse',
     pending: 'Confirmation en cours…',
     missing:
-      'Ce lien ne marche pas : il est incomplet. Ouvrez-le directement depuis l’e-mail, sans le recopier.',
+      'Ce lien ne marche pas\u00A0: il est incomplet. Ouvrez-le directement depuis l’e-mail, sans le recopier.',
     done: 'Votre adresse est confirmée. Vous êtes connecté avec {email}.',
     createProfile: 'Créer mon profil',
     continue: 'Continuer',
     failedHelp:
-      'Connectez-vous avec votre adresse et votre mot de passe : si l’adresse n’est toujours pas confirmée, un nouveau lien vous sera envoyé.',
+      'Connectez-vous avec votre adresse et votre mot de passe\u00A0: si l’adresse n’est toujours pas confirmée, un nouveau lien vous sera envoyé.',
     signIn: 'Se connecter',
   },
 } as const

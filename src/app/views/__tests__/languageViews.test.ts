@@ -75,7 +75,7 @@ describe('choix de la langue dans les réglages', () => {
     const choices = languageChoices(wrapper)
     expect(choices.map((choice) => choice.attributes('value'))).toEqual(['auto', 'fr', 'en'])
     expect((languageSelect(wrapper).element as HTMLSelectElement).value).toBe('auto')
-    expect(wrapper.text()).toContain('Suit la langue de l’appareil : Français.')
+    expect(wrapper.text()).toContain('Suit la langue de l’appareil\u00A0: Français.')
   })
 
   it('dit quelle langue « automatique » donne sur cet appareil', async () => {

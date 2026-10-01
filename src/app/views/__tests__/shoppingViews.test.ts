@@ -165,10 +165,7 @@ const rows = (wrapper: Awaited<ReturnType<typeof mountAt>>) =>
     .map((row) => row.find('.shopping__check').text().replace(/\s+/g, ' ').replace(' ,', ',').trim())
 
 const button = (wrapper: Awaited<ReturnType<typeof mountAt>>, label: string) => {
-  // Les espaces insécables des guillemets comptent comme des espaces.
-  const found = wrapper
-    .findAll('button')
-    .find((candidate) => candidate.text().replace(/\u00A0/gu, ' ').includes(label))
+  const found = wrapper.findAll('button').find((candidate) => candidate.text().includes(label))
   if (found === undefined) throw new Error(`Bouton introuvable : ${label}`)
   return found
 }
@@ -248,9 +245,9 @@ describe('Liste de courses du foyer', () => {
 
     expect(alexMeals).toHaveBeenCalledWith(alex, WEEK, '2026-10-04')
     expect(rows(wrapper)).toEqual(['Lait, 250 g', 'Œuf, 2 œufs', 'Riz, 180 g'])
-    expect(wrapper.text()).toContain('La liste est à jour : 3 articles ajoutés.')
+    expect(wrapper.text()).toContain('La liste est à jour\u00A0: 3 articles ajoutés.')
     expect(wrapper.text()).toContain(
-      'Les repas de sacha@example.fr ne sont pas comptés : sacha@example.fr ne partage pas ses journées.',
+      'Les repas de sacha@example.fr ne sont pas comptés\u00A0: sacha@example.fr ne partage pas ses journées.',
     )
 
     await button(wrapper, 'Remplir la liste').trigger('click')
@@ -265,7 +262,7 @@ describe('Liste de courses du foyer', () => {
     await flushPromises()
 
     expect(rows(wrapper)).toEqual(['Lait, 250 g', 'Œuf, 2 œufs', 'Riz, 180 g'])
-    expect(wrapper.text()).toContain('La liste est à jour : 3 articles ajoutés.')
+    expect(wrapper.text()).toContain('La liste est à jour\u00A0: 3 articles ajoutés.')
     // Retiré de l'adresse : un rechargement ne remplirait pas de nouveau.
     expect(router.currentRoute.value.query).toEqual({ semaine: WEEK })
   })
@@ -280,7 +277,7 @@ describe('Liste de courses du foyer', () => {
     await button(wrapper, 'Remplir la liste').trigger('click')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Les repas de Alex ne sont pas comptés : pas de connexion.')
+    expect(wrapper.text()).toContain('Les repas de Alex ne sont pas comptés\u00A0: pas de connexion.')
     expect(rows(wrapper)).toEqual(['Œuf, 2 œufs', 'Riz, 80 g'])
   })
 
@@ -303,7 +300,7 @@ describe('Liste de courses du foyer', () => {
     await flushPromises()
 
     await searchFor(wrapper, 'lessive')
-    await button(wrapper, 'Ajouter « lessive » tel quel').trigger('click')
+    await button(wrapper, 'Ajouter «\u00A0lessive\u00A0» tel quel').trigger('click')
     await flushPromises()
     expect(rows(wrapper)).toEqual(['lessive', 'Œuf, 2 œufs', 'Riz, 80 g'])
     expect(wrapper.text()).toContain('lessive ajouté.')
@@ -347,7 +344,7 @@ describe('Liste de courses du foyer', () => {
     await flushPromises()
 
     expect(rows(wrapper)).toEqual(['Œuf, plus dans les repas', 'Riz, plus dans les repas'])
-    expect(wrapper.text()).toContain('La liste est à jour : 2 articles changés.')
+    expect(wrapper.text()).toContain('La liste est à jour\u00A0: 2 articles changés.')
   })
 
   it('garde la case cochée d’un rechargement à l’autre', async () => {
@@ -402,7 +399,7 @@ describe('Liste de courses du foyer', () => {
 
     await searchFor(wrapper, 'riz complet')
     expect(wrapper.find(`[data-food="${rice.id}"]`).exists()).toBe(true)
-    await button(wrapper, 'Ajouter « riz complet » tel quel').trigger('click')
+    await button(wrapper, 'Ajouter «\u00A0riz complet\u00A0» tel quel').trigger('click')
     await flushPromises()
     expect(rows(wrapper)).toEqual(['riz complet'])
   })
@@ -437,7 +434,7 @@ describe('Liste de courses du foyer', () => {
     await searchFor(wrapper, 'lessive')
 
     await wrapper.find('.shopping__as-is input').setValue(' 1   bidon ')
-    await button(wrapper, 'Ajouter « lessive » tel quel').trigger('click')
+    await button(wrapper, 'Ajouter «\u00A0lessive\u00A0» tel quel').trigger('click')
     await flushPromises()
 
     expect(rows(wrapper)).toEqual(['lessive, 1 bidon'])
@@ -450,7 +447,7 @@ describe('Liste de courses du foyer', () => {
     // La quantité est facultative, et repart vide.
     await searchFor(wrapper, 'piles')
     expect((wrapper.find('.shopping__as-is input').element as HTMLInputElement).value).toBe('')
-    await button(wrapper, 'Ajouter « piles » tel quel').trigger('click')
+    await button(wrapper, 'Ajouter «\u00A0piles\u00A0» tel quel').trigger('click')
     await flushPromises()
     expect(rows(wrapper)).toEqual(['lessive, 1 bidon', 'piles'])
   })
@@ -503,7 +500,7 @@ describe('Liste de courses du foyer', () => {
     await flushPromises()
 
     expect(alexMeals).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Pas de connexion : seuls vos repas sont comptés.')
+    expect(wrapper.text()).toContain('Pas de connexion\u00A0: seuls vos repas sont comptés.')
   })
 
   it('dit quand la semaine n’a pas pu être lue', async () => {

@@ -71,13 +71,13 @@ describe('FoodPicker — aide', () => {
     const tips = wrapper.findAll('.picker__note .tip__button')
 
     expect(tips).toHaveLength(1)
-    expect(tips[0]!.attributes('aria-label')).toBe('Explication : la recherche')
+    expect(tips[0]!.attributes('aria-label')).toBe('Explication\u00A0: la recherche')
 
     await tips[0]!.trigger('click')
     const bubble = wrapper.get('.picker__note .tip__bubble').text()
-    expect(bubble).toContain('Code-barres : ')
-    expect(bubble).toContain('Catalogue public : ')
-    expect(bubble).toContain('Produits de marque : ')
+    expect(bubble).toContain('Code-barres\u00A0: ')
+    expect(bubble).toContain('Catalogue public\u00A0: ')
+    expect(bubble).toContain('Produits de marque\u00A0: ')
   })
 })
 

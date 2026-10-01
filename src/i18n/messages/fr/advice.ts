@@ -4,11 +4,11 @@ export const advice = {
   exceededNote: 'Ce n’est pas grave. Ce qui compte, c’est la moyenne sur plusieurs jours.',
   complete: 'Vous avez mangé ce dont vous avez besoin aujourd’hui.',
   remaining: 'Il vous reste {kcal} kcal pour aujourd’hui.',
-  missingMacro: 'Il vous manque surtout des {name} : {grams} g.',
+  missingMacro: 'Il vous manque surtout des {name}\u00A0: {grams} g.',
   missingFiber: 'Il vous manque {also} {grams} g de fibres.',
   also: 'aussi',
   stillMissing: 'encore',
-  forExample: 'Par exemple : {examples}.',
+  forExample: 'Par exemple\u00A0: {examples}.',
   macro: {
     protein: 'protéines',
     carbs: 'glucides',

@@ -19,8 +19,8 @@ describe('adviceFor', () => {
   it('ne met en avant qu’un seul nutriment, avec des exemples', () => {
     expect(adviceFor(profile(), [])).toEqual([
       'Il vous reste 1\u202f890 kcal pour aujourd’hui.',
-      'Il vous manque surtout des glucides : 193 g.',
-      'Par exemple : pain, pâtes, riz, pommes de terre, fruits.',
+      'Il vous manque surtout des glucides\u00A0: 193 g.',
+      'Par exemple\u00A0: pain, pâtes, riz, pommes de terre, fruits.',
     ])
   })
 
@@ -30,7 +30,7 @@ describe('adviceFor', () => {
       [Diet.VEGAN],
     )
 
-    expect(lines).toContain('Par exemple : légumes secs, tofu.')
+    expect(lines).toContain('Par exemple\u00A0: légumes secs, tofu.')
   })
 
   it('dit un dépassement sans juger, avec le vrai nombre', () => {
@@ -53,7 +53,7 @@ describe('adviceFor', () => {
     expect(lines).toEqual([
       'Vous avez mangé ce dont vous avez besoin aujourd’hui.',
       'Il vous manque encore 8 g de fibres.',
-      'Par exemple : légumes, fruits, légumes secs.',
+      'Par exemple\u00A0: légumes, fruits, légumes secs.',
     ])
   })
 

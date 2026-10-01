@@ -192,7 +192,7 @@ describe('RingGauge', () => {
 
   it('annonce la valeur et l’état en toutes lettres, pas un pourcentage', () => {
     expect(ring({}).find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
-      'Protéines : 93 g, sur 150 g. Encore 57 g.',
+      'Protéines\u00A0: 93 g, sur 150 g. Encore 57 g.',
     )
   })
 
@@ -207,7 +207,7 @@ describe('RingGauge', () => {
     // Sans « limite », un lecteur d'écran présenterait 4 sur 5 g comme une
     // progression à poursuivre (critère 1.4.1).
     expect(salt.find('[role="progressbar"]').attributes('aria-valuetext')).toBe(
-      'Sel : 4 g, limite 5 g. Sous la limite.',
+      'Sel\u00A0: 4 g, limite 5 g. Sous la limite.',
     )
     expect(salt.classes()).not.toContain('ring--exceeded')
   })
@@ -239,9 +239,9 @@ describe('RingGauge', () => {
     const wrapper = ring({ average: 120 })
 
     expect(wrapper.find('.ring__average').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Moyenne : 120 g')
+    expect(wrapper.text()).toContain('Moyenne\u00A0: 120 g')
     expect(wrapper.find('[role="progressbar"]').attributes('aria-valuetext')).toContain(
-      'Moyenne des 7 derniers jours : 120 g',
+      'Moyenne des 7 derniers jours\u00A0: 120 g',
     )
     expect(ring({}).find('.ring__average').exists()).toBe(false)
   })
@@ -379,7 +379,7 @@ describe('InfoTip', () => {
     const wrapper = mountTip()
     const button = wrapper.find('button')
 
-    expect(button.attributes('aria-label')).toBe('Explication : glucides')
+    expect(button.attributes('aria-label')).toBe('Explication\u00A0: glucides')
     expect(button.attributes('aria-expanded')).toBe('false')
     expect(button.attributes('aria-controls')).toBe(wrapper.find('[role="status"]').attributes('id'))
     expect(wrapper.find('[role="status"]').text()).toBe('')
@@ -431,7 +431,7 @@ describe('InfoTip', () => {
 describe('ConfirmButton', () => {
   const mountButton = () =>
     mount(ConfirmButton, {
-      props: { question: 'Supprimer ce repas ?', confirmLabel: 'Supprimer' },
+      props: { question: 'Supprimer ce repas\u202F?', confirmLabel: 'Supprimer' },
       slots: { default: 'Supprimer le repas' },
       attachTo: document.body,
     })

@@ -265,7 +265,7 @@ describe('Écran Foyer', () => {
 
     await button(wrapper, 'Retirer').trigger('click')
     expect(removeMember).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('Retirer alex@example.fr du foyer ?')
+    expect(wrapper.text()).toContain('Retirer alex@example.fr du foyer\u202F?')
 
     const confirm = wrapper.findAll('[data-confirm]')[0]!
     await confirm.trigger('click')
@@ -309,7 +309,7 @@ describe('Écran d’invitation', () => {
       household: { receivedInvitations: succeedsWith([invitation]) },
     })
 
-    expect(wrapper.find('h1').text()).toBe('Rejoindre «\u00A0Chez Sacha\u00A0»\u00A0?')
+    expect(wrapper.find('h1').text()).toBe('Rejoindre «\u00A0Chez Sacha\u00A0»\u202F?')
     expect(wrapper.text()).toContain('Ce que les autres membres verront')
     expect(wrapper.text()).toContain('Vos repas, prévus et mangés.')
     expect(wrapper.text()).toContain('Ce qui reste privé')
@@ -354,7 +354,7 @@ describe('Écran d’invitation', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Vous faites déjà partie du foyer « Les Martin »')
+    expect(wrapper.text()).toContain('Vous faites déjà partie du foyer «\u00A0Les Martin\u00A0»')
     await button(wrapper, 'Rejoindre le foyer').trigger('click')
     expect(accept).not.toHaveBeenCalled()
   })
@@ -373,7 +373,7 @@ describe('Réglages du foyer', () => {
     })
 
     const toggle = wrapper.find('input[role="switch"]')
-    expect(wrapper.text()).toContain('Vous faites partie du foyer « Les Martin ».')
+    expect(wrapper.text()).toContain('Vous faites partie du foyer «\u00A0Les Martin\u00A0».')
     expect((toggle.element as HTMLInputElement).checked).toBe(true)
 
     await toggle.setValue(false)
@@ -458,7 +458,7 @@ describe('Connexion depuis un lien', () => {
 describe('ConfirmButton', () => {
   it('déplace le focus sur la confirmation, puis le rend au bouton', async () => {
     const wrapper = mount(ConfirmButton, {
-      props: { question: 'Supprimer ?', confirmLabel: 'Supprimer' },
+      props: { question: 'Supprimer\u202F?', confirmLabel: 'Supprimer' },
       slots: { default: 'Supprimer…' },
       attachTo: document.body,
     })
@@ -466,7 +466,7 @@ describe('ConfirmButton', () => {
     await wrapper.find('button').trigger('click')
     await flushPromises()
     expect(document.activeElement?.hasAttribute('data-confirm')).toBe(true)
-    expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe('Supprimer ?')
+    expect(wrapper.find('[role="group"]').attributes('aria-label')).toBe('Supprimer\u202F?')
 
     await button(wrapper as unknown as Wrapper, 'Annuler').trigger('click')
     await flushPromises()
@@ -476,7 +476,7 @@ describe('ConfirmButton', () => {
 
   it('émet la confirmation', async () => {
     const wrapper = mount(ConfirmButton, {
-      props: { question: 'Supprimer ?', confirmLabel: 'Oui' },
+      props: { question: 'Supprimer\u202F?', confirmLabel: 'Oui' },
       slots: { default: 'Supprimer…' },
     })
 

@@ -62,7 +62,7 @@ describe('ProfileForm', () => {
     expect(form.emitted('submit')).toBeUndefined()
     expect(form.find('[role="alert"]').text()).toContain('Il manque 6 informations')
     expect(form.text()).toContain('Écrivez un prénom ou un surnom.')
-    expect(form.text()).toContain('Choisissez « Femme » ou « Homme ».')
+    expect(form.text()).toContain('Choisissez «\u00A0Femme\u00A0» ou «\u00A0Homme\u00A0».')
     expect(form.text()).toContain('Choisissez votre activité.')
     expect(field(form, 'Prénom').attributes('aria-invalid')).toBe('true')
     expect(document.activeElement).toBe(field(form, 'Prénom').element)
@@ -76,7 +76,7 @@ describe('ProfileForm', () => {
     await form.find('input[name="sex"]').setValue(true)
 
     expect(form.text()).not.toContain('Écrivez un prénom ou un surnom.')
-    expect(form.text()).not.toContain('Choisissez « Femme » ou « Homme ».')
+    expect(form.text()).not.toContain('Choisissez «\u00A0Femme\u00A0» ou «\u00A0Homme\u00A0».')
     expect(form.find('[role="alert"]').text()).toContain('Il manque 4 informations')
   })
 

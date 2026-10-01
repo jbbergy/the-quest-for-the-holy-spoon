@@ -11,7 +11,7 @@ export const errors = {
   INVALID_PLAYER:
     'Écrivez un prénom ou un surnom, de 60 lettres au plus.',
   INCOMPATIBLE_DIETARY_RESTRICTION:
-    'Ces régimes ne vont pas ensemble. Par exemple : végan et pescétarien. Gardez-en un seul.',
+    'Ces régimes ne vont pas ensemble. Par exemple\u00A0: végan et pescétarien. Gardez-en un seul.',
   INVALID_FOOD_ITEM:
     'Cet aliment n’est pas complet. Vérifiez son nom, son code-barres et ses portions.',
   INVALID_MEAL:
@@ -41,7 +41,7 @@ export const errors = {
   INVALID_CREDENTIALS:
     'L’adresse e-mail ou le mot de passe est faux.',
   EMAIL_NOT_VERIFIED:
-    'Votre adresse n’est pas encore confirmée. Nous venons de vous envoyer un nouveau lien : regardez vos e-mails.',
+    'Votre adresse n’est pas encore confirmée. Nous venons de vous envoyer un nouveau lien\u00A0: regardez vos e-mails.',
   TOKEN_INVALID:
     'Ce lien ne marche plus. Il a déjà servi, ou il est trop ancien. Demandez un nouveau lien.',
   RATE_LIMITED:
@@ -65,7 +65,7 @@ export const errors = {
   ALREADY_INVITED:
     'Cette personne a déjà une invitation. Elle n’a pas encore répondu.',
   HOUSEHOLD_FULL:
-    'Le foyer est complet : 12 personnes au plus, invitations comprises.',
+    'Le foyer est complet\u00A0: 12 personnes au plus, invitations comprises.',
   INVITATION_NOT_FOUND:
     'Cette invitation n’existe plus. Elle est trop ancienne, ou elle a été annulée.',
   MEMBER_NOT_FOUND:
