@@ -34,6 +34,7 @@ const players = usePlayerStore()
 const household = useHousehold()
 const announcement = ref('')
 const main = ref<HTMLElement | null>(null)
+const scroller = ref<HTMLElement | null>(null)
 
 /**
  * Libellés courts : « Tableau de bord » passait sur deux lignes à 320 px de
@@ -120,6 +121,18 @@ const isBare = computed(() => BARE_ROUTES.includes(String(route.name)))
  * Le titre est lu après le rendu, une fois que l'écran a pu le préciser
  * (`usePageTitle`) ; vidé d'abord, pour qu'un même titre soit redit.
  */
+/**
+ * Un nouvel écran s'ouvre en haut. La zone qui défile est un élément, pas la
+ * page : le navigateur ne la remonte pas de lui-même. Le chemin seul compte —
+ * changer `?jour=` dans la semaine ne doit pas faire perdre sa place.
+ * Sans animation : un défilement doux serait interrompu par le changement de
+ * contenu, et l'écran s'ouvrirait au milieu.
+ */
+watch(
+  () => route.path,
+  () => scroller.value?.scrollTo({ top: 0, behavior: 'instant' }),
+)
+
 watch(
   () => route.name,
   async (_name, previous) => {
@@ -228,34 +241,43 @@ watch(
       </RouterLink>
     </div>
 
-    <header
-      v-if="!isBare"
-      class="shell__top"
-      :class="{ 'shell__top--wide': route.meta.wide === true }"
+    <!-- Seule cette zone défile, jamais la page : la barre d'onglets n'est
+         donc pas un élément fixé, et Firefox pour Android, en masquant sa
+         barre d'adresse, n'a plus rien à recaler (elle sautait, avec un
+         vide dessous). -->
+    <div
+      ref="scroller"
+      class="shell__scroll"
     >
-      <SyncIndicator class="shell__sync" />
-      <RouterLink
-        class="shell__settings shell__settings--top"
-        :to="{ name: ROUTE.settings }"
-        :aria-current="currentness(SETTINGS)"
+      <header
+        v-if="!isBare"
+        class="shell__top"
+        :class="{ 'shell__top--wide': route.meta.wide === true }"
       >
-        <span
-          class="shell__avatar"
-          aria-hidden="true"
-        >{{ avatar }}</span>
-        {{ t('shell.nav.settings') }}
-      </RouterLink>
-    </header>
+        <SyncIndicator class="shell__sync" />
+        <RouterLink
+          class="shell__settings shell__settings--top"
+          :to="{ name: ROUTE.settings }"
+          :aria-current="currentness(SETTINGS)"
+        >
+          <span
+            class="shell__avatar"
+            aria-hidden="true"
+          >{{ avatar }}</span>
+          {{ t('shell.nav.settings') }}
+        </RouterLink>
+      </header>
 
-    <main
-      id="contenu"
-      ref="main"
-      class="shell__main"
-      :class="{ 'shell__main--bare': isBare, 'shell__main--wide': route.meta.wide === true }"
-      tabindex="-1"
-    >
-      <slot />
-    </main>
+      <main
+        id="contenu"
+        ref="main"
+        class="shell__main"
+        :class="{ 'shell__main--bare': isBare, 'shell__main--wide': route.meta.wide === true }"
+        tabindex="-1"
+      >
+        <slot />
+      </main>
+    </div>
 
     <ServiceWorkerNotice />
   </div>
@@ -266,9 +288,24 @@ watch(
 $wide: 64rem;
 
 .shell {
-  min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  height: 100dvh;
+}
+
+/* La seule zone qui défile. En colonne, pour que `<main>` remplisse la
+   hauteur d'un écran court (accueil, connexion). Positionnée : sans cela,
+   un élément en `position: absolute` du contenu (les textes `.sr-only`) se
+   placerait par rapport à la page, et la rallongerait d'autant — elle
+   redeviendrait défilable. */
+.shell__scroll {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  scroll-behavior: smooth;
 }
 
 /* L'état de la synchronisation et le bouton des réglages restent côte à côte :
@@ -314,11 +351,8 @@ $wide: 64rem;
   width: 100%;
   max-width: var(--layout-max-width);
 
-  /* La marge basse réserve la place de la barre de navigation, y compris la zone
-     sûre des téléphones à encoche. */
   margin: 0 auto;
-  padding: var(--space-3) var(--space-4)
-    calc(var(--space-8) + env(safe-area-inset-bottom, 0px) + 4rem);
+  padding: var(--space-3) var(--space-4) var(--space-8);
 }
 
 .shell__main--bare {
@@ -342,12 +376,14 @@ $wide: 64rem;
   display: none;
 }
 
+/* Sous la zone qui défile, dans la colonne : jamais posée par-dessus la page.
+   `order` la place en bas sans changer l'ordre de lecture, où elle précède
+   le contenu. */
 .shell__nav {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  position: relative;
   z-index: 10;
+  flex-shrink: 0;
+  order: 1;
   padding: var(--space-2) var(--space-2) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
   background: var(--color-surface-raised);
   border-top: 1px solid var(--color-border);
@@ -473,17 +509,14 @@ $wide: 64rem;
   .shell:not(.shell--bare) {
     display: grid;
     grid-template-columns: 15.5rem minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
+    grid-template-rows: minmax(0, 1fr);
   }
 
   .shell__side {
-    position: sticky;
-    top: 0;
-    grid-row: 1 / -1;
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
-    height: 100dvh;
+    overflow-y: auto;
     padding: var(--space-6) var(--space-4);
     background: var(--color-surface-raised);
     border-right: 1px solid var(--color-border);
@@ -497,8 +530,9 @@ $wide: 64rem;
     line-height: 1.1;
   }
 
+  /* Dans la colonne, la navigation reprend sa place, sous le nom. */
   .shell__nav {
-    position: static;
+    order: 0;
     padding: 0;
     background: none;
     border: none;

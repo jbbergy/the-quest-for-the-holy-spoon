@@ -709,13 +709,14 @@ async function remove(): Promise<void> {
 }
 
 /**
- * Le pied de page reste visible au-dessus de la barre d'onglets : le total et
- * « Enregistrer » sont toujours à portée de pouce. `scroll-padding-bottom`
- * (plus bas) empêche qu'il recouvre l'élément qui a le focus — critère 2.4.11.
+ * Le pied de page reste collé au bas de la zone qui défile, juste au-dessus de
+ * la barre d'onglets : le total et « Enregistrer » sont toujours à portée de
+ * pouce. `scroll-padding-bottom` (plus bas) empêche qu'il recouvre l'élément
+ * qui a le focus — critère 2.4.11.
  */
 .editor__footer {
   position: sticky;
-  bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  bottom: 0;
   z-index: 5;
   display: flex;
   flex-direction: column;
@@ -759,20 +760,17 @@ async function remove(): Promise<void> {
   font-size: var(--font-size-sm);
 }
 
-:global(html:has(.editor__footer)) {
-  scroll-padding-bottom: 13rem;
+/* La hauteur du pied de page : la barre d'onglets, hors de la zone qui
+   défile, n'a plus à y être comptée. */
+:global(.shell__scroll:has(.editor__footer)) {
+  scroll-padding-bottom: 9rem;
 }
 
 @media (min-width: 64rem) {
   .editor__footer {
-    bottom: 0;
     margin-inline: 0;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  }
-
-  :global(html:has(.editor__footer)) {
-    scroll-padding-bottom: 9rem;
   }
 }
 
@@ -787,7 +785,7 @@ async function remove(): Promise<void> {
     border-radius: var(--radius-lg);
   }
 
-  :global(html:has(.editor__footer)) {
+  :global(.shell__scroll:has(.editor__footer)) {
     scroll-padding-bottom: 0;
   }
 }
