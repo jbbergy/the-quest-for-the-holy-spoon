@@ -16,6 +16,7 @@ rsync -az --delete \
   --exclude server/.data \
   --exclude .claude \
   --exclude .env \
+  --exclude TODO.md \
   ./ "$SERVER:$DEST/"
 
 ssh "$SERVER" "cd $DEST && docker compose up -d --build"
