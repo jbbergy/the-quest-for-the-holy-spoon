@@ -122,8 +122,8 @@ describe('FindFoodUseCase', () => {
       )
 
       expect(found.items.map((item) => item.name)).toEqual([
-        'Salade de pois chiches',
         'Salade de saumon',
+        'Salade de pois chiches',
       ])
       expect(found.excluded.map((item) => item.name)).toEqual(['Salade de poulet'])
     })
@@ -145,7 +145,7 @@ describe('FindFoodUseCase', () => {
 
       const found = unwrap(await finder(remote).execute('poulet'))
 
-      expect(found.items.map((item) => item.name)).toEqual([
+      expect(found.items.map((item) => item.name).sort()).toEqual([
         'Blanc de poulet',
         'Poulet rôti Fleury',
       ])
@@ -164,7 +164,7 @@ describe('FindFoodUseCase', () => {
       expect(found.items.map((item) => item.name)).toEqual(['Nutella', 'Pâte à tartiner'])
     })
 
-    it('trie l’ensemble par nom, accents compris', async () => {
+    it('départage par nom, accents compris', async () => {
       await foods.save(foodOf('Eau'))
       const remote = remoteReturning(
         ok(null),
@@ -176,6 +176,36 @@ describe('FindFoodUseCase', () => {
       // « Élevé » se range entre « Eau » et « Farine », ce qu'un tri sur les
       // points de code placerait après « Farine ».
       expect(found.items.map((item) => item.name)).toEqual(['Eau', 'Élevé', 'Farine'])
+    })
+
+    it('classe l’aliment cherché avant ceux qui le contiennent', async () => {
+      // Le cas réel : « raisin » sortait le chocolat et l'huile avant le fruit.
+      await foods.saveMany([
+        foodOf('Chocolat noir aux fruits secs (noisettes, amandes, raisins, praline), tablette'),
+        foodOf('Huile de pépins de raisin'),
+        foodOf('Raisin noir, cru'),
+        foodOf('Raisin, cru'),
+        foodOf('Raisin, sec'),
+      ])
+      const remote = remoteReturning(
+        ok(null),
+        ok([
+          offItem('Raisins secs', '1111111111116'),
+          offItem('Brioche aux raisins', '2222222222229'),
+        ]),
+      )
+
+      const found = unwrap(await finder(remote).execute('raisin'))
+
+      expect(found.items.map((item) => item.name)).toEqual([
+        'Raisin, cru',
+        'Raisin, sec',
+        'Raisin noir, cru',
+        'Raisins secs',
+        'Huile de pépins de raisin',
+        'Chocolat noir aux fruits secs (noisettes, amandes, raisins, praline), tablette',
+        'Brioche aux raisins',
+      ])
     })
 
     it('montre le produit de marque même si une fiche perso porte son code', async () => {

@@ -5,6 +5,7 @@
 import { ApplicationError, type RepositoryError } from '@/core/errors'
 import type { FoodItemId, PlayerId } from '@/core/identity'
 import type { INetworkStatus } from '@/core/infrastructure/NetworkStatusService'
+import { tokenize } from '@/core/infrastructure/text'
 import { Macros } from '@/core/nutrition/Macros'
 import { NutrientDetail } from '@/core/nutrition/NutrientDetail'
 import { err, ok, type Result } from '@/core/result'
@@ -37,7 +38,10 @@ const REMOTE_SEARCH_LIMIT = 12
 export interface FoodSearchResults {
   /** Ce que la saisie a été comprise être — l'UI n'en déduit qu'un libellé. */
   readonly kind: 'by_name' | 'by_barcode'
-  /** Catalogue local et distant réunis, triés par nom. */
+  /**
+   * Catalogue local et distant réunis, les plus pertinents d'abord pour une
+   * recherche par nom (`byRelevance`), par nom pour un code-barres.
+   */
   readonly items: readonly FoodItem[]
   /**
    * Le distant a-t-il réellement répondu ?
@@ -128,7 +132,8 @@ export class FindFoodUseCase {
     }
 
     const current = new Map(refreshed.map((item) => [item.id, item]))
-    const found = byName([...local.value.map((item) => current.get(item.id) ?? item), ...fresh])
+    const merged = [...local.value.map((item) => current.get(item.id) ?? item), ...fresh]
+    const found = kind === 'by_name' ? byRelevance(merged, trimmed) : byName(merged)
     return ok({
       kind,
       items: found.filter((item) => DietSuitability.suits(item, diets)),
@@ -250,6 +255,44 @@ function sameContent(a: FoodItem, b: FoodItem): boolean {
         serving.label === b.servings[index]?.label && serving.grams === b.servings[index]?.grams,
     )
   )
+}
+
+/**
+ * Classement d'une recherche par nom : l'aliment que l'on cherche avant ceux
+ * qui le contiennent.
+ *
+ * Trié par nom, « raisin » sortait « Chocolat au lait aux fruits secs (…,
+ * raisins, …) » et « Huile de pépins de raisin » avant « Raisin, cru ». Trois
+ * critères, dans l'ordre :
+ *
+ * 1. le nom **commence** par le premier mot tapé : « Raisin noir, cru » oui,
+ *    « Jus de raisin » non ;
+ * 2. les fiches de référence et les vôtres avant Open Food Facts : un produit
+ *    de marque est presque toujours une préparation, l'aliment brut est chez
+ *    Ciqual ;
+ * 3. le nom le plus court en mots — « Raisin, cru » avant « Raisin Chasselas,
+ *    cru » —, puis l'ordre alphabétique pour départager.
+ */
+function byRelevance(items: readonly FoodItem[], query: string): readonly FoodItem[] {
+  const [first] = tokenize(query)
+  const ranked = items.map((item) => {
+    const tokens = tokenize(item.name)
+    return {
+      item,
+      leading: first !== undefined && tokens[0]?.startsWith(first) === true ? 0 : 1,
+      remote: item.source === FoodSource.OPEN_FOOD_FACTS ? 1 : 0,
+      words: tokens.length,
+    }
+  })
+  return ranked
+    .sort(
+      (a, b) =>
+        a.leading - b.leading ||
+        a.remote - b.remote ||
+        a.words - b.words ||
+        a.item.name.localeCompare(b.item.name, 'fr'),
+    )
+    .map((entry) => entry.item)
 }
 
 /** Tri alphabétique français : « élevé » se range entre « eau » et « farine ». */
