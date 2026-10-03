@@ -75,6 +75,17 @@ export const meal: Messages<typeof fr> = {
     no: 'No',
     delete: 'Delete',
   },
+  scanner: {
+    open: 'Scan a barcode',
+    title: 'Scan a barcode',
+    starting: 'Opening the camera…',
+    aim: 'Place the barcode inside the frame, about ten centimetres away.',
+    denied:
+      'Camera access is blocked. Allow it in your browser settings, or type the number under the barcode.',
+    noCamera: 'No camera is available. Type the number under the barcode.',
+    failed: 'The scanner could not start. Try again, or type the number under the barcode.',
+    retry: 'Try again',
+  },
   picker: {
     note: 'Type the name of a food, or the {barcode} number. The app searches the {catalogue} and the {brands}.',
     noteTerm: 'the search',

@@ -73,6 +73,17 @@ export const meal = {
     no: 'Non',
     delete: 'Supprimer',
   },
+  scanner: {
+    open: 'Scanner un code-barres',
+    title: 'Scanner un code-barres',
+    starting: 'Ouverture de la caméra…',
+    aim: 'Placez le code-barres dans le cadre, à une dizaine de centimètres.',
+    denied:
+      'L’accès à la caméra est refusé. Autorisez-le dans les réglages du navigateur, ou tapez le numéro sous le code-barres.',
+    noCamera: 'Aucune caméra n’est disponible. Tapez le numéro sous le code-barres.',
+    failed: 'Le scanner n’a pas pu démarrer. Réessayez, ou tapez le numéro sous le code-barres.',
+    retry: 'Réessayer',
+  },
   picker: {
     note: 'Tapez le nom d’un aliment, ou le numéro du {barcode}. L’application cherche dans le {catalogue} et dans les {brands}.',
     noteTerm: 'la recherche',

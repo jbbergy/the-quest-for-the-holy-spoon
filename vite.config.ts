@@ -67,6 +67,21 @@ const pwa = VitePWA({
     runtimeCaching: [
       {
         /**
+         * Le lecteur de codes-barres en WebAssembly (≈ 1 Mo), pour les
+         * navigateurs sans `BarcodeDetector` : hors du précache, pour ne pas
+         * le faire télécharger à qui ne scanne jamais, mais gardé dès le
+         * premier scan. Son nom porte un hachage : il ne change jamais.
+         */
+        urlPattern: ({ url }) => url.pathname.endsWith('.wasm'),
+        handler: 'CacheFirst',
+        options: {
+          cacheName: 'barcode-reader',
+          expiration: { maxEntries: 2 },
+          cacheableResponse: { statuses: [200] },
+        },
+      },
+      {
+        /**
          * Open Food Facts reste en réseau d'abord : une fiche produit peut être
          * corrigée en amont, et une donnée nutritionnelle périmée vaut moins
          * qu'un aller-retour. Le cache n'est qu'un filet — il fait qu'un produit

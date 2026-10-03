@@ -14,6 +14,8 @@
 import { computed, nextTick, ref, useId, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { canScanBarcodes } from '@/app/barcode/barcodeDetector'
+import BarcodeScanner from '@/app/components/BarcodeScanner.vue'
 import OnlineSearchNotice from '@/app/components/OnlineSearchNotice.vue'
 import PortionPicker from '@/app/components/PortionPicker.vue'
 import RecipeResults from '@/app/components/RecipeResults.vue'
@@ -297,6 +299,16 @@ function clear(): void {
   search.reset()
 }
 
+/** Sans caméra accessible — HTTP, navigateur ancien — le bouton n'est pas proposé. */
+const canScan = canScanBarcodes()
+const scanner = ref<InstanceType<typeof BarcodeScanner> | null>(null)
+
+/** Un code scanné se cherche comme un code tapé : il reste lisible dans le champ. */
+function onScanned(code: string): void {
+  query.value = code
+  runSearch(code)
+}
+
 async function createFood(): Promise<void> {
   await router.push({ name: ROUTE.customFood, query: { retour: route.fullPath } })
 }
@@ -327,14 +339,29 @@ async function createFood(): Promise<void> {
         v-model="query"
         type="search"
         enterkeyhint="search"
+        clearable
         :label="t('meal.picker.searchLabel')"
         :hint="t('meal.picker.searchHint')"
+        @clear="clear"
       >
         <template #leading>
           <AppIcon
             name="search"
             class="picker__search-icon"
           />
+        </template>
+        <template
+          v-if="canScan"
+          #trailing
+        >
+          <button
+            type="button"
+            class="picker__scan"
+            :aria-label="t('meal.scanner.open')"
+            @click="scanner?.open()"
+          >
+            <AppIcon name="barcode" />
+          </button>
         </template>
       </BaseField>
       <BaseButton
@@ -345,6 +372,12 @@ async function createFood(): Promise<void> {
         {{ t('meal.picker.search') }}
       </BaseButton>
     </form>
+
+    <BarcodeScanner
+      v-if="canScan"
+      ref="scanner"
+      @detected="onScanned"
+    />
 
     <p
       class="sr-only"
@@ -570,6 +603,28 @@ async function createFood(): Promise<void> {
 
 .picker__search-icon {
   color: var(--color-text-muted);
+}
+
+.picker__scan {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-right: calc(var(--space-2) * -1);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-accent-strong);
+  }
+
+  &:focus-visible {
+    outline-offset: -2px;
+  }
 }
 
 .picker__excluded {

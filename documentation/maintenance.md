@@ -383,16 +383,24 @@ ressource bloquée et la règle en cause. La CSP de Holy Spoon est dans
 `/etc/caddy/sites/holyspoon.caddy` :
 
 ```
-default-src 'self'; connect-src 'self' https://world.openfoodfacts.org; img-src 'self' data: blob:;
-object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
+default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' https://world.openfoodfacts.org;
+img-src 'self' data: blob:; object-src 'none'; base-uri 'self'; form-action 'self';
+frame-ancestors 'none'
 ```
+
+`'wasm-unsafe-eval'` sert au scanner de codes-barres : sur Firefox et Safari, qui n'ont pas
+`BarcodeDetector`, la lecture passe par ZXing compilé en WebAssembly (`zxing_reader-*.wasm`,
+servi par l'application). Sans cette règle, le scanner s'ouvre mais ne lit jamais rien, et la
+console signale `WebAssembly.instantiate` bloqué par la CSP. Chrome sur Android n'en a pas besoin.
 
 - Appel vers une nouvelle API externe → l'ajouter à `connect-src`.
 - Images externes → les ajouter à `img-src`.
-- Bibliothèque en WebAssembly (par exemple un lecteur de QR code) → ajouter
-  `script-src 'self' 'wasm-unsafe-eval'`.
 - La caméra est autorisée à la demande (`Permissions-Policy: camera=(self)`, dans le snippet
   `security` du `Caddyfile`) ; micro et géolocalisation sont bloqués.
+
+⚠️ Le service worker garde `index.html` **avec ses en-têtes**, CSP comprise : une CSP modifiée
+dans Caddy n'atteint les téléphones où l'application est installée qu'au déploiement suivant
+(nouvel `index.html`, mise à jour acceptée). Changer la CSP **puis** redéployer.
 
 Pour tester une nouvelle politique sans rien casser, la passer temporairement en
 `Content-Security-Policy-Report-Only` : le navigateur signale sans bloquer.

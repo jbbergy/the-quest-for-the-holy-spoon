@@ -16,12 +16,14 @@
     "dev:all": "concurrently --kill-others-on-fail --names web,api --prefix-colors cyan,magenta \"npm:dev\" \"npm:dev:server\""
   },
   "dependencies": {
+    "barcode-detector": "^3.2.2",
     "gsap": "^3.15.0",
     "pinia": "^4.0.3",
     "vue": "^3.5.43",
     "vue-i18n": "^11.4.12",
     "vue-router": "^5.3.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "zxing-wasm": "^3.1.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
