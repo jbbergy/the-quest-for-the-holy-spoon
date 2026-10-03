@@ -175,6 +175,30 @@ describe('BaseField', () => {
 
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([90])
   })
+
+  it('ne propose la croix d’un champ effaçable que s’il contient quelque chose', async () => {
+    const wrapper = mount(BaseField, {
+      props: { label: 'Recherche', modelValue: '', type: 'search', clearable: true },
+    })
+    expect(wrapper.find('.field__clear').exists()).toBe(false)
+
+    await wrapper.setProps({ modelValue: 'pomme' })
+    expect(wrapper.find('.field__clear').attributes('aria-label')).toContain('Recherche')
+  })
+
+  it('vide le champ avec la croix et y rend le focus', async () => {
+    const wrapper = mount(BaseField, {
+      props: { label: 'Recherche', modelValue: 'pomme', clearable: true },
+      attachTo: document.body,
+    })
+
+    await wrapper.find('.field__clear').trigger('click')
+
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([''])
+    expect(wrapper.emitted('clear')).toHaveLength(1)
+    expect(document.activeElement).toBe(wrapper.find('input').element)
+    wrapper.unmount()
+  })
 })
 
 describe('RingGauge', () => {

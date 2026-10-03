@@ -17,6 +17,7 @@ export const ui: Messages<typeof fr> = {
     at: 'at {time}',
     not: 'Not eaten yet',
   },
+  clearField: 'Clear “{label}”',
   password: {
     show: 'Show',
     hide: 'Hide',

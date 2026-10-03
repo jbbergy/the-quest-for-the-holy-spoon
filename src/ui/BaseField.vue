@@ -7,7 +7,7 @@
  * rattachée au champ n'existe pas pour un lecteur d'écran : c'est le cas
  * d'échec le plus courant du critère 3.3.1.
  */
-import { computed, useId } from 'vue'
+import { computed, ref, useId } from 'vue'
 
 import { t } from '@/i18n'
 
@@ -35,13 +35,16 @@ const props = withDefaults(
      * échouer une connexion sur mobile sans que rien ne l'explique.
      */
     verbatim?: boolean
+    /** Une croix vide le champ dès qu'il contient quelque chose — pour une recherche. */
+    clearable?: boolean
   }>(),
-  { type: 'text', required: false, verbatim: false },
+  { type: 'text', required: false, verbatim: false, clearable: false },
 )
 
-defineEmits<{ 'update:modelValue': [string | number] }>()
+const emit = defineEmits<{ 'update:modelValue': [string | number]; clear: [] }>()
 
 const id = useId()
+const input = ref<HTMLInputElement | null>(null)
 const hintId = computed(() => `${id}-hint`)
 const errorId = computed(() => `${id}-error`)
 
@@ -58,6 +61,15 @@ const describedBy = computed(() => {
 const onInput = (event: Event): string | number => {
   const target = event.target as HTMLInputElement
   return props.type === 'number' ? target.valueAsNumber : target.value
+}
+
+const showClear = computed(() => props.clearable && String(props.modelValue) !== '')
+
+/** Le champ vidé, le focus y revient : on efface pour taper autre chose. */
+function clear(): void {
+  emit('update:modelValue', '')
+  emit('clear')
+  input.value?.focus()
 }
 </script>
 
@@ -86,7 +98,9 @@ const onInput = (event: Event): string | number => {
       <slot name="leading" />
       <input
         :id="id"
+        ref="input"
         class="field__input"
+        :class="{ 'field__input--clearable': clearable }"
         :type="type"
         :value="modelValue"
         :required="required"
@@ -101,13 +115,23 @@ const onInput = (event: Event): string | number => {
         :spellcheck="verbatim ? false : undefined"
         :autocapitalize="verbatim ? 'none' : undefined"
         :autocorrect="verbatim ? 'off' : undefined"
-        @input="$emit('update:modelValue', onInput($event))"
+        @input="emit('update:modelValue', onInput($event))"
       >
       <span
         v-if="suffix"
         class="field__suffix"
         aria-hidden="true"
       >{{ suffix }}</span>
+      <button
+        v-if="showClear"
+        type="button"
+        class="field__clear"
+        :aria-controls="id"
+        :aria-label="t('ui.clearField', { label })"
+        @click="clear"
+      >
+        <AppIcon name="close" />
+      </button>
       <slot
         name="trailing"
         :input-id="id"
@@ -212,6 +236,34 @@ const onInput = (event: Event): string | number => {
 .field__input::placeholder {
   color: var(--color-text-muted);
   opacity: 1;
+}
+
+/* La croix native de WebKit ferait doublon avec la nôtre, que tous les
+   navigateurs affichent de la même façon. */
+.field__input--clearable::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.field__clear {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-right: calc(var(--space-2) * -1);
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--color-text);
+  }
+
+  &:focus-visible {
+    outline-offset: -2px;
+  }
 }
 
 .field__suffix {

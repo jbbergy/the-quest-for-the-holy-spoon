@@ -15,6 +15,7 @@ export const ui = {
     at: 'à {time}',
     not: 'Pas encore mangé',
   },
+  clearField: 'Effacer «\u00A0{label}\u00A0»',
   password: {
     show: 'Afficher',
     hide: 'Masquer',

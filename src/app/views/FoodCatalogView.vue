@@ -106,6 +106,7 @@ onMounted(async () => {
       <BaseField
         v-model="query"
         type="search"
+        clearable
         :label="t('foods.catalog.searchLabel')"
         :hint="t('foods.catalog.searchHint')"
       >
