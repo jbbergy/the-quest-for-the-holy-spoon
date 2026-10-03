@@ -36,6 +36,11 @@ export class HttpHouseholdGateway implements IHouseholdGateway {
     return map(response, () => undefined)
   }
 
+  async resend(invitationId: InvitationId): Promise<Result<void, HouseholdGatewayError>> {
+    const response = await this.api.request('POST', HOUSEHOLD_ROUTE.resend(invitationId), acceptedResponseSchema)
+    return map(response, () => undefined)
+  }
+
   revoke(invitationId: InvitationId): Promise<Result<HouseholdView, HouseholdGatewayError>> {
     return this.household('DELETE', HOUSEHOLD_ROUTE.invitation(invitationId))
   }

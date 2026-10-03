@@ -86,6 +86,16 @@ describe('HttpHouseholdGateway', () => {
     expect(call()[1].body).toBe(JSON.stringify({ email: 'alex@example.fr' }))
   })
 
+  it('renvoie une invitation et accepte la réponse muette', async () => {
+    const { gateway, call } = gatewayAnswering(respond(202, { status: 'accepted' }))
+
+    const result = await gateway.resend(idFrom('inv/1'))
+
+    expect(result).toEqual({ ok: true, value: undefined })
+    expect(call()[0]).toBe('/api/household/invitations/inv%2F1/resend')
+    expect(call()[1].method).toBe('POST')
+  })
+
   it.each([
     ['revoke', (g: HttpHouseholdGateway) => g.revoke(idFrom('inv/1')), '/api/household/invitations/inv%2F1', 'DELETE'],
     ['removeMember', (g: HttpHouseholdGateway) => g.removeMember(idFrom('a-2')), '/api/household/members/a-2', 'DELETE'],

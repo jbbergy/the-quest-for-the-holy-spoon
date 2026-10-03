@@ -40,6 +40,7 @@ export const errors: Messages<typeof fr> = {
   ALREADY_HOUSEHOLD_MEMBER: 'This person is already part of the household.',
   ALREADY_INVITED: 'This person already has an invitation. They have not answered yet.',
   HOUSEHOLD_FULL: 'The household is full: 12 people at most, invitations included.',
+  INVITATION_NOT_SENT: 'The invitation email could not be sent. Try again in a moment.',
   INVITATION_NOT_FOUND: 'This invitation no longer exists. It is too old, or it was cancelled.',
   MEMBER_NOT_FOUND: 'This person is no longer part of the household.',
   OWNER_CANNOT_LEAVE: 'The person in charge cannot leave the household. They can delete it.',

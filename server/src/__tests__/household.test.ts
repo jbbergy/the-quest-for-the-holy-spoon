@@ -164,6 +164,56 @@ describe('Foyer', () => {
       expect(response.statusCode).toBe(404)
     })
 
+    it('n’est pas gardée quand l’e-mail ne part pas : on peut réinviter', async () => {
+      await createHousehold(camille)
+      server.mailer.failNext = true
+
+      const failed = await camille.request('POST', '/household/invitations', { email: 'alex@example.fr' })
+
+      expect(failed.statusCode).toBe(502)
+      expect(failed.json().error.code).toBe('INVITATION_NOT_SENT')
+      expect((await camille.request('GET', '/household')).json().household.invitations).toEqual([])
+      expect(await received(alex)).toEqual([])
+
+      const retried = await camille.request('POST', '/household/invitations', { email: 'alex@example.fr' })
+      expect(retried.statusCode).toBe(202)
+      expect(server.mailer.sent.at(-1)!.to).toBe('alex@example.fr')
+    })
+
+    it('se renvoie par e-mail, sans changer de date limite', async () => {
+      await createHousehold(camille)
+      await camille.request('POST', '/household/invitations', { email: 'alex@example.fr' })
+      const { invitations } = (await camille.request('GET', '/household')).json().household
+      const before = server.mailer.sent.length
+      server.advance(DAY)
+
+      const response = await camille.request('POST', `/household/invitations/${invitations[0].id}/resend`)
+
+      expect(response.statusCode).toBe(202)
+      expect(server.mailer.sent).toHaveLength(before + 1)
+      expect(server.mailer.sent.at(-1)!.to).toBe('alex@example.fr')
+      expect((await camille.request('GET', '/household')).json().household.invitations).toEqual(invitations)
+    })
+
+    it('ne se renvoie ni par un membre, ni une fois périmée, ni quand l’e-mail échoue', async () => {
+      await householdWithAlex()
+      await camille.request('POST', '/household/invitations', { email: 'sacha@example.fr' })
+      const [invitation] = (await camille.request('GET', '/household')).json().household.invitations
+      const resend = (client: TestClient) =>
+        client.request('POST', `/household/invitations/${invitation.id}/resend`)
+
+      expect((await resend(alex)).json().error.code).toBe('NOT_HOUSEHOLD_OWNER')
+
+      server.mailer.failNext = true
+      const failed = await resend(camille)
+      expect(failed.statusCode).toBe(502)
+      // Un renvoi raté ne retire pas l'invitation, déjà reçue une fois.
+      expect((await camille.request('GET', '/household')).json().household.invitations).toHaveLength(1)
+
+      server.advance(14 * DAY)
+      expect((await resend(camille)).json().error.code).toBe('INVITATION_NOT_FOUND')
+    })
+
     it('peut être révoquée par le propriétaire', async () => {
       await createHousehold(camille)
       await camille.request('POST', '/household/invitations', { email: 'alex@example.fr' })

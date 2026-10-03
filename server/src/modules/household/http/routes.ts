@@ -13,6 +13,7 @@ import {
 import { addDays, parseDayKey } from '@/core/day'
 import { API_ERROR } from '@/contract/http'
 import { idFrom } from '@/core/identity'
+import type { BaseError } from '@/core/errors'
 import type { HouseholdView } from '@/modules/household/domain/views'
 
 import type { IAuthenticator } from '../../../shared/http/authenticator'
@@ -30,6 +31,7 @@ import type {
   LeaveHouseholdUseCase,
   ListReceivedInvitationsUseCase,
   RemoveMemberUseCase,
+  ResendInvitationUseCase,
   RevokeInvitationUseCase,
   SetDaySharingUseCase,
 } from '../application/useCases'
@@ -39,6 +41,7 @@ export interface HouseholdRoutesDependencies {
     readonly get: GetHouseholdUseCase
     readonly create: CreateHouseholdUseCase
     readonly invite: InviteUseCase
+    readonly resend: ResendInvitationUseCase
     readonly revoke: RevokeInvitationUseCase
     readonly removeMember: RemoveMemberUseCase
     readonly setDaySharing: SetDaySharingUseCase
@@ -92,7 +95,17 @@ export function registerHouseholdRoutes(app: FastifyInstance, deps: HouseholdRou
 
     const linkBase = knownOrigin(request, deps.allowedOrigins) ?? deps.appUrl
     const result = await useCases.invite.execute(account, email, linkBase)
-    if (!result.ok) rejectWith(result.error)
+    if (!result.ok) rejectInvitation(request, result.error)
+    return reply.status(202).send({ status: 'accepted' })
+  })
+
+  app.post('/household/invitations/:id/resend', async (request, reply) => {
+    const account = await authenticator.require(request, reply)
+    deps.limiter.hit(`invite:account:${account.id}`, RATE.invitationsPerAccount)
+
+    const linkBase = knownOrigin(request, deps.allowedOrigins) ?? deps.appUrl
+    const result = await useCases.resend.execute(account, idFrom<'InvitationId'>(paramId(request)), linkBase)
+    if (!result.ok) rejectInvitation(request, result.error)
     return reply.status(202).send({ status: 'accepted' })
   })
 
@@ -152,4 +165,15 @@ export function registerHouseholdRoutes(app: FastifyInstance, deps: HouseholdRou
     const result = await useCases.decline.execute(account, idFrom<'InvitationId'>(paramId(request)))
     return result.ok ? noContent(reply) : rejectWith(result.error)
   })
+}
+
+/**
+ * Un e-mail qui ne part pas est une panne du relais, pas une faute de la
+ * personne : sa cause va au journal, comme toute erreur 5xx.
+ */
+function rejectInvitation(request: FastifyRequest, error: BaseError): never {
+  if (error.code === API_ERROR.invitationNotSent) {
+    request.log.error({ err: error.cause }, 'e-mail d’invitation non envoyé')
+  }
+  return rejectWith(error)
 }

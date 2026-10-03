@@ -17,6 +17,7 @@ export interface IHouseholdGateway {
   current(): Promise<Result<HouseholdView | null, HouseholdGatewayError>>
   create(name: string): Promise<Result<HouseholdView, HouseholdGatewayError>>
   invite(email: Email): Promise<Result<void, HouseholdGatewayError>>
+  resend(invitationId: InvitationId): Promise<Result<void, HouseholdGatewayError>>
   revoke(invitationId: InvitationId): Promise<Result<HouseholdView, HouseholdGatewayError>>
   removeMember(accountId: AccountId): Promise<Result<HouseholdView, HouseholdGatewayError>>
   leave(): Promise<Result<void, HouseholdGatewayError>>

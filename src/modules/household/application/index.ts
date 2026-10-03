@@ -24,6 +24,7 @@ export {
   LeaveHouseholdUseCase,
   ListReceivedInvitationsUseCase,
   RemoveMemberUseCase,
+  ResendInvitationUseCase,
   RevokeInvitationUseCase,
   SetDaySharingUseCase,
 } from './useCases'

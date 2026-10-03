@@ -182,6 +182,24 @@ describe('Household', () => {
     })
   })
 
+  describe('renvoi', () => {
+    it('retrouve une invitation encore valable', () => {
+      expect(valueOf(withInvitation().pendingInvitation(camille.id, invitationId(1), at)).email).toEqual(
+        alex.email,
+      )
+    })
+
+    it('est réservé au propriétaire, et à une invitation ni inconnue ni périmée', () => {
+      expect(errorCode(withAlex().pendingInvitation(alex.id, invitationId(1), at))).toBe('NOT_HOUSEHOLD_OWNER')
+      expect(errorCode(founded().pendingInvitation(camille.id, invitationId(1), at))).toBe(
+        'INVITATION_NOT_FOUND',
+      )
+      expect(errorCode(withInvitation().pendingInvitation(camille.id, invitationId(1), later(INVITATION_TTL_MS)))).toBe(
+        'INVITATION_NOT_FOUND',
+      )
+    })
+  })
+
   describe('révocation', () => {
     it('retire l’invitation', () => {
       expect(valueOf(withInvitation().revoke(camille.id, invitationId(1))).invitations).toEqual([])

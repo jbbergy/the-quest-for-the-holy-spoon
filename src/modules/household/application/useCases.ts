@@ -44,6 +44,14 @@ export class InviteToHouseholdUseCase {
   }
 }
 
+export class ResendInvitationUseCase {
+  constructor(private readonly gateway: IHouseholdGateway) {}
+
+  execute(invitationId: InvitationId): Promise<Result<void, HouseholdError>> {
+    return this.gateway.resend(invitationId)
+  }
+}
+
 export class RevokeInvitationUseCase {
   constructor(private readonly gateway: IHouseholdGateway) {}
 

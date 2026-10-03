@@ -7,8 +7,14 @@ import type { IMailer, OutgoingMail } from '../shared/mail/Mailer'
 /** Mailer de test : garde les messages pour qu'on y lise les liens. */
 export class RecordingMailer implements IMailer {
   readonly sent: OutgoingMail[] = []
+  /** Le relais refuse le prochain message, comme une clé expirée. */
+  failNext = false
 
   async send(mail: OutgoingMail): Promise<void> {
+    if (this.failNext) {
+      this.failNext = false
+      throw new Error('Relais SMTP injoignable')
+    }
     this.sent.push(mail)
   }
 

@@ -29,11 +29,14 @@ export const household: Messages<typeof fr> = {
   sharesNo: 'The household **cannot see** your days.',
   changeInSettings: 'Change in the settings',
   inviteTitle: 'Invite someone',
-  inviteSubtitle: 'The person receives an email. They join the household if they accept.',
+  inviteSubtitle:
+    'The person receives an email. If it does not arrive, they should check their spam folder. They join the household if they accept.',
   inviteEmail: 'Email address',
   inviteSend: 'Send the invitation',
   pendingTitle: 'Pending',
   validUntil: 'Valid until {date}',
+  resendShort: 'Resend',
+  resendSpoken: ' the invitation to {email}',
   revokeShort: 'Cancel',
   revokeSpoken: ' the invitation for {email}',
   revokeQuestion: 'Cancel the invitation for {email}?',
@@ -77,6 +80,7 @@ export const household: Messages<typeof fr> = {
   left: 'You have left the household.',
   dissolved: 'The household is deleted.',
   revoked: 'The invitation is cancelled.',
+  resent: 'The invitation is sent again to {email}.',
   invitation: {
     back: 'Back to the household',
     intro: 'Before you say yes, here is what will be shared.',

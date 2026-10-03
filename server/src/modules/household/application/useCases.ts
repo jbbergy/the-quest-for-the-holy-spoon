@@ -9,7 +9,7 @@ import {
   InvitationNotFoundError,
   MemberNotFoundError,
 } from '@/modules/household/domain/errors'
-import { Household, type HouseholdActor } from '@/modules/household/domain/Household'
+import { Household, type HouseholdActor, type Invitation } from '@/modules/household/domain/Household'
 import {
   type HouseholdView,
   type ReceivedInvitationView,
@@ -24,7 +24,12 @@ import type {
   MemberDays,
 } from '../domain/ports'
 
-import { HouseholdConflictError, HouseholdEmailNotVerifiedError, NoHouseholdError } from './errors'
+import {
+  HouseholdConflictError,
+  HouseholdEmailNotVerifiedError,
+  InvitationNotSentError,
+  NoHouseholdError,
+} from './errors'
 
 export interface HouseholdDependencies {
   readonly households: IHouseholdRepository
@@ -38,7 +43,12 @@ export interface HouseholdAccount extends HouseholdActor {
   readonly isVerified: boolean
 }
 
-type Refusal = DomainError | NoHouseholdError | HouseholdConflictError | HouseholdEmailNotVerifiedError
+type Refusal =
+  | DomainError
+  | NoHouseholdError
+  | HouseholdConflictError
+  | HouseholdEmailNotVerifiedError
+  | InvitationNotSentError
 
 /**
  * Socle commun des use cases : tous exigent une adresse confirmée, et tous
@@ -132,22 +142,65 @@ export class InviteUseCase extends HouseholdUseCase {
     if (!household.ok) return household
 
     const at = this.deps.clock()
-    const invited = household.value.invite(account.id, { id: newId<'InvitationId'>(), email: email.value, at })
+    const invitationId = newId<'InvitationId'>()
+    const invited = household.value.invite(account.id, { id: invitationId, email: email.value, at })
     if (!invited.ok) return invited
     const saved = await this.persist(invited.value)
     if (!saved.ok) return saved
 
-    const invitation = saved.value.pendingInvitations(at).find((pending) => pending.email.equals(email.value))
-    await this.deps.notifier.invited(
-      email.value,
-      {
-        householdName: saved.value.name,
-        invitedBy: account.email,
-        expiresAt: invitation?.expiresAt ?? at,
-      },
+    const invitation = saved.value.pendingInvitation(account.id, invitationId, at)
+    if (!invitation.ok) return invitation
+    const sent = await notify(this.deps, saved.value, invitation.value, account, linkBase)
+    if (!sent.ok) await this.withdraw(account, invitationId)
+    return sent
+  }
+
+  /**
+   * L'e-mail n'est pas parti : l'invitation ne reste pas « en attente » d'une
+   * réponse que personne ne peut donner, et on pourra réinviter aussitôt.
+   * Au mieux : si le foyer a changé entre-temps, on n'insiste pas.
+   */
+  private async withdraw(account: HouseholdAccount, invitationId: InvitationId): Promise<void> {
+    const household = await this.deps.households.findByMember(account.id)
+    const revoked = household?.revoke(account.id, invitationId)
+    if (revoked?.ok) await this.deps.households.save(revoked.value)
+  }
+}
+
+/**
+ * Renvoie l'e-mail d'une invitation encore valable — perdu dans les spams,
+ * effacé par mégarde. L'invitation elle-même ne change pas, ni sa date limite.
+ */
+export class ResendInvitationUseCase extends HouseholdUseCase {
+  async execute(
+    account: HouseholdAccount,
+    invitationId: InvitationId,
+    linkBase: string,
+  ): Promise<Result<void, Refusal>> {
+    const household = await this.householdOf(account)
+    if (!household.ok) return household
+    const invitation = household.value.pendingInvitation(account.id, invitationId, this.deps.clock())
+    if (!invitation.ok) return invitation
+    return notify(this.deps, household.value, invitation.value, account, linkBase)
+  }
+}
+
+async function notify(
+  deps: HouseholdDependencies,
+  household: Household,
+  invitation: Invitation,
+  by: HouseholdAccount,
+  linkBase: string,
+): Promise<Result<void, InvitationNotSentError>> {
+  try {
+    await deps.notifier.invited(
+      invitation.email,
+      { householdName: household.name, invitedBy: by.email, expiresAt: invitation.expiresAt },
       linkBase,
     )
     return ok(undefined)
+  } catch (cause) {
+    return err(new InvitationNotSentError(cause))
   }
 }
 

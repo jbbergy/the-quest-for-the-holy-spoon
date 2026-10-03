@@ -10,6 +10,7 @@ export const HOUSEHOLD_ROUTE = {
   household: '/household',
   invitations: '/household/invitations',
   invitation: (id: string) => `/household/invitations/${encodeURIComponent(id)}`,
+  resend: (id: string) => `/household/invitations/${encodeURIComponent(id)}/resend`,
   member: (accountId: string) => `/household/members/${encodeURIComponent(accountId)}`,
   leave: '/household/leave',
   sharing: '/household/sharing',

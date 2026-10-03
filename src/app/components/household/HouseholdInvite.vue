@@ -79,15 +79,25 @@ async function invite(): Promise<void> {
             <span class="pending__email">{{ invitation.email }}</span>
             <span class="pending__date">{{ t('household.validUntil', { date: formatDay(invitation.expiresAt) }) }}</span>
           </span>
-          <ConfirmButton
-            size="sm"
-            :question="t('household.revokeQuestion', { email: invitation.email })"
-            :confirm-label="t('household.revoke')"
-            :cancel-label="t('household.keep')"
-            @confirm="run(() => store.revoke(invitation.id), t('household.revoked'))"
-          >
-            {{ t('household.revokeShort') }}<span class="sr-only">{{ t('household.revokeSpoken', { email: invitation.email }) }}</span>
-          </ConfirmButton>
+          <span class="pending__actions">
+            <BaseButton
+              variant="secondary"
+              size="sm"
+              :disabled="busy"
+              @click="run(() => store.resend(invitation.id), t('household.resent', { email: invitation.email }))"
+            >
+              {{ t('household.resendShort') }}<span class="sr-only">{{ t('household.resendSpoken', { email: invitation.email }) }}</span>
+            </BaseButton>
+            <ConfirmButton
+              size="sm"
+              :question="t('household.revokeQuestion', { email: invitation.email })"
+              :confirm-label="t('household.revoke')"
+              :cancel-label="t('household.keep')"
+              @confirm="run(() => store.revoke(invitation.id), t('household.revoked'))"
+            >
+              {{ t('household.revokeShort') }}<span class="sr-only">{{ t('household.revokeSpoken', { email: invitation.email }) }}</span>
+            </ConfirmButton>
+          </span>
         </li>
       </ul>
     </template>
@@ -145,6 +155,12 @@ async function invite(): Promise<void> {
 
 .pending__email {
   overflow-wrap: break-word;
+}
+
+.pending__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .pending__date {

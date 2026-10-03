@@ -28,6 +28,7 @@ import {
   LeaveHouseholdUseCase,
   ListReceivedInvitationsUseCase,
   RemoveMemberUseCase,
+  ResendInvitationUseCase,
   RevokeInvitationUseCase,
   SetDaySharingUseCase,
 } from './modules/household/application/useCases'
@@ -74,6 +75,7 @@ export function createServerContainer(options: {
       get: new GetHouseholdUseCase(household),
       create: new CreateHouseholdUseCase(household),
       invite: new InviteUseCase(household),
+      resend: new ResendInvitationUseCase(household),
       revoke: new RevokeInvitationUseCase(household),
       removeMember: new RemoveMemberUseCase(household),
       setDaySharing: new SetDaySharingUseCase(household),

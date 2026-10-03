@@ -27,11 +27,14 @@ export const household = {
   sharesNo: 'Le foyer **ne voit pas** vos journées.',
   changeInSettings: 'Changer dans les réglages',
   inviteTitle: 'Inviter quelqu’un',
-  inviteSubtitle: 'La personne reçoit un e-mail. Elle rejoint le foyer si elle accepte.',
+  inviteSubtitle:
+    'La personne reçoit un e-mail. S’il n’arrive pas, qu’elle regarde dans ses spams. Elle rejoint le foyer si elle accepte.',
   inviteEmail: 'Adresse e-mail',
   inviteSend: 'Envoyer l’invitation',
   pendingTitle: 'En attente',
   validUntil: 'Valable jusqu’au {date}',
+  resendShort: 'Renvoyer',
+  resendSpoken: ' l’invitation à {email}',
   revokeShort: 'Annuler',
   revokeSpoken: ' l’invitation de {email}',
   revokeQuestion: 'Annuler l’invitation de {email}\u202F?',
@@ -75,6 +78,7 @@ export const household = {
   left: 'Vous avez quitté le foyer.',
   dissolved: 'Le foyer est supprimé.',
   revoked: 'L’invitation est annulée.',
+  resent: 'L’invitation est renvoyée à {email}.',
   invitation: {
     back: 'Retour au foyer',
     intro: 'Avant de dire oui, voici ce qui sera partagé.',

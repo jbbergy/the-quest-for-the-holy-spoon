@@ -98,6 +98,12 @@ export const useHouseholdStore = defineStore('household', () => {
     return succeed()
   }
 
+  async function resend(invitationId: InvitationId): Promise<boolean> {
+    status.value = 'loading'
+    const result = await useContainer().household.resend.execute(invitationId)
+    return result.ok ? succeed() : fail(result.error)
+  }
+
   async function revoke(invitationId: InvitationId): Promise<boolean> {
     status.value = 'loading'
     return settle(await useContainer().household.revoke.execute(invitationId))
@@ -175,6 +181,7 @@ export const useHouseholdStore = defineStore('household', () => {
     load,
     create,
     invite,
+    resend,
     revoke,
     removeMember,
     setDaySharing,

@@ -43,4 +43,5 @@ export const API_ERROR = {
   ownerCannotLeave: 'OWNER_CANNOT_LEAVE',
   householdConflict: 'HOUSEHOLD_CONFLICT',
   daysNotShared: 'DAYS_NOT_SHARED',
+  invitationNotSent: 'INVITATION_NOT_SENT',
 } as const

@@ -14,6 +14,7 @@ import {
   LeaveHouseholdUseCase,
   ListReceivedInvitationsUseCase,
   RemoveMemberUseCase,
+  ResendInvitationUseCase,
   RevokeInvitationUseCase,
   SetDaySharingUseCase,
 } from '../useCases'
@@ -24,6 +25,7 @@ function fakeGateway(): IHouseholdGateway {
     current: answer,
     create: answer,
     invite: vi.fn(async () => ok(undefined)),
+    resend: vi.fn(async () => ok(undefined)),
     revoke: answer,
     removeMember: answer,
     leave: answer,
@@ -72,6 +74,7 @@ describe('Use cases du foyer (client)', () => {
     const member = idFrom<'AccountId'>('account-alex')
 
     await new GetHouseholdUseCase(gateway).execute()
+    await new ResendInvitationUseCase(gateway).execute(invitation)
     await new RevokeInvitationUseCase(gateway).execute(invitation)
     await new RemoveMemberUseCase(gateway).execute(member)
     await new LeaveHouseholdUseCase(gateway).execute()
@@ -81,6 +84,7 @@ describe('Use cases du foyer (client)', () => {
     await new AcceptInvitationUseCase(gateway).execute(invitation)
     await new DeclineInvitationUseCase(gateway).execute(invitation)
 
+    expect(gateway.resend).toHaveBeenCalledWith(invitation)
     expect(gateway.revoke).toHaveBeenCalledWith(invitation)
     expect(gateway.removeMember).toHaveBeenCalledWith(member)
     expect(gateway.setDaySharing).toHaveBeenCalledWith(false)

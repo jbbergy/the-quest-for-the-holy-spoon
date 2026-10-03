@@ -42,6 +42,8 @@ const STATUS_BY_CODE: Readonly<Record<string, number>> = {
   [API_ERROR.ownerCannotLeave]: 409,
   [API_ERROR.householdConflict]: 409,
   [API_ERROR.daysNotShared]: 403,
+  // Le relais d'e-mails a refusé ou n'a pas répondu : la passerelle a échoué.
+  [API_ERROR.invitationNotSent]: 502,
 }
 
 /** Traduit le refus d'un use case en réponse HTTP. */

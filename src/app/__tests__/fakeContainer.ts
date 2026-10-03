@@ -61,6 +61,7 @@ export function createFakeContainer(overrides: FakeContainerOverrides = {}): App
       get: stub(ok(null)),
       create: stub(ok(null)),
       invite: stub(ok(undefined)),
+      resend: stub(ok(undefined)),
       revoke: stub(ok(null)),
       removeMember: stub(ok(null)),
       setDaySharing: stub(ok(null)),

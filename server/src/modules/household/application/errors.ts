@@ -26,3 +26,13 @@ export class HouseholdEmailNotVerifiedError extends ApplicationError {
     super('EMAIL_NOT_VERIFIED', 'Adresse e-mail non confirmée.')
   }
 }
+
+/**
+ * Le relais d'e-mails a refusé le message. L'invitation n'est pas gardée : la
+ * personne invitée ne saurait rien d'une invitation qu'elle n'a pas reçue.
+ */
+export class InvitationNotSentError extends ApplicationError {
+  constructor(cause: unknown) {
+    super('INVITATION_NOT_SENT', 'L’e-mail d’invitation n’a pas pu partir.', { cause })
+  }
+}

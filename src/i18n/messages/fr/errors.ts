@@ -66,6 +66,8 @@ export const errors = {
     'Cette personne a déjà une invitation. Elle n’a pas encore répondu.',
   HOUSEHOLD_FULL:
     'Le foyer est complet\u00A0: 12 personnes au plus, invitations comprises.',
+  INVITATION_NOT_SENT:
+    'L’e-mail d’invitation n’a pas pu partir. Réessayez dans un moment.',
   INVITATION_NOT_FOUND:
     'Cette invitation n’existe plus. Elle est trop ancienne, ou elle a été annulée.',
   MEMBER_NOT_FOUND:

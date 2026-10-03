@@ -28,6 +28,7 @@ import {
   LeaveHouseholdUseCase,
   ListReceivedInvitationsUseCase,
   RemoveMemberUseCase,
+  ResendInvitationUseCase,
   RevokeInvitationUseCase,
   SetDaySharingUseCase,
 } from '@/modules/household/application'
@@ -135,6 +136,7 @@ export interface AppContainer {
     readonly get: GetHouseholdUseCase
     readonly create: CreateHouseholdUseCase
     readonly invite: InviteToHouseholdUseCase
+    readonly resend: ResendInvitationUseCase
     readonly revoke: RevokeInvitationUseCase
     readonly removeMember: RemoveMemberUseCase
     readonly setDaySharing: SetDaySharingUseCase
@@ -242,6 +244,7 @@ export function createContainer(
       get: new GetHouseholdUseCase(householdGateway),
       create: new CreateHouseholdUseCase(householdGateway),
       invite: new InviteToHouseholdUseCase(householdGateway),
+      resend: new ResendInvitationUseCase(householdGateway),
       revoke: new RevokeInvitationUseCase(householdGateway),
       removeMember: new RemoveMemberUseCase(householdGateway),
       setDaySharing: new SetDaySharingUseCase(householdGateway),

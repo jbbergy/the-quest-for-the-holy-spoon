@@ -206,6 +206,17 @@ export class Household {
     return ok(this.with({ invitations: this.withoutInvitation(invitationId) }))
   }
 
+  /** Invitation encore valable, pour la renvoyer : seul le propriétaire le peut. */
+  pendingInvitation(
+    by: AccountId,
+    invitationId: InvitationId,
+    now: Date,
+  ): Result<Invitation, NotHouseholdOwnerError | InvitationNotFoundError> {
+    if (!this.isOwner(by)) return err(new NotHouseholdOwnerError())
+    const invitation = this.pendingInvitations(now).find((pending) => pending.id === invitationId)
+    return invitation === undefined ? err(new InvitationNotFoundError()) : ok(invitation)
+  }
+
   revoke(
     by: AccountId,
     invitationId: InvitationId,
